@@ -1,0 +1,88 @@
+---
+import Chart from 'chart.js/auto';
+const months = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+];
+const attendanceYear = [
+  620, 640, 610, 700, 680, 720, 690, 710, 730, 750, 740, 760
+];
+const attendancePrevYear = [
+  600, 660, 650, 690, 670, 710, 700, 720, 740, 760, 770, 780
+];
+let chartRef: Chart | undefined;
+
+if (typeof window !== "undefined") {
+  setTimeout(() => {
+    const canvas = document.getElementById("yearAttendanceChart") as HTMLCanvasElement;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (ctx && !chartRef) {
+      chartRef = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: months,
+          datasets: [
+            {
+              label: "Attendance",
+              data: attendanceYear,
+              borderColor: "#2563eb",
+              backgroundColor: ctx.createLinearGradient(0, 0, 0, 400),
+              fill: true,
+              tension: 0.4,
+              pointBackgroundColor: "#2563eb",
+              pointBorderColor: "#2563eb",
+            },
+            {
+              label: "Attendance (previous year)",
+              data: attendancePrevYear,
+              borderColor: "#fbbf24",
+              backgroundColor: ctx.createLinearGradient(0, 0, 0, 400),
+              fill: true,
+              tension: 0.4,
+              pointBackgroundColor: "#fbbf24",
+              pointBorderColor: "#fbbf24",
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              display: true,
+              labels: {
+                usePointStyle: true,
+                pointStyle: 'circle',
+              }
+            },
+            title: {
+              display: true,
+              text: 'Yearly School Attendance'
+            },
+            filler: {
+              propagate: false
+            }
+          },
+          interaction: {
+            intersect: false,
+          },
+          scales: {
+            y: {
+              beginAtZero: false,
+              ticks: {
+                callback: function(value) {
+                  return value;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+  }, 100);
+}
+---
+
+<div class="bg-white rounded-lg shadow p-6 mb-8">
+  <h3 class="text-lg font-semibold mb-4">Yearly School Attendance</h3>
+  <canvas id="yearAttendanceChart" width="600" height="260"></canvas>
+</div>

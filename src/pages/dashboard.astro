@@ -1,0 +1,56 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Sidebar from "../components/Sidebar.astro";
+import RecentAttendance from "../components/attendance/RecentAttendance.astro";
+import StudentStats from "../components/attendance/StudentStats.astro";
+import QuickActions from "../components/attendance/QuickActions.astro";
+import YearlyAttendanceChart from "../components/attendance/YearlyAttendanceChart.jsx";
+import LateStudents from "../components/attendance/LateStudents.astro";
+---
+
+<BaseLayout title="Dashboard">
+  <div class="flex h-screen bg-gray-50">
+    <!-- Sidebar -->
+    <Sidebar />
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col overflow-hidden">
+      <!-- Top Bar -->
+      <header class="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
+        <h1 class="text-2xl font-semibold text-gray-900">Dashboards</h1>
+        <div class="flex items-center gap-4">
+          <button class="text-gray-500 hover:text-gray-700">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 015.646 5.646 9.001 9.001 0 0020.354 15.354z"></path>
+            </svg>
+          </button>
+          <div class="w-8 h-8 bg-gray-300 rounded-full"></div>
+        </div>
+      </header>
+
+      <!-- Welcome Sign -->
+      <div class="p-8">
+        <h2 class="text-2xl font-bold text-gray-900">Welcome back, Admin!</h2>
+        <p class="text-gray-600">Ini adalah data absensi yang terjadi hari ini.</p>
+      </div>
+
+      <!-- Stats Cards -->
+      <div class="flex-1 overflow-auto p-8">
+        <div class="mb-6">
+          
+        <div class="grid grid-cols-2 gap-6 mb-3">
+          <StudentStats />
+          <LateStudents />
+        </div>
+        <div class="mb-6">
+          <YearlyAttendanceChart client:only="react" />
+        </div>
+        <div class="grid grid-cols-2 gap-6 mb-6">
+          <RecentAttendance />
+        </div>
+      </div>
+
+
+    </main>
+  </div>
+</BaseLayout>

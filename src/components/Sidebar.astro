@@ -1,0 +1,115 @@
+---
+const { classes = ["Semua Kelas", "7A", "7B", "8A", "9A"] } = Astro.props;
+const currentPath = Astro.url.pathname;
+const currentClass = Astro.url.searchParams.get("kelas");
+---
+
+<aside class="w-72 bg-white border-r border-gray-200 h-screen sticky top-0">
+  <div class="p-6">
+
+    <!-- Logo -->
+    <div class="flex items-center gap-3 mb-10">
+      <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+        <span class="text-white text-sm font-bold">TB</span>
+      </div>
+      <span class="text-lg font-bold text-gray-800">STARBHAK</span>
+    </div>
+
+    <nav class="space-y-2 text-sm">
+
+      <!-- Dashboard -->
+      <a
+        href="/dashboard"
+        class="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 transition"
+      >
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M3 3a1 1 0 000 2h1v9a2 2 0 002 2h6a2 2 0 002-2V5h1a1 1 0 100-2H3z"/>
+          <path d="M8 7h4v6H8V7z" fill="#fff" opacity="0.2"/>
+        </svg>
+        Dashboard
+      </a>
+
+      <!-- Siswa -->
+      <a
+        href="/dashboard/siswa"
+        class="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 transition"
+      >
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M17 20v-1a4 4 0 00-4-4H9a4 4 0 00-4 4v1"/>
+          <path d="M12 11a4 4 0 100-8 4 4 0 000 8z"/>
+        </svg>
+        Daftar Siswa
+      </a>
+
+      <!-- Kehadiran -->
+      <div>
+        <button
+          id="kehadiran-toggle"
+          type="button"
+          class="w-full flex items-center justify-between px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 transition"
+        >
+          <div class="flex items-center gap-3">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M7 11h10M7 15h10M3 7h18M8 3v4M16 3v4"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"/>
+            </svg>
+            <span>Kehadiran</span>
+          </div>
+
+          <svg
+            id="kehadiran-chevron"
+            class="w-4 h-4 text-gray-500 transition-transform duration-200"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </button>
+
+        <!-- Submenu kelas -->
+        <div id="kehadiran-menu" class="submenu mt-2 ml-3 border-l border-gray-200 pl-3 space-y-1">
+          {classes.map((c: string) => (
+            <a
+              href={`/dashboard/kehadiran?kelas=${encodeURIComponent(c)}`}
+              class={`block px-3 py-2 rounded-md transition
+              ${
+                currentClass === c
+                  ? "bg-blue-100 text-blue-700 font-medium"
+                  : "text-gray-600 hover:bg-blue-50 hover:text-blue-700"
+              }`}
+            >
+              {c}
+            </a>
+          ))}
+        </div>
+      </div>
+
+    </nav>
+
+    <!-- credit yumsha lah bos! -->
+    <div class="mt-148 text-center text-xs text-gray-400">
+      &copy; 2026 Riza Pahlevi
+  </div>
+</aside>
+
+<script>
+  const toggle = document.getElementById('kehadiran-toggle');
+  const menu = document.getElementById('kehadiran-menu');
+  const chevron = document.getElementById('kehadiran-chevron');
+
+  if (toggle && menu && chevron) {
+    toggle.addEventListener('click', () => {
+      menu.classList.toggle('open');
+      chevron.classList.toggle('rotate-180');
+    });
+
+    if (window.location.pathname.includes("/dashboard/kehadiran")) {
+      menu.classList.add("open");
+      chevron.classList.add("rotate-180");
+    }
+  }
+</script>
+
