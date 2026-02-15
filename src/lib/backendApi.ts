@@ -1,9 +1,12 @@
 const BASE_URL = (import.meta as any).env?.PUBLIC_API_BASE_URL || 'http://localhost:3000';
 
 async function request(path: string, options: RequestInit = {}) {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+  
   const res = await fetch(`${BASE_URL}${path}`, {
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       ...(options.headers || {}),
     },
     credentials: 'include',
@@ -19,7 +22,7 @@ async function request(path: string, options: RequestInit = {}) {
 
 // Siswa
 export const siswa = {
-  list: () => request('/api/siswa'),
+  list: (params?: string) => request(`/api/siswa${params ? `?${params}` : ''}`),
   get: (id: string | number) => request(`/api/siswa/${id}`),
   create: (data: any) => request('/api/siswa', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string | number, data: any) => request(`/api/siswa/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
