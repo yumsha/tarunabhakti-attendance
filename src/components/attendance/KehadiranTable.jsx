@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { kelas, absensiSiswa } from "../../lib/backendApi";
 
 export default function KehadiranTable() {
-  const [classList, setClassList] = useState([]);
   const [selectedClassId, setSelectedClassId] = useState("");
+  const [selectedClassData, setSelectedClassData] = useState(null);
   const [attendanceData, setAttendanceData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
@@ -14,28 +14,57 @@ export default function KehadiranTable() {
     return `${cls.kelas} ${cls.jurusan?.nama_jurusan || ''}`;
   }
 
-  // Fetch classes on mount
+  // Handle URL Params and Fetch Class Details
   useEffect(() => {
-    const fetchClasses = async () => {
-        try {
-            const res = await kelas.list(); 
-            if (res.success && res.data) {
-                setClassList(res.data);
-                if (res.data.length > 0) {
-                    setSelectedClassId(res.data[0].id); // Default to first class
+    const handleUrlParams = async () => {
+        if (typeof window === "undefined") return;
+        const params = new URLSearchParams(window.location.search);
+        const kelasId = params.get("kelasId");
+
+        if (kelasId && kelasId !== selectedClassId) {
+            setSelectedClassId(kelasId);
+            // Fetch class details
+            try {
+                const res = await kelas.get(kelasId);
+                if (res.success) {
+                    setSelectedClassData(res.data);
                 }
+            } catch (e) {
+                console.error("Failed to fetch class details", e);
             }
-        } catch (e) {
-            console.error("Failed to fetch classes", e);
         }
+    };
+
+    handleUrlParams();
+    
+    // Listen for navigation events
+    window.addEventListener('popstate', handleUrlParams);
+    document.addEventListener("astro:after-swap", handleUrlParams); // Handle Astro view transitions if any
+    
+    // Also a polling mechanism or interval isn't ideal, but Astro's view transitions
+    // might re-run scripts.
+    // Ideally, the Sidebar should trigger a navigation that re-renders this component
+    // or we listen to URL changes.
+    // Since we are inside a React component, we might not inherently react to URL changes
+    // unless the parent unmounts/remounts or we listen to history.
+    
+    // A simple hack: check URL every 500ms if not using a router
+    const interval = setInterval(handleUrlParams, 500);
+
+    return () => {
+        window.removeEventListener('popstate', handleUrlParams);
+        document.removeEventListener("astro:after-swap", handleUrlParams);
+        clearInterval(interval);
     }
-    fetchClasses();
-  }, []);
+  }, [selectedClassId]);
 
   // Fetch attendance when class or date changes
   useEffect(() => {
     const fetchAttendance = async () => {
-        if (!selectedClassId) return;
+        if (!selectedClassId) {
+            setAttendanceData([]);
+            return;
+        }
         setLoading(true);
         try {
             const params = new URLSearchParams({
@@ -58,14 +87,12 @@ export default function KehadiranTable() {
     fetchAttendance();
   }, [selectedClassId, filterDate]);
 
-  const selectedClass = classList.find(c => c.id == selectedClassId);
-
   return (
     <main className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
         <header className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
             <h1 className="text-2xl font-semibold text-gray-900">
-                {selectedClass ? `Kehadiran ${formatClassName(selectedClass)}` : "Kehadiran Siswa"}
+                {selectedClassData ? `Kehadiran ${formatClassName(selectedClassData)}` : "Pilih Kelas dari Sidebar"}
             </h1>
             <div className="flex items-center gap-4">
                 <button className="text-gray-500 hover:text-gray-700">
@@ -83,21 +110,6 @@ export default function KehadiranTable() {
             {/* Filter */}
             <div className="flex items-center gap-4 mb-6">
                 
-                {/* Class Selector */}
-                <div className="flex items-center gap-2 bg-white rounded-lg border border-gray-200 px-4 py-2">
-                    <span className="text-gray-500 text-sm">Kelas:</span>
-                    <select 
-                        className="outline-none text-sm text-gray-700 bg-transparent"
-                        value={selectedClassId}
-                        onChange={(e) => setSelectedClassId(e.target.value)}
-                    >
-                        {classList.length === 0 && <option>Loading classes...</option>}
-                        {classList.map(cls => (
-                            <option key={cls.id} value={cls.id}>{formatClassName(cls)}</option>
-                        ))}
-                    </select>
-                </div>
-
                 {/* Date Picker */}
                 <div className="flex items-center gap-2 bg-white rounded-lg border border-gray-200 px-4 py-2">
                      <span className="text-gray-500 text-sm">Tanggal:</span>
@@ -124,7 +136,13 @@ export default function KehadiranTable() {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                        {loading ? (
+                        {!selectedClassId ? (
+                            <tr>
+                                <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
+                                    Silakan pilih kelas dari menu sidebar untuk melihat data kehadiran.
+                                </td>
+                            </tr>
+                        ) : loading ? (
                             <tr>
                                 <td colSpan="6" className="px-6 py-4 text-center text-gray-500">Loading...</td>
                             </tr>

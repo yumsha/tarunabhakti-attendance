@@ -7,18 +7,20 @@ export default function SidebarContainer() {
   const [currentPath, setCurrentPath] = useState("");
   const [currentClass, setCurrentClass] = useState("");
 
+
   useEffect(() => {
     // 1. Fetch classes
     const fetchClasses = async () => {
       try {
         console.log("Fetching classes for Sidebar...");
         const res = await kelas.list();
+        console.log("Kelas list response:", res);
         if (res.success && res.data) {
-          const formattedClasses = res.data.map(cls => `${cls.kelas} ${cls.jurusan?.nama_jurusan || ''}`);
-          setClasses(formattedClasses);
+          setClasses(res.data);
         }
       } catch (e) {
         console.error("Failed to fetch classes for sidebar", e);
+        setDebugMsg(`Error: ${e.message}`);
       }
     };
     fetchClasses();
@@ -30,11 +32,11 @@ export default function SidebarContainer() {
         const params = new URLSearchParams(window.location.search);
 
         setCurrentPath(path);
-        setCurrentClass(params.get("kelas") || "");
+        setCurrentClass(params.get("kelasId") || "");
 
         // Initial open state based on path
         // Always keep open if we are in kehadiran section or have a class selected
-        if (path.includes("/dashboard/kehadiran") || params.get("kelas")) {
+        if (path.includes("/dashboard/kehadiran") || params.get("kelasId")) {
           setIsMenuOpen(true);
         }
       }
@@ -58,6 +60,10 @@ export default function SidebarContainer() {
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
+  };
+
+  const formatClassName = (cls) => {
+    return cls.kelas;
   };
 
   return (
@@ -122,22 +128,22 @@ export default function SidebarContainer() {
         </button>
 
         {/* Submenu kelas */}
-        <div className={`submenu mt-2 ml-3 border-l border-gray-200 pl-3 space-y-1 ${isMenuOpen ? "block" : "hidden"}`}>
+        <div className={`mt-2 ml-3 border-l border-gray-200 pl-3 space-y-1 ${isMenuOpen ? "block" : "hidden"}`}>
           {classes.length === 0 && (
             <span className="text-xs text-gray-400 px-3 py-2 block">Loading classes...</span>
           )}
-          {classes.map((c, index) => (
+          {classes.map((c) => (
             <a
-              key={index}
-              href={`/dashboard/kehadiran?kelas=${encodeURIComponent(c)}`}
+              key={c.id}
+              href={`/dashboard/kehadiran?kelasId=${c.id}`}
               data-astro-prefetch
-              className={`block px-3 py-2 rounded-md transition
-              ${currentClass === c
+              className={`block px-3 py-2 rounded-md transition text-sm ${
+                currentClass === String(c.id)
                   ? "bg-blue-100 text-blue-700 font-medium"
                   : "text-gray-600 hover:bg-blue-50 hover:text-blue-700"
-                }`}
+              }`}
             >
-              {c}
+              {formatClassName(c)}
             </a>
           ))}
         </div>

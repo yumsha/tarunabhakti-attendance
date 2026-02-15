@@ -65,7 +65,7 @@ export default function StudentList() {
                 <tr key={student.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 text-sm text-gray-900 font-medium">{student.nama}</td>
                   <td className="px-6 py-4 text-sm text-gray-900">
-                    {student.kelas ? `${student.kelas.kelas} ${student.kelas.jurusan?.nama_jurusan || ''}` : "-"}
+                    {student.kelas ? `${student.kelas.kelas}` : "-"}  
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-900">{student.nomor_telepon}</td>
                   <td className="px-6 py-4 text-sm text-gray-900">{student.NIPD}</td>
