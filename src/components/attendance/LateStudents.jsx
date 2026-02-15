@@ -7,7 +7,8 @@ export default function LateStudents() {
   useEffect(() => {
     const fetchLateStudents = async () => {
       try {
-        const res = await absensiSiswa.laporanHarian();
+        const today = new Date().toISOString().split('T')[0];
+        const res = await absensiSiswa.laporanHarian(`tanggal=${today}`);
         if (res.success && Array.isArray(res.data)) {
             const late = res.data.filter(item => item.status_tapin === "TELAMBAT").map(item => ({
                 name: item.siswa.nama,

@@ -8,7 +8,7 @@ export default function RecentAttendance() {
     const fetchAttendance = async () => {
       try {
         const today = new Date().toISOString().split('T')[0];
-        const res = await absensiSiswa.laporanHarian();
+        const res = await absensiSiswa.laporanHarian(`tanggal=${today}`);
         if (res.success && Array.isArray(res.data)) {
             // Take the last 5 or 10 entries as "recent" based on tap_in time
             // The API returns data sorted by tap_in asc, so we might want to reverse it or take from end

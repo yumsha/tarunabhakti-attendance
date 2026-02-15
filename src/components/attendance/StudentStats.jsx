@@ -13,7 +13,7 @@ export default function StudentStats() {
     const fetchStats = async () => {
       try {
         const today = new Date().toISOString().split('T')[0];
-        const res = await absensiSiswa.laporanHarian();
+        const res = await absensiSiswa.laporanHarian(`tanggal=${today}`);
         
         if (res.success && res.summary) {
             // Mapping details from backend summary
