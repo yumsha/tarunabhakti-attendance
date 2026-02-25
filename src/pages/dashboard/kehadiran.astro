@@ -2,13 +2,15 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import Sidebar from "../../components/Sidebar.astro";
 import KehadiranTable from "../../components/attendance/KehadiranTable.jsx";
+import AuthGate from "../../components/auth/AuthGate.jsx";
 ---
 
 <BaseLayout title="Kehadiran">
   <div class="flex h-screen bg-gray-50">
-
     <Sidebar />
-    <!-- Main Content -->
-    <KehadiranTable client:load />
+    <AuthGate client:load allowedRoles={["ADMIN", "GURU"]}>
+      <!-- Main Content -->
+      <KehadiranTable client:load />
+    </AuthGate>
   </div>
 </BaseLayout>

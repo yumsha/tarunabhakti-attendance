@@ -17,9 +17,59 @@ import Logo from "../../assets/logo.png";
   />
 
   <input 
+    id="rfid-input"
     type="text" 
     placeholder="Tap Kartu ke RFID Scanner"
     class="w-62 text-gray-500 bg-white rounded-full px-2 py-3 text-center"
-    readonly
+    autofocus
   />
+
+  <script>
+    const rfidInput = document.getElementById('rfid-input') as HTMLInputElement;
+
+    rfidInput?.addEventListener('keydown', async (event) => {
+      if (event.key === 'Enter') {
+        const uid_rfid = rfidInput.value.trim();
+        if (!uid_rfid) return;
+
+        try {
+          let response = await fetch(`http://localhost:3000/api/v1/absensi-siswa/tap-in`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ uid_rfid }),
+          });
+
+          // tap in 409? tap out
+          if (response.status === 409) {
+            response = await fetch(`http://localhost:3000/api/v1/absensi-siswa/tap-out`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ uid_rfid }),
+            });
+          }
+
+          if (response.ok) {
+            const result = await response.json();
+            const dataAbsensi = result.data;
+            document.dispatchEvent(
+              new CustomEvent('absensi-berhasil', { detail: dataAbsensi })
+            );
+            
+            console.log('Absensi berhasil untuk:', dataAbsensi.siswa.nama);
+            console.log('Data lengkap:', result);
+          } else {
+            console.error('Absensi gagal:', response.statusText);
+          }
+
+        } catch (error) {
+          console.error('Error Absensi:', error);
+        } finally {
+          rfidInput.value = '';
+          rfidInput.focus();
+        }
+      }
+    });
+
+    document.addEventListener('click', () => rfidInput?.focus());
+  </script>
 </div>

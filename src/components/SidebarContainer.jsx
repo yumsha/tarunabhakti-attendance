@@ -6,6 +6,7 @@ export default function SidebarContainer() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [currentPath, setCurrentPath] = useState("");
   const [currentClass, setCurrentClass] = useState("");
+  const [user, setUser] = useState(null);
 
 
   useEffect(() => {
@@ -33,6 +34,11 @@ export default function SidebarContainer() {
 
         setCurrentPath(path);
         setCurrentClass(params.get("kelasId") || "");
+        
+        const userStr = localStorage.getItem("user");
+        if (userStr) {
+          setUser(JSON.parse(userStr));
+        }
 
         // Initial open state based on path
         // Always keep open if we are in kehadiran section or have a class selected
@@ -67,7 +73,7 @@ export default function SidebarContainer() {
   };
 
   return (
-    <nav className="space-y-2 text-sm">
+    <nav className="space-y-2 text-sm scrollbar-hide">
       {/* Dashboard */}
       <a
         href="/dashboard"
@@ -84,21 +90,23 @@ export default function SidebarContainer() {
         Dashboard
       </a>
 
-      {/* Siswa */}
-      <a
-        href="/dashboard/siswa"
-        data-astro-prefetch
-        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${currentPath === "/dashboard/siswa"
-          ? "bg-blue-50 text-blue-700 font-medium"
-          : "text-gray-700 hover:bg-gray-100"
-          }`}
-      >
-        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M17 20v-1a4 4 0 00-4-4H9a4 4 0 00-4 4v1" />
-          <path d="M12 11a4 4 0 100-8 4 4 0 000 8z" />
-        </svg>
-        Daftar Siswa
-      </a>
+      {/* Siswa - Only for ADMIN */}
+      {user?.role === 'ADMIN' && (
+        <a
+          href="/dashboard/siswa"
+          data-astro-prefetch
+          className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${currentPath === "/dashboard/siswa"
+            ? "bg-blue-50 text-blue-700 font-medium"
+            : "text-gray-700 hover:bg-gray-100"
+            }`}
+        >
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M17 20v-1a4 4 0 00-4-4H9a4 4 0 00-4 4v1" />
+            <path d="M12 11a4 4 0 100-8 4 4 0 000 8z" />
+          </svg>
+          Daftar Siswa
+        </a>
+      )}
 
       {/* Kehadiran */}
       <div>
@@ -107,7 +115,7 @@ export default function SidebarContainer() {
           type="button"
           className="w-full flex items-center justify-between px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 transition"
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 scrollbar-hide">
             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
               <path d="M7 11h10M7 15h10M3 7h18M8 3v4M16 3v4"
                 strokeWidth="1.5"
@@ -128,7 +136,7 @@ export default function SidebarContainer() {
         </button>
 
         {/* Submenu kelas */}
-        <div className={`mt-2 ml-3 border-l border-gray-200 pl-3 space-y-1 ${isMenuOpen ? "block" : "hidden"}`}>
+        <div className={`mt-2 ml-3 border-l border-gray-200 pl-3 space-y-1 ${isMenuOpen ? "block" : "hidden"} scrollbar-hide`}>
           {classes.length === 0 && (
             <span className="text-xs text-gray-400 px-3 py-2 block">Loading classes...</span>
           )}
