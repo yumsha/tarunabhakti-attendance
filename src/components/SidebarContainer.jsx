@@ -7,26 +7,55 @@ export default function SidebarContainer() {
   const [currentPath, setCurrentPath] = useState("");
   const [currentClass, setCurrentClass] = useState("");
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
 
   useEffect(() => {
-    // 1. Fetch classes
     const fetchClasses = async () => {
       try {
-        console.log("Fetching classes for Sidebar...");
-        const res = await kelas.list();
-        console.log("Kelas list response:", res);
-        if (res.success && res.data) {
-          setClasses(res.data);
+        const userStr = localStorage.getItem("user");
+        if (!userStr) return;
+
+        const parsedUser = JSON.parse(userStr);
+        setUser(parsedUser);
+
+        if (parsedUser.role === "ADMIN") {
+          const res = await kelas.list();
+          if (res.success && res.data) {
+            setClasses(res.data);
+          }
+        }
+
+        if (parsedUser.role === "GURU") {
+          const token = localStorage.getItem("token");
+          const guruId = parsedUser.guru?.id;
+
+          const today = new Date()
+            .toLocaleDateString("id-ID", { weekday: "long" })
+            .toUpperCase();
+
+          const res = await fetch(
+            `http://localhost:3000/api/v1/jadwal?hari=${today}&guru_id=${guruId}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+
+          const result = await res.json();
+          if (result.data) {
+            setClasses(result.data);
+          }
         }
       } catch (e) {
         console.error("Failed to fetch classes for sidebar", e);
-        setDebugMsg(`Error: ${e.message}`);
       }
     };
-    fetchClasses();
 
-    // 2. Handle Navigation Logic
+    fetchClasses();
+    setLoading(false);
+
     const updateState = () => {
       if (typeof window !== "undefined") {
         const path = window.location.pathname;
@@ -34,27 +63,17 @@ export default function SidebarContainer() {
 
         setCurrentPath(path);
         setCurrentClass(params.get("kelasId") || "");
-        
-        const userStr = localStorage.getItem("user");
-        if (userStr) {
-          setUser(JSON.parse(userStr));
-        }
 
-        // Initial open state based on path
-        // Always keep open if we are in kehadiran section or have a class selected
         if (path.includes("/dashboard/kehadiran") || params.get("kelasId")) {
           setIsMenuOpen(true);
         }
       }
     };
 
-    // Run immediately
     updateState();
 
-    // Listen for Astro view transitions
     document.addEventListener("astro:page-load", updateState);
     document.addEventListener("astro:after-swap", updateState);
-    // Fallback for standard navigation
     window.addEventListener("popstate", updateState);
 
     return () => {
@@ -137,8 +156,16 @@ export default function SidebarContainer() {
 
         {/* Submenu kelas */}
         <div className={`mt-2 ml-3 border-l border-gray-200 pl-3 space-y-1 ${isMenuOpen ? "block" : "hidden"} scrollbar-hide`}>
-          {classes.length === 0 && (
-            <span className="text-xs text-gray-400 px-3 py-2 block">Loading classes...</span>
+          {loading && (
+            <span className="text-xs text-gray-400 px-3 py-2 block">
+              Loading classes...
+            </span>
+          )}
+
+          {!loading && classes.length === 0 && (
+            <span className="text-xs text-gray-400 px-3 py-2 block">
+              Tidak ada kelas
+            </span>
           )}
           {classes.map((c) => (
             <a
