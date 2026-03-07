@@ -79,6 +79,23 @@ const student = {
       </p>
     `;
   });
+
+  document.addEventListener('absensi-gagal', (event) => {
+    if (!container) return;
+    const message = event.detail;
+    container.innerHTML = `
+      <div class="items-center justify-center mb-[2vh] mx-20">
+        <img 
+          src="./src/assets/warn.png" 
+          alt="Student Photo" 
+          class="w-[max(50px,15vw)] h-[max(50px,15vw)] object-cover"
+        />
+      </div>
+      <p class="text-[max(6px,1.2vw)] font-medium text-white-500">
+        Absensi Gagal, Mungkin kamu sudah melaukan tap In atau tap Out sebelumnya.
+      </p>
+    `;
+  });
 </script>
 
 <!-- OBJECT YG MUNCUL

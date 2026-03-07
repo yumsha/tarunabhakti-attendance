@@ -10,6 +10,13 @@ export default function SidebarContainer() {
   const [loading, setLoading] = useState(true);
 
 
+
+  const normalize = (data) =>
+    data.map((item) => ({
+      id: item.id,
+      kelas: item.kelas || item.nama_kelas
+    }))
+
   useEffect(() => {
     const fetchClasses = async () => {
       try {
@@ -22,7 +29,7 @@ export default function SidebarContainer() {
         if (parsedUser.role === "ADMIN") {
           const res = await kelas.list();
           if (res.success && res.data) {
-            setClasses(res.data);
+            setClasses(normalize(res.data));
           }
         }
 
@@ -45,7 +52,7 @@ export default function SidebarContainer() {
 
           const result = await res.json();
           if (result.data) {
-            setClasses(result.data);
+            setClasses(normalize(result.data));
           }
         }
       } catch (e) {

@@ -58,6 +58,9 @@ import Logo from "../../assets/logo.png";
             console.log('Absensi berhasil untuk:', dataAbsensi.siswa.nama);
             console.log('Data lengkap:', result);
           } else {
+                      document.dispatchEvent(
+            new CustomEvent('absensi-gagal')
+          );
             console.error('Absensi gagal:', response.statusText);
           }
 
