@@ -76,7 +76,7 @@ export const kelas = {
 
 // Jadwal
 export const jadwal = {
-  list: () => request('/api/v1/jadwal'),
+  list: (params?: string) => request(`/api/v1/jadwal${params ? `?${params}` : ''}`),
   create: (data: any) => request('/api/v1/jadwal', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string | number, data: any) => request(`/api/v1/jadwal/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string | number) => request(`/api/v1/jadwal/${id}`, { method: 'DELETE' }),

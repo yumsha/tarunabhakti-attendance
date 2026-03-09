@@ -15,28 +15,23 @@ export default function GuruDashboard() {
 
   useEffect(() => {
     const fetchJadwal = async () => {
-      const token = localStorage.getItem("token");
-      const user = JSON.parse(localStorage.getItem("user"));
-      const guruId = user.guru?.id;
+      const user = JSON.parse(localStorage.getItem("user") || "null");
+      const guruId = user?.guru?.id;
 
       const today = new Date()
         .toLocaleDateString("id-ID", { weekday: "long" })
         .toUpperCase();
 
       try {
-        const res = await fetch(
-          `http://localhost:3000/api/v1/jadwal?hari=${today}&guru_id=${guruId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        const result = await res.json();
-        setJadwalData(result.data);
+        const res = await jadwal.list(`hari=${today}&guru_id=${guruId}`);
+        console.debug('jadwal.list response', res);
+        if (res && res.success && Array.isArray(res.data)) {
+          setJadwalData(res.data);
+        } else {
+          setJadwalData([]);
+        }
       } catch (err) {
-        console.error(err);
+        console.error('Error fetching jadwal:', err);
       }
     };
 
