@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import AdminDashboard from "./AdminDashboard.jsx";
 import GuruDashboard from "./GuruDashboard.jsx";
+import WalasDashboard from "./WalasDashboard.jsx";
 
 export default function DashboardSwitcher() {
     const [role, setRole] = useState(null);
@@ -27,6 +28,10 @@ export default function DashboardSwitcher() {
 
     if (role === "GURU") {
         return <GuruDashboard />;
+    }
+
+    if (role === "WALAS") {
+        return <WalasDashboard />;
     }
 
     return (
