@@ -15,7 +15,7 @@ const student = {
     style="box-shadow: -20px -20px 0 8px white, -55px -5px 0 -2px white;">
   </div>
 
-  {student ? (
+  <!-- {student ? (
     <div class="text-center z-10">
       <div class="items-center justify-center mb-[2vh] mx-20">
         <img 
@@ -37,11 +37,90 @@ const student = {
         Waktu Tap In: 06.20
       </p>
     </div>
-  ) : (
-    <div class="text-center z-10 opacity-80">
+  ) : ( -->
+    <div class="text-center z-10 opacity-80" id="student-data-card">
       <p class="text-[max(12px,1.4vw)] font-medium">
         Data Siswa akan ditampilkan disini
       </p>
     </div>
-  )}
+  <!-- )} -->
 </div>
+
+<script>
+  const container = document.getElementById('student-data-card');
+
+  function formatJam(jam){
+    if (!jam) return '-';
+    return jam;
+  }
+
+  document.addEventListener('absensi-berhasil', (event) => {
+    const dataAbsensi = event.detail;
+    const siswa = dataAbsensi.siswa;
+    container.innerHTML = `
+      <div class="items-center justify-center mb-[2vh] mx-20">
+        <img 
+          src="./src/assets/images.jpeg" 
+          alt="Student Photo" 
+          class="w-[max(50px,15vw)] h-[max(50px,15vw)] rounded-full object-cover border-4 border-white shadow-[0_4px_15px_rgba(0,0,0,0.2)]"
+        />
+      </div>
+      <h2 class="text-[max(18px,2vw)] font-medium">
+        ${siswa.nama}
+      </h2>
+      <p class="text-lg opacity-90">
+        Kelas: ${siswa.kelas.kelas}
+      </p>
+      <p class="text-lg opacity-90">
+        Waktu Tap In: ${formatJam(dataAbsensi.tap_in)}
+      </p>
+      <p class="text-lg opacity-90">
+        Waktu Tap Out: ${formatJam(dataAbsensi.tap_out)}
+      </p>
+    `;
+  });
+
+  document.addEventListener('absensi-gagal', (event) => {
+    if (!container) return;
+    const message = event.detail;
+    container.innerHTML = `
+      <div class="items-center justify-center mb-[2vh] mx-20">
+        <img 
+          src="./src/assets/warn.png" 
+          alt="Student Photo" 
+          class="w-[max(50px,15vw)] h-[max(50px,15vw)] object-cover"
+        />
+      </div>
+      <p class="text-[max(6px,1.2vw)] font-medium text-white-500">
+        Absensi Gagal, Mungkin kamu sudah melaukan tap In atau tap Out sebelumnya.
+      </p>
+    `;
+  });
+</script>
+
+<!-- OBJECT YG MUNCUL
+
+{
+    "success": true,
+    "message": "Tap out berhasil",
+    "data": {
+        "id": 7,
+        "siswa": {
+            "nama": "Amanda Lesmana",
+            "kelas": {
+                "kelas": "11 RPL 4",
+                "jurusan": {
+                    "nama_jurusan": "Rekayasa Perangkat Lunak"
+                }
+            }
+        },
+        "tanggal": "20 Februari 2026",
+        "tap_in": "00.44",
+        "tap_out": "00.45",
+        "status_tapin": "TEPAT_WAKTU",
+        "rfid": {
+            "uid_rfid": "I9J0K1L2"
+        },
+        "updated_at": "21/02/2026, 00.45.05"
+    }
+} -->

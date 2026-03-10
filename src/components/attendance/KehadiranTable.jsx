@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { kelas, absensiSiswa } from "../../lib/backendApi";
+import { kelas, absensiSiswa, detailAbsensi } from "../../lib/backendApi";
 
 export default function KehadiranTable() {
   const [selectedClassId, setSelectedClassId] = useState("");
@@ -7,6 +7,9 @@ export default function KehadiranTable() {
   const [attendanceData, setAttendanceData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
+  const [submitting, setSubmitting] = useState(null);
+  const [submitMessage, setSubmitMessage] = useState({ type: '', text: '' });
+  const [user, setUser] = useState(null);
 
   // Helper to format class name
   const formatClassName = (cls) => {
@@ -16,6 +19,12 @@ export default function KehadiranTable() {
 
   // Handle URL Params and Fetch Class Details
   useEffect(() => {
+    // Load user from localStorage
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      setUser(JSON.parse(userStr));
+    }
+
     const handleUrlParams = async () => {
         if (typeof window === "undefined") return;
         const params = new URLSearchParams(window.location.search);
@@ -87,6 +96,110 @@ export default function KehadiranTable() {
     fetchAttendance();
   }, [selectedClassId, filterDate]);
 
+  const handleKonfirmasi = async (item) => {
+    setSubmitting(item.id);
+    try {
+      const guruId = user?.guru?.id;
+      if (!guruId) {
+        setSubmitMessage({ 
+          type: 'error', 
+          text: 'User guru_id tidak ditemukan. Silakan login kembali.' 
+        });
+        setSubmitting(null);
+        return;
+      }
+
+      // Get jadwal for this class and day
+      const today = new Date()
+        .toLocaleDateString("id-ID", { weekday: "long" })
+        .toUpperCase();
+
+      const jadwalRes = await fetch(
+        `http://localhost:3000/api/v1/jadwal?kelas_id=${selectedClassId}&hari=${today}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+          }
+        }
+      );
+      const jadwalData = await jadwalRes.json();
+
+      if (!jadwalData.success || !jadwalData.data || jadwalData.data.length === 0) {
+        setSubmitMessage({ 
+          type: 'error', 
+          text: 'Jadwal tidak ditemukan untuk hari ini.' 
+        });
+        setSubmitting(null);
+        return;
+      }
+
+      const jadwal = jadwalData.data[0];
+      console.debug('Using jadwal ID:', jadwal.id, 'for absensi ID:', item.id);
+
+      // Create detail absensi record directly via new endpoint
+      const payload = {
+        absensi_id: item.id,
+        jadwal_id: jadwal.id,
+        guru_id: guruId,
+        keterangan: "HADIR"
+      };
+      
+      console.debug('Sending payload:', payload);
+      
+      // Use new create endpoint (doesn't require active jadwal)
+      const res = await fetch('http://localhost:3000/api/v1/detail-absensi/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      const responseData = await res.json();
+      console.debug('Response:', responseData, 'Status:', res.status);
+
+      if (res.ok && responseData.success) {
+        setSubmitMessage({ 
+          type: 'success', 
+          text: `${item.siswa?.nama} berhasil dikonfirmasi sebagai HADIR` 
+        });
+        
+        setTimeout(() => {
+          const fetchAttendance = async () => {
+            try {
+              const params = new URLSearchParams({
+                kelas_id: selectedClassId,
+                tanggal: filterDate
+              });
+              const freshRes = await absensiSiswa.list(params.toString());
+              if (freshRes.success) {
+                setAttendanceData(freshRes.data);
+              }
+            } catch (e) {
+              console.error("Failed to refresh attendance", e);
+            }
+          };
+          fetchAttendance();
+        }, 500);
+      } else {
+        setSubmitMessage({ 
+          type: 'error', 
+          text: `Gagal mengkonfirmasi: ${responseData.message || 'Unknown error'}` 
+        });
+      }
+    } catch (error) {
+      console.error("Error confirming attendance:", error);
+      setSubmitMessage({ 
+        type: 'error', 
+        text: `Terjadi kesalahan: ${error.message}` 
+      });
+    } finally {
+      setSubmitting(null);
+      setTimeout(() => setSubmitMessage({ type: '', text: '' }), 3000);
+    }
+  };
+
   return (
     <main className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
@@ -121,6 +234,17 @@ export default function KehadiranTable() {
                     />
                 </div>
             </div>
+
+            {/* Submission Message */}
+            {submitMessage.text && (
+              <div className={`mb-4 p-4 rounded-lg text-sm font-medium ${
+                submitMessage.type === 'success' 
+                  ? 'bg-green-50 text-green-700 border border-green-200' 
+                  : 'bg-red-50 text-red-700 border border-red-200'
+              }`}>
+                {submitMessage.text}
+              </div>
+            )}
 
             {/* Table */}
             <div className="bg-white rounded-lg shadow-sm overflow-hidden">
@@ -163,8 +287,11 @@ export default function KehadiranTable() {
                                     </td>
                                     <td className="px-6 py-4 text-sm text-gray-900">{item.status_tapin}</td>
                                     <td className="px-6 py-4 text-sm">
-                                        <button className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm font-medium border border-blue-300 hover:bg-blue-100">
-                                            Konfirmasi
+                                        <button 
+                                          onClick={() => handleKonfirmasi(item)}
+                                          disabled={submitting === item.id}
+                                          className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm font-medium border border-blue-300 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed">
+                                            {submitting === item.id ? 'Mengirim...' : 'Konfirmasi'}
                                         </button>
                                     </td>
                                 </tr>
@@ -172,7 +299,7 @@ export default function KehadiranTable() {
                         ) : (
                             <tr>
                                 <td colSpan="6" className="px-6 py-4 text-center text-gray-500">
-                                    Tidak ada data absensi untuk filter ini.
+                                    Belum ada data kehadiran untuk kelas ini hari ini.
                                 </td>
                             </tr>
                         )}
