@@ -44,14 +44,12 @@ export default function WalasDashboard() {
       <header className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-gray-900">Guru Dashboard</h1>
         <div className="flex items-center gap-4">
-          <button className="text-gray-500 hover:text-gray-700">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 015.646 5.646 9.001 9.001 0 0020.354 15.354z"></path>
-            </svg>
-          </button>
-          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold">
-            {user?.guru?.nama?.[0] || 'G'}
-          </div>
+          
+          <a href="/dashboard/profile">
+            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold">
+              {user?.email[0] || 'G'}
+            </div>
+          </a>
         </div>
       </header>
 

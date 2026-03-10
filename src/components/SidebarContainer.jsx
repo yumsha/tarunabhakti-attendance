@@ -9,21 +9,26 @@ export default function SidebarContainer() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-
+  const roleMap = {
+    1: "ADMIN",
+    2: "GURU",
+    3: "WALAS",
+  };
 
   const normalize = (data) =>
     data.map((item) => {
-      if (item.kelas && typeof item.kelas === 'object') {
+      if (item.kelas && typeof item.kelas === "object") {
         return {
           id: item.kelas.id,
-          kelas: item.kelas.kelas
+          kelas: item.kelas.kelas,
         };
       }
+
       return {
         id: item.id,
-        kelas: item.kelas || item.nama_kelas
+        kelas: item.kelas || item.nama_kelas,
       };
-    })
+    });
 
   useEffect(() => {
     const fetchClasses = async () => {
@@ -32,16 +37,27 @@ export default function SidebarContainer() {
         if (!userStr) return;
 
         const parsedUser = JSON.parse(userStr);
-        setUser(parsedUser);
 
-        if (parsedUser.role === "ADMIN") {
+        const roleName = roleMap[parsedUser.role_id];
+
+        const userWithRole = {
+          ...parsedUser,
+          role: roleName,
+        };
+
+        setUser(userWithRole);
+
+        // ADMIN → ambil semua kelas
+        if (roleName === "ADMIN") {
           const res = await kelas.list();
+
           if (res.success && res.data) {
             setClasses(normalize(res.data));
           }
         }
 
-        if (parsedUser.role === "GURU") {
+        // GURU → ambil jadwal hari ini
+        if (roleName === "GURU") {
           const guruId = parsedUser.guru?.id;
 
           const today = new Date()
@@ -49,17 +65,19 @@ export default function SidebarContainer() {
             .toUpperCase();
 
           const res = await jadwal.list(`hari=${today}&guru_id=${guruId}`);
+
           if (res && res.success && Array.isArray(res.data)) {
             setClasses(normalize(res.data));
           }
         }
       } catch (e) {
         console.error("Failed to fetch classes for sidebar", e);
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchClasses();
-    setLoading(false);
 
     const updateState = () => {
       if (typeof window !== "undefined") {
@@ -92,36 +110,34 @@ export default function SidebarContainer() {
     setIsMenuOpen(!isMenuOpen);
   };
 
-  const formatClassName = (cls) => {
-    return cls.kelas;
-  };
+  const formatClassName = (cls) => cls.kelas;
 
   return (
     <nav className="space-y-2 text-sm scrollbar-hide">
+
       {/* Dashboard */}
       <a
         href="/dashboard"
         data-astro-prefetch
         className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${currentPath === "/dashboard"
-          ? "bg-blue-50 text-blue-700 font-medium"
-          : "text-gray-700 hover:bg-gray-100"
+            ? "bg-blue-50 text-blue-700 font-medium"
+            : "text-gray-700 hover:bg-gray-100"
           }`}
       >
         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
           <path d="M3 3a1 1 0 000 2h1v9a2 2 0 002 2h6a2 2 0 002-2V5h1a1 1 0 100-2H3z" />
-          <path d="M8 7h4v6H8V7z" fill="#fff" opacity="0.2" />
         </svg>
         Dashboard
       </a>
 
-      {/* Siswa - Only for ADMIN */}
-      {user?.role === 'ADMIN' || user?.role === 'WALAS' && (
+      {/* Siswa */}
+      {(user?.role === "ADMIN" || user?.role === "WALAS") && (
         <a
           href="/dashboard/siswa"
           data-astro-prefetch
           className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${currentPath === "/dashboard/siswa"
-            ? "bg-blue-50 text-blue-700 font-medium"
-            : "text-gray-700 hover:bg-gray-100"
+              ? "bg-blue-50 text-blue-700 font-medium"
+              : "text-gray-700 hover:bg-gray-100"
             }`}
         >
           <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -133,63 +149,75 @@ export default function SidebarContainer() {
       )}
 
       {/* Kehadiran */}
-      {(user?.role === 'GURU' || user?.role === 'WALAS') && (
-        <div>
+      {(user?.role === "GURU" || user?.role === "WALAS") && (
+        <>
           <button
             onClick={toggleMenu}
             type="button"
             className="w-full flex items-center justify-between px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 transition"
           >
-            <div className="flex items-center gap-3 scrollbar-hide">
+            <div className="flex items-center gap-3">
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M7 11h10M7 15h10M3 7h18M8 3v4M16 3v4"
+                <path
+                  d="M7 11h10M7 15h10M3 7h18M8 3v4M16 3v4"
                   strokeWidth="1.5"
                   strokeLinecap="round"
-                  strokeLinejoin="round" />
+                  strokeLinejoin="round"
+                />
               </svg>
+
               <span>Kehadiran</span>
             </div>
 
             <svg
-              className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${isMenuOpen ? "rotate-180" : ""}`}
+              className={`w-4 h-4 text-gray-500 transition-transform ${isMenuOpen ? "rotate-180" : ""
+                }`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+              <path
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M19 9l-7 7-7-7"
+              />
             </svg>
           </button>
-        </div>
-      )}
 
-      {/* Submenu kelas */}
-      <div className={`mt-2 ml-3 border-l border-gray-200 pl-3 space-y-1 ${isMenuOpen ? "block" : "hidden"} scrollbar-hide`}>
-        {loading && (
-          <span className="text-xs text-gray-400 px-3 py-2 block">
-            Loading classes...
-          </span>
-        )}
-
-        {!loading && classes.length === 0 && (
-          <span className="text-xs text-gray-400 px-3 py-2 block">
-            Tidak ada kelas
-          </span>
-        )}
-        {classes.map((c) => (
-          <a
-            key={c.id}
-            href={`/dashboard/kehadiran?kelasId=${c.id}`}
-            data-astro-prefetch
-            className={`block px-3 py-2 rounded-md transition text-sm ${
-              currentClass === String(c.id)
-                ? "bg-blue-100 text-blue-700 font-medium"
-                : "text-gray-600 hover:bg-blue-50 hover:text-blue-700"
-            }`}
+          {/* Submenu kelas */}
+          <div
+            className={`mt-2 ml-3 border-l border-gray-200 pl-3 space-y-1 ${isMenuOpen ? "block" : "hidden"
+              }`}
           >
-            {formatClassName(c)}
-          </a>
-        ))}
-      </div>
+            {loading && (
+              <span className="text-xs text-gray-400 px-3 py-2 block">
+                Loading classes...
+              </span>
+            )}
+
+            {!loading && classes.length === 0 && (
+              <span className="text-xs text-gray-400 px-3 py-2 block">
+                Tidak ada kelas
+              </span>
+            )}
+
+            {classes.map((c) => (
+              <a
+                key={c.id}
+                href={`/dashboard/kehadiran?kelasId=${c.id}`}
+                data-astro-prefetch
+                className={`block px-3 py-2 rounded-md transition text-sm ${currentClass === String(c.id)
+                    ? "bg-blue-100 text-blue-700 font-medium"
+                    : "text-gray-600 hover:bg-blue-50 hover:text-blue-700"
+                  }`}
+              >
+                {formatClassName(c)}
+              </a>
+            ))}
+          </div>
+        </>
+      )}
     </nav>
   );
 }

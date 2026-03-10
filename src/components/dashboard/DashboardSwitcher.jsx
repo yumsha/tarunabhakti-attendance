@@ -8,10 +8,24 @@ export default function DashboardSwitcher() {
 
     useEffect(() => {
         const userStr = localStorage.getItem("user");
-        if (userStr) {
-            const user = JSON.parse(userStr);
-            setRole(user.role);
+
+        if (!userStr) {
+            setRole("unknown");
+            return;
         }
+
+        const user = JSON.parse(userStr);
+
+        const roleMap = {
+            1: "ADMIN",
+            2: "GURU",
+            3: "WALAS"
+        };
+
+        const role = roleMap[user?.role_id];
+
+
+        setRole(role);
     }, []);
 
     if (!role) {

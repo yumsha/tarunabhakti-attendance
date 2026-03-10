@@ -2,20 +2,60 @@ import RecentAttendance from "../attendance/RecentAttendance.jsx";
 import StudentStats from "../attendance/StudentStats.jsx";
 import YearlyAttendanceChart from "../attendance/YearlyAttendanceChart.jsx";
 import LateStudents from "../attendance/LateStudents.jsx";
+import { useState, useEffect } from "react";
+import { jadwal } from "../../lib/backendApi.js";
 
 export default function AdminDashboard() {
+      const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      setUser(JSON.parse(userStr));
+    }
+  }, []);
+
+  const [jadwalData, setJadwalData] = useState([]);
+
+  useEffect(() => {
+    const fetchJadwal = async () => {
+      const user = JSON.parse(localStorage.getItem("user") || "null");
+      const adminId = user?.admin?.id;
+
+      const today = new Date()
+        .toLocaleDateString("id-ID", { weekday: "long" })
+        .toUpperCase();
+
+      try {
+        const res = await jadwal.list(`hari=${today}&guru_id=${adminId}`);
+        console.debug('jadwal.list response', res);
+        if (res && res.success && Array.isArray(res.data)) {
+          setJadwalData(res.data);
+        } else {
+          setJadwalData([]);
+        }
+      } catch (err) {
+        console.error('Error fetching jadwal:', err);
+      }
+    };
+
+    fetchJadwal();
+  }, []);
+
+    
     return (
         <div className="flex-1 flex flex-col overflow-hidden">
             {/* Top Bar */}
             <header className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
                 <h1 className="text-2xl font-semibold text-gray-900">Admin Dashboard</h1>
                 <div className="flex items-center gap-4">
-                    <button className="text-gray-500 hover:text-gray-700">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 015.646 5.646 9.001 9.001 0 0020.354 15.354z"></path>
-                        </svg>
-                    </button>
-                    <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
+
+                    <a href="/dashboard/profile">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold">
+                            {user?.email[0] || 'G'}
+                        </div>
+                    </a>
+
                 </div>
             </header>
 

@@ -14,8 +14,8 @@ export default function StudentList() {
       setError("");
       try {
         const params = new URLSearchParams({
-            page: page.toString(),
-            limit: "10" 
+          page: page.toString(),
+          limit: "10"
         });
         const res = await siswa.list(params.toString());
         if (res.success) {
@@ -65,7 +65,7 @@ export default function StudentList() {
                 <tr key={student.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 text-sm text-gray-900 font-medium">{student.nama}</td>
                   <td className="px-6 py-4 text-sm text-gray-900">
-                    {student.kelas ? `${student.kelas.kelas}` : "-"}  
+                    {student.kelas ? `${student.kelas.kelas}` : "-"}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-900">{student.nomor_telepon}</td>
                   <td className="px-6 py-4 text-sm text-gray-900">{student.NIPD}</td>
@@ -89,11 +89,10 @@ export default function StudentList() {
         <button
           onClick={() => setPage(p => Math.max(1, p - 1))}
           disabled={page === 1}
-          className={`px-3 py-1 rounded-md text-sm font-medium ${
-            page === 1 
-              ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
+          className={`px-3 py-1 rounded-md text-sm font-medium ${page === 1
+              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
               : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-300"
-          }`}
+            }`}
         >
           Previous
         </button>
@@ -103,11 +102,10 @@ export default function StudentList() {
         <button
           onClick={() => setPage(p => Math.min(totalPages, p + 1))}
           disabled={page === totalPages}
-          className={`px-3 py-1 rounded-md text-sm font-medium ${
-            page === totalPages 
-              ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
+          className={`px-3 py-1 rounded-md text-sm font-medium ${page === totalPages
+              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
               : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-300"
-          }`}
+            }`}
         >
           Next
         </button>
