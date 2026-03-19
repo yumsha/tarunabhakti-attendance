@@ -70,6 +70,22 @@ export default function SidebarContainer() {
             setClasses(normalize(res.data));
           }
         }
+
+        // WALAS → ambil kelas yang di-wali-kelasi
+        if (roleName === "WALAS") {
+          const guruId = parsedUser.guru?.id;
+
+          // Try fetching all kelas and find the one assigned to this walas
+          const res = await kelas.list();
+          if (res.success && Array.isArray(res.data)) {
+            const walasClasses = res.data.filter(
+              (k) => k.wali_kelas_id === guruId || k.guru_id === guruId
+            );
+            if (walasClasses.length > 0) {
+              setClasses(normalize(walasClasses));
+            }
+          }
+        }
       } catch (e) {
         console.error("Failed to fetch classes for sidebar", e);
       } finally {
