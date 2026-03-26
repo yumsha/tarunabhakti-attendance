@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { kelas } from "../../lib/backendApi";
+import WalasStudentStats from "../attendance/WalasStudentChart";
+import WalasAttendanceChart from "../attendance/WalasAttendanceChart";
 import WalasAttendanceTable from "../attendance/WalasAttendanceTable";
 
 export default function WalasDashboard() {
@@ -58,8 +60,9 @@ export default function WalasDashboard() {
         </div>
       </header>
 
-      {/* dashboard content */}
+      {/* Dashboard Content */}
       <div className="flex-1 overflow-auto p-8">
+
         <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 rounded-2xl p-8 text-white shadow-lg mb-8 relative overflow-hidden">
           <div className="relative">
             <h2 className="text-3xl font-bold mb-2">
@@ -110,6 +113,12 @@ export default function WalasDashboard() {
           </div>
         ) : (
           <>
+            {/* stats */}
+            <WalasStudentStats kelasId={walasKelas.id} totalSiswa={walasKelas._count?.siswa || 0} />
+          
+            {/* charts */}
+            <WalasAttendanceChart kelasId={walasKelas.id} totalSiswa={walasKelas._count?.siswa || 0} />
+
             {/* attendance table */}
             <WalasAttendanceTable
               kelasId={walasKelas.id}
