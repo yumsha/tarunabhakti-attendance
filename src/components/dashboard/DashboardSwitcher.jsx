@@ -19,7 +19,7 @@ export default function DashboardSwitcher() {
         const roleMap = {
             1: "ADMIN",
             2: "GURU",
-            3: "WALAS"
+            3: "WALI KELAS"
         };
 
         const role = roleMap[user?.role_id];
@@ -44,7 +44,7 @@ export default function DashboardSwitcher() {
         return <GuruDashboard />;
     }
 
-    if (role === "WALAS") {
+    if (role === "WALI KELAS") {
         return <WalasDashboard />;
     }
 

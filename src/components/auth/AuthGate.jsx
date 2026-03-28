@@ -9,6 +9,12 @@ export default function AuthGate({ children, allowedRoles = [] }) {
   const [authorized, setAuthorized] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  const roleMap = {
+    1: "ADMIN",
+    2: "GURU",
+    3: "WALI KELAS",
+  };
+
   useEffect(() => {
     const checkAuth = () => {
       const token = localStorage.getItem('accessToken');
@@ -20,8 +26,13 @@ export default function AuthGate({ children, allowedRoles = [] }) {
       }
 
       const user = JSON.parse(userStr);
+      // format hendler, role_id as int, or role as string
+      const userRole =
+        (typeof user.role === 'object' ? user.role?.name?.toUpperCase() : null) ||
+        roleMap[user.role_id] ||
+        (typeof user.role === 'string' ? user.role.toUpperCase() : null);
       
-      if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+      if (allowedRoles.length > 0 && !allowedRoles.includes(userRole)) {
         setAuthorized(false);
       } else {
         setAuthorized(true);
