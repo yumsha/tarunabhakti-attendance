@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { kelas, jadwal } from "../lib/backendApi";
+import { UserCogIcon } from "lucide-react";
 
 export default function SidebarContainer() {
   const [classes, setClasses] = useState([]);
@@ -12,7 +13,7 @@ export default function SidebarContainer() {
   const roleMap = {
     1: "ADMIN",
     2: "GURU",
-    3: "WALAS",
+    3: "WALI KELAS",
   };
 
   const normalize = (data) =>
@@ -72,7 +73,7 @@ export default function SidebarContainer() {
         }
 
         // WALAS → ambil kelas yang di-wali-kelasi
-        if (roleName === "WALAS") {
+        if (roleName === "WALI KELAS") {
           const guruId = parsedUser.guru?.id;
 
           // Try fetching all kelas and find the one assigned to this walas
@@ -147,7 +148,7 @@ export default function SidebarContainer() {
       </a>
 
       {/* Siswa */}
-      {(user?.role === "ADMIN" || user?.role === "WALAS") && (
+      {(user?.role === "ADMIN" || user?.role === "WALI KELAS") && (
         <a
           href="/dashboard/siswa"
           data-astro-prefetch
@@ -164,8 +165,23 @@ export default function SidebarContainer() {
         </a>
       )}
 
+      {/* kelola User */}
+      {user?.role === "ADMIN" && (
+        <a
+          href="/dashboard/users"
+          data-astro-prefetch
+          className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${currentPath === "/dashboard/users"
+              ? "bg-blue-50 text-blue-700 font-medium"
+              : "text-gray-700 hover:bg-gray-100"
+            }`}
+        >
+          <UserCogIcon width={20} height={20}/>
+          Kelola User
+        </a>
+      )}
+
       {/* Kehadiran */}
-      {(user?.role === "GURU" || user?.role === "WALAS") && (
+      {(user?.role === "GURU" || user?.role === "WALI KELAS") && (
         <>
           <button
             onClick={toggleMenu}
