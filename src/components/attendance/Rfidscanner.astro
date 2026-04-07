@@ -3,76 +3,107 @@ import RfidImage from "../../assets/rfid.png";
 import Logo from "../../assets/logo.png";
 ---
 
-<div class="flex flex-col items-center justify-center text-center h-full ml-[25vh]">
-  <img 
-    src={Logo.src} 
-    alt="Starbhak Attendance Logo" 
+<div
+  class="flex flex-col items-center justify-center text-center h-full ml-[25vh]"
+>
+  <img
+    src={Logo.src}
+    alt="Starbhak Attendance Logo"
     class="w-[min(140px,12vw)] mb-[2.5vh]"
   />
 
-  <img 
-    src={RfidImage.src} 
-    alt="RFID Scanner" 
+  <img
+    src={RfidImage.src}
+    alt="RFID Scanner"
     class="w-[min(160px,14vw)] mb-[10vh] mt-[5vh]"
   />
 
-  <input 
+  <input
     id="rfid-input"
-    type="text" 
+    type="text"
     placeholder="Tap Kartu ke RFID Scanner"
     class="w-62 text-gray-500 bg-white rounded-full px-2 py-3 text-center"
     autofocus
   />
 
   <script>
-    const rfidInput = document.getElementById('rfid-input') as HTMLInputElement;
+    function initializeRfidScanner() {
+      const rfidInput = document.getElementById("rfid-input") as HTMLInputElement;
 
-    rfidInput?.addEventListener('keydown', async (event) => {
-      if (event.key === 'Enter') {
-        const uid_rfid = rfidInput.value.trim();
-        if (!uid_rfid) return;
-
-        try {
-          let response = await fetch(`http://localhost:3000/api/v1/absensi-siswa/tap-in`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ uid_rfid }),
-          });
-
-          // tap in 409? tap out
-          if (response.status === 409) {
-            response = await fetch(`http://localhost:3000/api/v1/absensi-siswa/tap-out`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ uid_rfid }),
-            });
-          }
-
-          if (response.ok) {
-            const result = await response.json();
-            const dataAbsensi = result.data;
-            document.dispatchEvent(
-              new CustomEvent('absensi-berhasil', { detail: dataAbsensi })
-            );
-            
-            console.log('Absensi berhasil untuk:', dataAbsensi.siswa.nama);
-            console.log('Data lengkap:', result);
-          } else {
-                      document.dispatchEvent(
-            new CustomEvent('absensi-gagal')
-          );
-            console.error('Absensi gagal:', response.statusText);
-          }
-
-        } catch (error) {
-          console.error('Error Absensi:', error);
-        } finally {
-          rfidInput.value = '';
-          rfidInput.focus();
-        }
+      if (!rfidInput) {
+        console.error("RFID input element not found");
+        return;
       }
-    });
 
-    document.addEventListener('click', () => rfidInput?.focus());
+      rfidInput.addEventListener("keydown", async (event) => {
+        if (event.key === "Enter") {
+          const uid_rfid = rfidInput.value.trim();
+          if (!uid_rfid) return;
+
+          try {
+            let response = await fetch(
+              `http://localhost:3000/api/v1/absensi-siswa/tap-in`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ uid_rfid }),
+              },
+            );
+
+            let isTapOut = false;
+
+            // tap in 409? tap out
+            if (response.status === 409) {
+              isTapOut = true;
+              response = await fetch(
+                `http://localhost:3000/api/v1/absensi-siswa/tap-out`,
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ uid_rfid }),
+                },
+              );
+            }
+
+            if (response.ok) {
+              const result = await response.json();
+              const dataAbsensi = result.data;
+              document.dispatchEvent(
+                new CustomEvent("absensi-berhasil", { detail: dataAbsensi }),
+              );
+
+              console.log("Absensi berhasil untuk:", dataAbsensi.siswa.nama);
+              console.log("Data lengkap:", result);
+            } else {
+              const errorData = await response.json().catch(() => ({}));
+              const errorMessage = errorData.message || response.statusText;
+              
+              document.dispatchEvent(
+                new CustomEvent("absensi-gagal", { detail: { message: errorMessage, isTapOut } }),
+              );
+              console.error("Absensi gagal:", errorMessage);
+            }
+          } catch (error) {
+            document.dispatchEvent(
+              new CustomEvent("absensi-gagal", { detail: { message: error.message } }),
+            );
+            console.error("Error Absensi:", error);
+          } finally {
+            rfidInput.value = "";
+            rfidInput.focus();
+          }
+        }
+      });
+
+      document.addEventListener("click", () => rfidInput?.focus());
+      rfidInput.focus();
+    }
+
+    // Wait for DOM to be ready
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", initializeRfidScanner);
+    } else {
+      initializeRfidScanner();
+    }
   </script>
 </div>

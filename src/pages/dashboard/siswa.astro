@@ -3,26 +3,25 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import Sidebar from "../../components/Sidebar.astro";
 import StudentList from "../../components/student/StudentList.jsx";
 import AuthGate from "../../components/auth/AuthGate.jsx";
+import AddStudent from "../../components/student/AddStudent.jsx";
+import StudentHeader from "../../components/student/StudentHeader.jsx";
 ---
 
 <BaseLayout title="Daftar Siswa">
-  <div class="flex h-screen bg-gray-50">
-    <Sidebar />
+    <div class="flex h-screen bg-gray-50">
+        <Sidebar />
 
-    <AuthGate client:load allowedRoles={['ADMIN']}>
-      <main class="flex-1 flex flex-col overflow-hidden">
-          <header class="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
-              <h1 class="text-2xl font-semibold text-gray-900">Daftar Siswa</h1>
-              <div class="flex items-center gap-4">
-                  <span class="text-sm text-gray-600">Admin</span>
-                  <div class="w-8 h-8 bg-gray-300 rounded-full"></div>
-              </div>
-          </header>
+        <AuthGate client:load allowedRoles={["ADMIN", "WALAS"]}>
+            <main class="flex-1 flex flex-col overflow-hidden">
+                <header
+                    class="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between"
+                >
+                    <StudentHeader client:load />
+                </header>
 
-          <!-- add new student button -->
 
-          <!-- modal overlay -->
-           <div>
+                <!-- modal overlay -->
+                <!-- <div>
               <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                   <div class="bg-white rounded-lg p-6 w-full max-w-md">
                       <h2 class="text-xl font-semibold mb-4">Tambah Siswa Baru</h2>
@@ -46,11 +45,12 @@ import AuthGate from "../../components/auth/AuthGate.jsx";
                       </form>
                   </div>
               </div>
-           </div>
-          <div class="flex-1 overflow-auto p-8">
-              <StudentList client:load />
-          </div>
-      </main>
-    </AuthGate>
-  </div>
+           </div> -->
+                <div class="flex-1 overflow-auto p-8">
+                    <AddStudent client:load />
+                    <StudentList client:load />
+                </div>
+            </main>
+        </AuthGate>
+    </div>
 </BaseLayout>

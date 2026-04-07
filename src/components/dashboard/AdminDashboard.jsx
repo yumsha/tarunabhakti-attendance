@@ -48,15 +48,6 @@ export default function AdminDashboard() {
             {/* Top Bar */}
             <header className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
                 <h1 className="text-2xl font-semibold text-gray-900">Admin Dashboard</h1>
-                <div className="flex items-center gap-4">
-
-                    <a href="/dashboard/profile">
-                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold">
-                            {user?.email[0] || 'G'}
-                        </div>
-                    </a>
-
-                </div>
             </header>
 
             {/* Welcome Sign */}

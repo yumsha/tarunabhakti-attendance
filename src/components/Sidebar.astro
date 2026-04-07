@@ -1,23 +1,30 @@
 ---
 import SidebarContainer from "./SidebarContainer.jsx";
+import LogoutButton from "./auth/LogoutButton.jsx";
 ---
 
-<aside class="w-72 bg-white border-r border-gray-200 h-screen sticky top-0" transition:persist>
-  <div class="p-6">
+<aside class="w-72 bg-white border-r border-gray-200 h-screen sticky top-0 flex flex-col" transition:persist>
+  <div class="p-6 flex-1 flex flex-col">
 
     <!-- Logo -->
     <div class="flex items-center gap-3 mb-10">
-      <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+      <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-200">
         <span class="text-white text-sm font-bold">TB</span>
       </div>
-      <span class="text-lg font-bold text-gray-800">STARBHAK</span>
+      <span class="text-lg font-bold text-gray-800 tracking-tight">STARBHAK</span>
     </div>
 
-    <SidebarContainer client:load />
+    <div class="flex-1 overflow-y-auto pr-2 -mr-2 scrollbar-thin scrollbar-thumb-gray-200">
+      <SidebarContainer client:load />
+    </div>
+
+    <!-- Logout -->
+    <LogoutButton client:load />
 
     <!-- credit yumsha lah bos! -->
-    <div class="mt-148 text-center text-xs text-gray-400">
+    <div class="pt-6 mt-6 border-t border-gray-100 text-center text-[10px] text-gray-400 uppercase tracking-widest">
       &copy; 2026 Riza Pahlevi
+    </div>
   </div>
 </aside>
 

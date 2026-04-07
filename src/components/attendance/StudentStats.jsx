@@ -16,20 +16,12 @@ export default function StudentStats() {
         const res = await absensiSiswa.laporanHarian(`tanggal=${today}`);
         
         if (res.success && res.summary) {
-            // Mapping details from backend summary
-            // Backend summary: { total, tepat_waktu, telambat, belum_tap_in, belum_tap_out }
-            //Frontend stats: { present, absent, izin, totalStudents }
-            // We need to map them. 
-            // Present = tepat_waktu + telambat (basically everyone who tapped in)
-            // Absent = belum_tap_in (assuming everyone should be there)
-            // Izin is not explicitly in the summary, might need another way or just use 0 for now as it wasn't in the controller logic explicitly
-            
             const presentCount = res.summary.tepat_waktu + res.summary.telambat;
             
             setStats({
                 present: presentCount,
-                absent: res.summary.belum_tap_in, // approximations
-                izin: 0, // Placeholder as backend doesn't seem to track 'izin' in summary yet
+                absent: res.summary.belum_tap_in,
+                izin: 0,
                 totalStudents: res.summary.total
             });
         }

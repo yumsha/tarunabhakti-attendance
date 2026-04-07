@@ -16,11 +16,9 @@ export default function LoginForm() {
             const res = await auth.login({ email, password });
 
             if (res.success && res.data && res.data.accessToken) {
-                // Simpan token
                 localStorage.setItem("accessToken", res.data.accessToken);
                 localStorage.setItem("user", JSON.stringify(res.data.user));
 
-                // Redirect ke dashboard
                 window.location.href = "/dashboard";
             } else {
                 setError(res.message || "Login failed");

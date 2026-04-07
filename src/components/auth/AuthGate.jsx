@@ -32,7 +32,9 @@ export default function AuthGate({ children, allowedRoles = [] }) {
         roleMap[user.role_id] ||
         (typeof user.role === 'string' ? user.role.toUpperCase() : null);
       
-      if (allowedRoles.length > 0 && !allowedRoles.includes(userRole)) {
+      // Normalize role to string if it's an object
+      const normalizedRole = user.role?.name || user.role;
+      if (allowedRoles.length > 0 && !allowedRoles.includes(normalizedRole)) {
         setAuthorized(false);
       } else {
         setAuthorized(true);
