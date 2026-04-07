@@ -21,7 +21,9 @@ export default function AuthGate({ children, allowedRoles = [] }) {
 
       const user = JSON.parse(userStr);
       
-      if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+      // Normalize role to string if it's an object
+      const normalizedRole = user.role?.name || user.role;
+      if (allowedRoles.length > 0 && !allowedRoles.includes(normalizedRole)) {
         setAuthorized(false);
       } else {
         setAuthorized(true);

@@ -13,10 +13,21 @@ export default function StudentList() {
       setLoading(true);
       setError("");
       try {
-        const params = new URLSearchParams({
+        const userStr = localStorage.getItem("user");
+        const user = userStr ? JSON.parse(userStr) : null;
+        const role = (user?.role?.name || user?.role || "").toString().toUpperCase();
+        const guruId = user?.guru?.id;
+
+        const queryParams = {
             page: page.toString(),
             limit: "10" 
-        });
+        };
+
+        if (role === "WALAS" && guruId) {
+            queryParams.walas_id = guruId.toString();
+        }
+
+        const params = new URLSearchParams(queryParams);
         const res = await siswa.list(params.toString());
         if (res.success) {
           setStudents(res.data);

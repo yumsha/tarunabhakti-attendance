@@ -1,10 +1,4 @@
----
-const student = {
-  name: "Muhamad Riza Pahlevi",
-  nis: "12345678",
-  class: "XI RPL 4",
-}
----
+
 
 <div class="relative w-full max-w-[65vh] h-[90vh] aspect-[4/5] rounded-[60px] bg-gradient-to-b from-[#4b89bd] to-[#356792] flex items-center justify-center text-white p-[5%] overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.1)] ml-[30vh]">
   <div class="absolute w-[120px] h-[50px] bottom-[80px] -left-[20px] rounded-[50px] bg-white filter drop-shadow-[2px_4px_6px_rgba(0,0,0,0.05)]"
@@ -82,17 +76,26 @@ const student = {
 
   document.addEventListener('absensi-gagal', (event) => {
     if (!container) return;
-    const message = event.detail;
+    const detail = event.detail || {};
+    const message = detail.message || "Absensi Gagal";
+    const isTapOut = detail.isTapOut || false;
+    
+    // Provide more helpful error messages
+    let errorMessage = message;
+    if (message.includes("sudah")) {
+      errorMessage = isTapOut ? "Anda sudah melakukan tap out hari ini." : "Anda sudah melakukan tap in hari ini.";
+    }
+    
     container.innerHTML = `
       <div class="items-center justify-center mb-[2vh] mx-20">
         <img 
           src="./src/assets/warn.png" 
-          alt="Student Photo" 
+          alt="Error Icon" 
           class="w-[max(50px,15vw)] h-[max(50px,15vw)] object-cover"
         />
       </div>
       <p class="text-[max(6px,1.2vw)] font-medium text-white-500">
-        Absensi Gagal, Mungkin kamu sudah melaukan tap In atau tap Out sebelumnya.
+        ${errorMessage}
       </p>
     `;
   });

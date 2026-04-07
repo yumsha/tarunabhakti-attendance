@@ -9,14 +9,6 @@ export default function AdminDashboard() {
             {/* Top Bar */}
             <header className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
                 <h1 className="text-2xl font-semibold text-gray-900">Admin Dashboard</h1>
-                <div className="flex items-center gap-4">
-                    <button className="text-gray-500 hover:text-gray-700">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 015.646 5.646 9.001 9.001 0 0020.354 15.354z"></path>
-                        </svg>
-                    </button>
-                    <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
-                </div>
             </header>
 
             {/* Welcome Sign */}

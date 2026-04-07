@@ -1,7 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import Sidebar from "../../components/Sidebar.astro";
-import KehadiranTable from "../../components/attendance/KehadiranTable.jsx";
+import AttendanceMain from "../../components/attendance/AttendanceMain.jsx";
 import AuthGate from "../../components/auth/AuthGate.jsx";
 ---
 
@@ -9,8 +9,7 @@ import AuthGate from "../../components/auth/AuthGate.jsx";
   <div class="flex h-screen bg-gray-50">
     <Sidebar />
     <AuthGate client:load allowedRoles={["ADMIN", "GURU", "WALAS"]}>
-      <!-- Main Content -->
-      <KehadiranTable client:load />
+      <AttendanceMain client:load />
     </AuthGate>
   </div>
 </BaseLayout>

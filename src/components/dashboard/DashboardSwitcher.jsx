@@ -10,7 +10,8 @@ export default function DashboardSwitcher() {
         const userStr = localStorage.getItem("user");
         if (userStr) {
             const user = JSON.parse(userStr);
-            setRole(user.role);
+            // Support both object and string role
+            setRole(user.role?.name || user.role);
         }
     }, []);
 
