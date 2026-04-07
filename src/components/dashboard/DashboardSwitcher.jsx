@@ -13,6 +13,19 @@ export default function DashboardSwitcher() {
             // Support both object and string role
             setRole(user.role?.name || user.role);
         }
+
+        const user = JSON.parse(userStr);
+
+        const roleMap = {
+            1: "ADMIN",
+            2: "GURU",
+            3: "WALI KELAS"
+        };
+
+        const role = roleMap[user?.role_id];
+
+
+        setRole(role);
     }, []);
 
     if (!role) {
@@ -31,7 +44,7 @@ export default function DashboardSwitcher() {
         return <GuruDashboard />;
     }
 
-    if (role === "WALAS") {
+    if (role === "WALI KELAS") {
         return <WalasDashboard />;
     }
 

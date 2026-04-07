@@ -2,8 +2,47 @@ import RecentAttendance from "../attendance/RecentAttendance.jsx";
 import StudentStats from "../attendance/StudentStats.jsx";
 import YearlyAttendanceChart from "../attendance/YearlyAttendanceChart.jsx";
 import LateStudents from "../attendance/LateStudents.jsx";
+import { useState, useEffect } from "react";
+import { jadwal } from "../../lib/backendApi.js";
 
 export default function AdminDashboard() {
+      const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      setUser(JSON.parse(userStr));
+    }
+  }, []);
+
+  const [jadwalData, setJadwalData] = useState([]);
+
+  useEffect(() => {
+    const fetchJadwal = async () => {
+      const user = JSON.parse(localStorage.getItem("user") || "null");
+      const adminId = user?.admin?.id;
+
+      const today = new Date()
+        .toLocaleDateString("id-ID", { weekday: "long" })
+        .toUpperCase();
+
+      try {
+        const res = await jadwal.list(`hari=${today}&guru_id=${adminId}`);
+        console.debug('jadwal.list response', res);
+        if (res && res.success && Array.isArray(res.data)) {
+          setJadwalData(res.data);
+        } else {
+          setJadwalData([]);
+        }
+      } catch (err) {
+        console.error('Error fetching jadwal:', err);
+      }
+    };
+
+    fetchJadwal();
+  }, []);
+
+    
     return (
         <div className="flex-1 flex flex-col overflow-hidden">
             {/* Top Bar */}

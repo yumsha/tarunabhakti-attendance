@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { kelas, jadwal } from "../lib/backendApi";
+import { UserCogIcon } from "lucide-react";
 
 export default function SidebarContainer() {
   const [classes, setClasses] = useState([]);
@@ -16,13 +17,14 @@ export default function SidebarContainer() {
 
   const normalize = (data) =>
     data.map((item) => {
-      if (item.kelas && typeof item.kelas === 'object') {
+      if (item.kelas && typeof item.kelas === "object") {
         return {
           id: item.kelas.id,
           kelas: item.kelas.kelas,
           jurusan: item.kelas.jurusan?.nama_jurusan || ''
         };
       }
+
       return {
         id: item.id,
         kelas: item.kelas || item.nama_kelas,
@@ -39,7 +41,6 @@ export default function SidebarContainer() {
         if (!userStr) return;
 
         const parsedUser = JSON.parse(userStr);
-        setUser(parsedUser);
 
         const currentRole = parsedUser.role?.name || parsedUser.role;
 
@@ -62,8 +63,25 @@ export default function SidebarContainer() {
             .toUpperCase();
 
           const res = await jadwal.list(`hari=${today}&guru_id=${guruId}`);
+
           if (res && res.success && Array.isArray(res.data)) {
             setClasses(normalize(res.data));
+          }
+        }
+
+        // WALAS → ambil kelas yang di-wali-kelasi
+        if (roleName === "WALI KELAS") {
+          const guruId = parsedUser.guru?.id;
+
+          // Try fetching all kelas and find the one assigned to this walas
+          const res = await kelas.list();
+          if (res.success && Array.isArray(res.data)) {
+            const walasClasses = res.data.filter(
+              (k) => k.wali_kelas_id === guruId || k.guru_id === guruId
+            );
+            if (walasClasses.length > 0) {
+              setClasses(normalize(walasClasses));
+            }
           }
         }
       } catch (e) {
@@ -180,7 +198,12 @@ export default function SidebarContainer() {
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+              <path
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M19 9l-7 7-7-7"
+              />
             </svg>
           </button>
 
