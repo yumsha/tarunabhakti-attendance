@@ -1,5 +1,6 @@
 ---
 import SidebarContainer from "./SidebarContainer.jsx";
+import LogoutButton from "./auth/LogoutButton.jsx";
 ---
 
 <aside class="w-72 bg-white border-r border-gray-200 h-screen sticky top-0 flex flex-col" transition:persist>
@@ -16,6 +17,9 @@ import SidebarContainer from "./SidebarContainer.jsx";
     <div class="flex-1 overflow-y-auto pr-2 -mr-2 scrollbar-thin scrollbar-thumb-gray-200">
       <SidebarContainer client:load />
     </div>
+
+    <!-- Logout -->
+    <LogoutButton client:load />
 
     <!-- credit yumsha lah bos! -->
     <div class="pt-6 mt-6 border-t border-gray-100 text-center text-[10px] text-gray-400 uppercase tracking-widest">
