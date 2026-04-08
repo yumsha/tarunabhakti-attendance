@@ -1,21 +1,37 @@
 import { useState, useEffect } from "react";
-import { kelas } from "../../lib/backendApi";
+import { auth, kelas } from "../../lib/backendApi";
 import WalasStudentStats from "../attendance/WalasStudentChart";
 import WalasAttendanceChart from "../attendance/WalasAttendanceChart";
 import WalasAttendanceTable from "../attendance/WalasAttendanceTable";
+import PageHeader from "../layout/PageHeader.jsx";
 
 export default function WalasDashboard() {
   const [user, setUser] = useState(null);
   const [walasKelas, setWalasKelas] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const userStr = localStorage.getItem("user");
-    if (userStr) {
-      setUser(JSON.parse(userStr));
-    }
-  }, []);
  
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("user");
+      if (raw) setUser(JSON.parse(raw));
+    } catch (_) {}
+
+    const token = localStorage.getItem("accessToken");
+    if (!token) return;
+
+    (async () => {
+      try {
+        const res = await auth.me();
+        if (res?.success && res?.data) {
+          setUser(res.data);
+          try {
+            localStorage.setItem("user", JSON.stringify(res.data));
+          } catch (_) {}
+        }
+      } catch (_) {}
+    })();
+  }, []);
+
   // fetch walas' assigned kelas
   useEffect(() => {
     const fetchWalasKelas = async () => {
@@ -47,18 +63,7 @@ export default function WalasDashboard() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <header className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-gray-900">
-          Wali Kelas Dashboard
-        </h1>
-        <div className="flex items-center gap-4">
-          <a href="/dashboard/profile">
-            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold hover:ring-2 hover:ring-blue-300 transition">
-              {user?.guru?.nama?.[0] || user?.email?.[0] || "W"}
-            </div>
-          </a>
-        </div>
-      </header>
+      <PageHeader title="Wali Kelas Dashboard" />
 
       {/* Dashboard Content */}
       <div className="flex-1 overflow-auto p-8">

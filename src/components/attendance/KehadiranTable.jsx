@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { kelas, absensiSiswa } from "../../lib/backendApi";
+import PageHeader from "../layout/PageHeader.jsx";
 
 export default function KehadiranTable() {
   const [classList, setClassList] = useState([]);
@@ -84,20 +85,9 @@ export default function KehadiranTable() {
   return (
     <main className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
-            <h1 className="text-2xl font-semibold text-gray-900">
-                {selectedClass ? `Kehadiran ${formatClassName(selectedClass)}` : "Kehadiran Siswa"}
-            </h1>
-            <div className="flex items-center gap-4">
-                <button className="text-gray-500 hover:text-gray-700">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 015.646 5.646 9.001 9.001 0 0020.354 15.354z"></path>
-                    </svg>
-                </button>
-                <span className="text-sm text-gray-600">Admin</span>
-                <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
-            </div>
-        </header>
+        <PageHeader
+          title={selectedClass ? `Kehadiran ${formatClassName(selectedClass)}` : "Kehadiran Siswa"}
+        />
 
         {/* Content */}
         <div className="flex-1 overflow-auto p-8">

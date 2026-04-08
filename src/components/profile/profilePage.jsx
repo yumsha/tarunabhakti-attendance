@@ -14,6 +14,36 @@ export default function ProfilePage() {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+
+    const resolveRoles = (userData) => {
+        const fromRoles = Array.isArray(userData?.roles)
+            ? userData.roles.map((r) => r?.name).filter(Boolean)
+            : [];
+        const fromRoleNames = Array.isArray(userData?.role_names) ? userData.role_names : [];
+        const fromRoleObj = userData?.role?.name ? [userData.role.name] : [];
+        const fromRoleStr = typeof userData?.role === "string" ? [userData.role] : [];
+
+        const merged = [...fromRoles, ...fromRoleNames, ...fromRoleObj, ...fromRoleStr]
+            .filter(Boolean)
+            .map((r) => String(r).toUpperCase());
+
+        const normalized = merged.map((r) => (r === "WALI KELAS" ? "WALAS" : r));
+        return Array.from(new Set(normalized));
+    };
+
+    const getDisplayName = (userData) => {
+        return (
+            userData?.guru?.nama ||
+            userData?.nama ||
+            userData?.email ||
+            "User"
+        );
+    };
+    
+    const displayName = getDisplayName(user);
+    const roleLabels = resolveRoles(user);
+    const primaryRoleLabel = roleLabels?.[0] || "USER";
+    const initials = (displayName || "U").trim().charAt(0).toUpperCase();
     
     useEffect(() => {
         async function fetchProfileData() {
@@ -93,9 +123,7 @@ export default function ProfilePage() {
                 <button className=' hover:bg-blue-600 rounded-full p-0.5'>
                     <a href="/dashboard/profile">
                     <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold">
-                        {user?.nama
-                            ? user.nama.charAt(0).toUpperCase()
-                            : user?.email?.charAt(0).toUpperCase() || "U"}
+                        {initials}
                     </div>
                     </a>
                 </button>
@@ -112,14 +140,12 @@ export default function ProfilePage() {
                             <div className="flex items-center gap-5">
                                 <div className="relative">
                                     <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center text-white font-bold text-3xl shadow-sm">
-                                        {user?.nama
-                                            ? user.nama.charAt(0).toUpperCase()
-                                            : user?.email?.charAt(0).toUpperCase() || "U"}
+                                        {initials}
                                     </div>
                                 </div>
                                 <div>
                                     <h2 className="text-2xl font-bold text-gray-900">
-                                        {user?.guru?.nama || user?.nama || "User"}
+                                        {displayName}
                                     </h2>
                                     <div className="flex items-center gap-2 mt-1.5">
                                         <p className="text-gray-500">{user?.email}</p>
@@ -163,7 +189,7 @@ export default function ProfilePage() {
                                         <div>
                                             <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">Nama Lengkap</p>
                                             <p className="font-medium text-gray-900 mt-1">
-                                                {user?.guru?.nama || user?.nama || "-"}
+                                                {displayName || "-"}
                                             </p>
                                         </div>
                                     </div>
@@ -196,17 +222,25 @@ export default function ProfilePage() {
                                         <div className="p-2 bg-blue-50 rounded-lg">
                                             <UserCog size={18} className="text-blue-600" />
                                         </div>
-                                        <div>
+                                        <div className="">
                                             <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">Role</p>
-                                            <div className="mt-1">
+                                            <div className="mt-1 flex gap-2">
                                                 <span className="inline-flex px-3 py-1 rounded-lg text-sm font-medium bg-blue-50 text-blue-700 border border-blue-200">
-                                                    {user?.role?.name || "User"}
+                                                    {primaryRoleLabel}
                                                 </span>
+                                                
+                                                <div className="flex flex-row">
+                                                    {roleLabels.length > 1 && (
+                                                        <span className="inline-flex px-3 py-1 rounded-lg text-sm font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                                                            {roleLabels.slice(1).join(", ")}
+                                                        </span>
+                                                    )}                                                
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
 
-                                    {user?.guru?.nip && (
+                                    {(user?.guru?.NIP || user?.guru?.nip) && (
                                         <div className="flex items-start gap-3">
                                             <div className="p-2 bg-purple-50 rounded-lg">
                                                 <IdCard size={18} className="text-purple-600" />
@@ -214,7 +248,7 @@ export default function ProfilePage() {
                                             <div>
                                                 <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">NIP</p>
                                                 <p className="font-medium text-gray-900 mt-1 font-mono">
-                                                    {user.guru.nip}
+                                                    {user?.guru?.NIP || user?.guru?.nip}
                                                 </p>
                                             </div>
                                         </div>

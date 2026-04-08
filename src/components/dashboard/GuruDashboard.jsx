@@ -1,14 +1,30 @@
 import { useState, useEffect } from 'react';
-import { jadwal } from '../../lib/backendApi';
+import { auth, jadwal } from '../../lib/backendApi';
+import PageHeader from "../layout/PageHeader.jsx";
 
 export default function GuruDashboard() {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    const userStr = localStorage.getItem('user');
-    if (userStr) {
-      setUser(JSON.parse(userStr));
-    }
+    try {
+      const raw = localStorage.getItem("user");
+      if (raw) setUser(JSON.parse(raw));
+    } catch (_) {}
+
+    const token = localStorage.getItem("accessToken");
+    if (!token) return;
+
+    (async () => {
+      try {
+        const res = await auth.me();
+        if (res?.success && res?.data) {
+          setUser(res.data);
+          try {
+            localStorage.setItem("user", JSON.stringify(res.data));
+          } catch (_) {}
+        }
+      } catch (_) {}
+    })();
   }, []);
 
   const [jadwalData, setJadwalData] = useState([]);
@@ -41,19 +57,7 @@ export default function GuruDashboard() {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Top Bar */}
-      <header className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-gray-900">Guru Dashboard</h1>
-        <div className="flex items-center gap-4">
-
-          <button className=' hover:bg-blue-600 rounded-full p-0.5'>
-            <a href="/dashboard/profile">
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold">
-                {user?.guru?.nama?.[0] || 'G'}
-              </div>
-            </a>
-          </button>
-        </div>
-      </header>
+      <PageHeader title="Guru Dashboard" />
 
       {/* Welcome Sign */}
       <div className="p-8">

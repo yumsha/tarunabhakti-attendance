@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { kelas } from "../../lib/backendApi";
+import PageHeader from "../layout/PageHeader.jsx";
 
 export default function DaftarKehadiranKelas() {
   const [classList, setClassList] = useState([]);
@@ -42,28 +43,31 @@ export default function DaftarKehadiranKelas() {
   return (
     <main className="flex-1 flex flex-col overflow-hidden bg-gray-50">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-8 py-5 flex items-center justify-between shadow-sm">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Daftar Kehadiran Siswa</h1>
-          <p className="text-sm text-gray-500 mt-1">Pilih kelas untuk melihat rekap kehadiran</p>
-        </div>
-        <div className="flex items-center gap-4">
+      <PageHeader
+        title="Daftar Kehadiran Siswa"
+        subtitle="Pilih kelas untuk melihat rekap kehadiran"
+        right={
           <div className="relative">
             <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
               </svg>
             </span>
-            <input 
-              type="text" 
-              placeholder="Cari kelas..." 
+            <input
+              type="text"
+              placeholder="Cari kelas..."
               className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 transition-all text-sm w-64"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-        </div>
-      </header>
+        }
+      />
 
       {/* Content */}
       <div className="flex-1 overflow-auto p-8">
