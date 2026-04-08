@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { kelas, jadwal } from "../lib/backendApi";
-import { UserCogIcon } from "lucide-react";
+
+import { UserStarIcon } from "lucide-react";
 
 export default function SidebarContainer() {
   const [classes, setClasses] = useState([]);
@@ -9,11 +10,45 @@ export default function SidebarContainer() {
   const [currentClassId, setCurrentClassId] = useState("");
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [roles, setRoles] = useState(null);
 
-  const roleName = (user?.role?.name || user?.role || "").toString().toUpperCase();
-  const isAdmin = roleName === 'ADMIN';
-  const isWalas = roleName === 'WALAS';
-  const isGuru = roleName === 'GURU';
+  const resolveRoles = (userData) => {
+    const fromRoles = Array.isArray(userData?.roles)
+      ? userData.roles.map((r) => r?.name).filter(Boolean)
+      : [];
+    const fromRoleNames = Array.isArray(userData?.role_names) ? userData.role_names : [];
+    const fromRoleObj = userData?.role?.name ? [userData.role.name] : [];
+    const fromRoleStr = typeof userData?.role === "string" ? [userData.role] : [];
+
+    const merged = [...fromRoles, ...fromRoleNames, ...fromRoleObj, ...fromRoleStr]
+      .filter(Boolean)
+      .map((r) => String(r).toUpperCase());
+
+    // normalize some known variants
+    const normalized = merged.map((r) => (r === "WALI KELAS" ? "WALAS" : r));
+
+    return Array.from(new Set(normalized));
+  };
+
+  // Ambil role dengan cara yang sama seperti DashboardSwitcher
+  useEffect(() => {
+    const userStr = localStorage.getItem("user");
+    if (userStr) {
+      try {
+        const userData = JSON.parse(userStr);
+        setUser(userData);
+
+        const resolved = resolveRoles(userData);
+        setRoles(resolved.length > 0 ? resolved : ["UNKNOWN"]);
+      } catch (e) {
+        console.error("Error parsing user:", e);
+      }
+    }
+  }, []);
+
+  const isAdmin = roles?.includes("ADMIN");
+  const isWalas = roles?.includes("WALAS");
+  const isGuru = roles?.includes("GURU");
 
   const normalize = (data) =>
     data.map((item) => {
@@ -36,27 +71,32 @@ export default function SidebarContainer() {
 
   useEffect(() => {
     const fetchClasses = async () => {
+      if (!roles) return;
+      
       try {
         const userStr = localStorage.getItem("user");
         if (!userStr) return;
 
         const parsedUser = JSON.parse(userStr);
 
-        const currentRole = parsedUser.role?.name || parsedUser.role;
-
-        if (currentRole === "ADMIN") {
+        if (isAdmin) {
           const res = await kelas.list("limit=100");
           if (res.success && res.data) {
             setClasses(normalize(res.data));
           }
-        } else if (currentRole === "WALAS") {
+        } else if (isWalas) {
           const res = await kelas.list("limit=100");
           if (res.success && res.data) {
             const guruId = parsedUser.guru?.id;
-            const filtered = res.data.filter(c => c.walas_id === guruId);
+            // cari kelas dimana ni guru = WALAS
+            const filtered = res.data.filter(c => 
+              c.walas_id === guruId || 
+              c.wali_kelas_id === guruId ||
+              c.walas?.id === guruId
+            );
             setClasses(normalize(filtered));
           }
-        } else if (currentRole === "GURU") {
+        } else if (isGuru) {
           const guruId = parsedUser.guru?.id;
           const today = new Date()
             .toLocaleDateString("id-ID", { weekday: "long" })
@@ -68,22 +108,6 @@ export default function SidebarContainer() {
             setClasses(normalize(res.data));
           }
         }
-
-        // WALAS → ambil kelas yang di-wali-kelasi
-        if (roleName === "WALI KELAS") {
-          const guruId = parsedUser.guru?.id;
-
-          // Try fetching all kelas and find the one assigned to this walas
-          const res = await kelas.list();
-          if (res.success && Array.isArray(res.data)) {
-            const walasClasses = res.data.filter(
-              (k) => k.wali_kelas_id === guruId || k.guru_id === guruId
-            );
-            if (walasClasses.length > 0) {
-              setClasses(normalize(walasClasses));
-            }
-          }
-        }
       } catch (e) {
         console.error("Failed to fetch classes for sidebar", e);
       } finally {
@@ -92,7 +116,9 @@ export default function SidebarContainer() {
     };
 
     fetchClasses();
+  }, [roles, isAdmin, isWalas, isGuru]);
 
+  useEffect(() => {
     const updateState = () => {
       if (typeof window !== "undefined") {
         const path = window.location.pathname;
@@ -134,9 +160,18 @@ export default function SidebarContainer() {
       }`;
   };
 
+  // Loading state
+  if (!roles) {
+    return (
+      <nav className="space-y-1 text-sm">
+        <div className="px-4 py-3 text-gray-400 italic">Loading...</div>
+      </nav>
+    );
+  }
+
   return (
     <nav className="space-y-1 text-sm">
-      {/* Dashboard */}
+      {/* dashboard */}
       <a
         href="/dashboard"
         data-astro-prefetch
@@ -147,6 +182,17 @@ export default function SidebarContainer() {
         </svg>
         Dashboard
       </a>
+      {/* walas Dashboard */}
+      {isWalas && (
+        <a
+          href="/dashboard/walas"
+          data-astro-prefetch
+          className={getLinkClass("/dashboard/walas")}
+        >
+          <UserStarIcon width={20} height={20}/>
+          Dashboard Walas
+        </a>
+      )}
 
       {/* Siswa - Only for ADMIN or WALAS */}
       {(isAdmin || isWalas) && (
@@ -181,10 +227,11 @@ export default function SidebarContainer() {
         <div className="space-y-1">
           <button
             onClick={toggleAttendanceMenu}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all duration-200 ${currentPath.startsWith("/dashboard/kehadiran") && !currentClassId
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all duration-200 ${
+              currentPath.startsWith("/dashboard/kehadiran") && !currentClassId
                 ? "bg-blue-50 text-blue-600 font-medium"
                 : "text-gray-600 hover:bg-blue-50 hover:text-blue-600"
-              }`}
+            }`}
           >
             <div className="flex items-center gap-3">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -217,21 +264,27 @@ export default function SidebarContainer() {
                     key={cls.id}
                     href={`/dashboard/kehadiran?kelasId=${cls.id}`}
                     data-astro-prefetch
-                    className={`block px-4 py-2 rounded-lg text-xs transition-all duration-200 ${currentClassId === String(cls.id)
+                    className={`block px-4 py-2 rounded-lg text-xs transition-all duration-200 ${
+                      currentClassId === String(cls.id)
                         ? "bg-blue-100 text-blue-700 font-semibold"
                         : "text-gray-500 hover:bg-gray-100 hover:text-blue-600"
-                      }`}
+                    }`}
                   >
                     {cls.kelas} {cls.jurusan}
                   </a>
                 ))
               ) : (
-                <div className="px-4 py-2 text-xs text-gray-400 italic">Tidak ada kelas.</div>
+                <div className="px-4 py-2 text-xs text-gray-400 italic">
+                  {isWalas ? "Anda belum ditugaskan sebagai wali kelas." : "Tidak ada kelas untuk hari ini."}
+                </div>
               )}
             </div>
           )}
+          
         </div>
       )}
+
+
     </nav>
   );
 }

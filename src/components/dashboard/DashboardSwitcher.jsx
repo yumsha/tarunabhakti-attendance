@@ -4,7 +4,23 @@ import GuruDashboard from "./GuruDashboard.jsx";
 import WalasDashboard from "./WalasDashboard.jsx";
 
 export default function DashboardSwitcher() {
-  const [role, setRole] = useState(null);
+  const [roles, setRoles] = useState(null);
+
+  const resolveRoles = (userData) => {
+    const fromRoles = Array.isArray(userData?.roles)
+      ? userData.roles.map((r) => r?.name).filter(Boolean)
+      : [];
+    const fromRoleNames = Array.isArray(userData?.role_names) ? userData.role_names : [];
+    const fromRoleObj = userData?.role?.name ? [userData.role.name] : [];
+    const fromRoleStr = typeof userData?.role === "string" ? [userData.role] : [];
+
+    const merged = [...fromRoles, ...fromRoleNames, ...fromRoleObj, ...fromRoleStr]
+      .filter(Boolean)
+      .map((r) => String(r).toUpperCase());
+
+    const normalized = merged.map((r) => (r === "WALI KELAS" ? "WALAS" : r));
+    return Array.from(new Set(normalized));
+  };
 
   useEffect(() => {
     const userStr = localStorage.getItem("user");
@@ -16,20 +32,14 @@ export default function DashboardSwitcher() {
     try {
       const user = JSON.parse(userStr);
 
-      // Prioritaskan roles array (format baru dari BE), fallback ke role object/string
-      const resolvedRole =
-        user.roles?.[0]?.name?.toUpperCase()
-        ?? user.role_names?.[0]
-        ?? user.role?.name?.toUpperCase()
-        ?? (typeof user.role === "string" ? user.role.toUpperCase() : null);
-
-      setRole(resolvedRole ?? "UNKNOWN");
+      const resolved = resolveRoles(user);
+      setRoles(resolved.length > 0 ? resolved : ["UNKNOWN"]);
     } catch {
       window.location.href = "/login";
     }
   }, []);
 
-  if (!role) {
+  if (!roles) {
     return (
       <div className="flex-1 flex items-center justify-center bg-gray-50">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -37,9 +47,9 @@ export default function DashboardSwitcher() {
     );
   }
 
-  if (role === "ADMIN") return <AdminDashboard />;
-  if (role === "GURU") return <GuruDashboard />;
-  if (role === "WALI KELAS") return <WalasDashboard />;
+  if (roles.includes("ADMIN")) return <AdminDashboard />;
+  if (roles.includes("GURU")) return <GuruDashboard />;
+  if (roles.includes("WALAS")) return <WalasDashboard />;
 
   return (
     <div className="flex-1 flex items-center justify-center bg-gray-50">
