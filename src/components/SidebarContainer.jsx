@@ -233,6 +233,18 @@ export default function SidebarContainer() {
         </a>
       )}
 
+      {/* admin - daftar kelas */}
+      {isAdmin && (
+        <a
+          href="/dashboard/kelas"
+          data-astro-prefetch
+          className={getLinkClass("/dashboard/kelas")}
+        >
+          <School width={20} height={20} />
+          Daftar Kelas
+        </a>
+      )}
+
       {/* Siswa - Only for ADMIN or WALAS */}
       {(isAdmin || isWalas) && (
         <a
