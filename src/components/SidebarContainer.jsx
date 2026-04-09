@@ -4,6 +4,7 @@ import { kelas, jadwal } from "../lib/backendApi";
 import { UserStarIcon } from "lucide-react";
 import { UserCog } from "lucide-react";
 import { ClipboardList } from "lucide-react";
+import { School } from "lucide-react";
 
 export default function SidebarContainer() {
   const [classes, setClasses] = useState([]);
@@ -205,6 +206,18 @@ export default function SidebarContainer() {
         >
           <ClipboardList width={20} height={20} />
           Detail Absensi
+        </a>
+      )}
+
+      {/* walas infor kelas */}
+      {isWalas && (
+        <a
+          href="/dashboard/walas-kelas"
+          data-astro-prefetch
+          className={getLinkClass("/dashboard/walas-kelas")}
+        >
+          <School width={20} height={20} />
+          Informasi Kelas
         </a>
       )}
 

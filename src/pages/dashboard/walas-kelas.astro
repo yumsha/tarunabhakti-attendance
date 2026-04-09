@@ -1,0 +1,17 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Sidebar from "../../components/Sidebar.astro";
+import AuthGate from "../../components/auth/AuthGate.jsx";
+import WalasKelasList from "../../components/walas/WalasKelasList.jsx";
+---
+
+<BaseLayout title="Daftar Kelas Walas">
+  <div class="flex h-screen bg-gray-50 overflow-hidden">
+    <Sidebar />
+
+    <AuthGate client:load allowedRoles={["WALAS"]}>
+      <WalasKelasList client:load />
+    </AuthGate>
+  </div>
+</BaseLayout>
+
