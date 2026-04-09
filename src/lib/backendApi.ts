@@ -116,9 +116,11 @@ export const absensiSiswa = {
 export const detailAbsensi = {
   absensiGuru: (data: any) => request('/api/v1/detail-absensi/absensi-guru', { method: 'POST', body: JSON.stringify(data) }),
   updateStatus: (data: any) => request('/api/v1/detail-absensi/update-status', { method: 'PUT', body: JSON.stringify(data) }),
-  byJadwal: (jadwal_id: string | number) => request(`/api/v1/detail-absensi/jadwal/${jadwal_id}`),
   rekapSiswa: () => request('/api/v1/detail-absensi/rekap-siswa'),
-  laporanHarian: () => request('/api/v1/detail-absensi/laporan-harian'),
+  rekapKelas: (params?: string) => request(`/api/v1/detail-absensi/rekap-kelas${params ? `?${params}` : ''}`),
+  rekapJadwal: (params?: string) => request(`/api/v1/detail-absensi/rekap-jadwal${params ? `?${params}` : ''}`),
+  pratinjauWalas: (params?: string) => request(`/api/v1/detail-absensi/pratinjau-walas${params ? `?${params}` : ''}`),
+  absensiWalas: (data: any) => request('/api/v1/detail-absensi/absensi-walas', { method: 'POST', body: JSON.stringify(data) }),
   delete: (id: string | number) => request(`/api/v1/detail-absensi/${id}`, { method: 'DELETE' }),
 };
 

@@ -42,8 +42,9 @@ export default function UserTable({
   onPageChange,
 }) {
   const normalizedQuery = (searchQuery || "").trim();
-  const foundCount =
-    pagination?.total ?? (normalizedQuery ? users.length : users.length);
+  const foundCount = normalizedQuery
+    ? users.length
+    : pagination?.total ?? users.length;
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">

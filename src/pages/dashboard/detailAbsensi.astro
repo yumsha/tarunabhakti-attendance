@@ -1,0 +1,17 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Sidebar from "../../components/Sidebar.astro";
+import AuthGate from "../../components/auth/AuthGate.jsx";
+import WalasDetailAbsensi from "../../components/attendance/WalasDetailAbsensi.jsx";
+---
+
+<BaseLayout title="Detail Absensi">
+  <div class="flex h-screen bg-gray-50 overflow-hidden">
+    <Sidebar />
+
+    <AuthGate client:load allowedRoles={["WALAS"]}>
+      <WalasDetailAbsensi client:load />
+    </AuthGate>
+  </div>
+</BaseLayout>
+
