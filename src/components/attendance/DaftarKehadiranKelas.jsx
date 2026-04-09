@@ -97,15 +97,35 @@ export default function DaftarKehadiranKelas() {
                       {cls.jurusan?.nama_jurusan || "-"}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <a 
-                        href={`/dashboard/kehadiran?kelasId=${cls.id}`}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-blue-600 rounded-lg text-xs font-semibold hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all duration-200 shadow-sm"
-                      >
-                        Lihat Kehadiran
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                        </svg>
-                      </a>
+                      <div className="flex items-center justify-end gap-3">
+                        <button 
+                          className="inline-flex items-center gap-2 px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 border border-red-100 font-medium text-[11px]"
+                          onClick={() => alert(`Unduh PDF untuk ${cls.kelas} (Hardcoded)`)}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                          </svg>
+                          Unduh PDF
+                        </button>
+                        <button 
+                          className="inline-flex items-center gap-2 px-3 py-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200 border border-green-100 font-medium text-[11px]"
+                          onClick={() => alert(`Unduh Excel untuk ${cls.kelas} (Hardcoded)`)}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          Unduh Excel
+                        </button>
+                        <a 
+                          href={`/dashboard/kehadiran?kelasId=${cls.id}`}
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-blue-600 rounded-lg text-xs font-semibold hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all duration-200 shadow-sm"
+                        >
+                          Lihat Kehadiran
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                          </svg>
+                        </a>
+                      </div>
                     </td>
                   </tr>
                 ))
