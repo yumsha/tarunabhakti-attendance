@@ -43,7 +43,12 @@ export default function WalasDashboard() {
         // fetch semua kelas dan cari guru yg berstatus sbg walas
         const res = await kelas.list("limit=100");
         if (res.success && Array.isArray(res.data)) {
-          const found = res.data.find((k) => k.walas?.id === guruId);
+          const found = res.data.find(
+            (k) =>
+              k.walas?.id === guruId ||
+              k.walas_id === guruId ||
+              k.wali_kelas_id === guruId
+          );
           if (found) {
             setWalasKelas(found);
           }

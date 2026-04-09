@@ -2,6 +2,15 @@ import { useState, useEffect, useRef } from "react";
 import Chart from "chart.js/auto";
 import { absensiSiswa } from "../../lib/backendApi";
 
+function getTodayWIB() {
+  // YYYY-MM-DD in Asia/Jakarta timezone
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
+}
+
+function getDateWIB(date) {
+  return date.toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
+}
+
 export default function WalasAttendanceChart({ kelasId, totalSiswa = 0 }) {
   const doughnutRef = useRef(null);
   const barRef = useRef(null);
@@ -17,7 +26,7 @@ export default function WalasAttendanceChart({ kelasId, totalSiswa = 0 }) {
     const fetchToday = async () => {
       if (!kelasId) return;
       try {
-        const today = new Date().toISOString().split("T")[0];
+        const today = getTodayWIB();
         const res = await absensiSiswa.laporanHarian(`tanggal=${today}&kelas_id=${kelasId}`);
         if (res.success && res.summary) {
           const tepatWaktu = res.summary.tepat_waktu || 0;
@@ -50,7 +59,7 @@ export default function WalasAttendanceChart({ kelasId, totalSiswa = 0 }) {
         for (let i = 6; i >= 0; i--) {
           const d = new Date();
           d.setDate(d.getDate() - i);
-          days.push(d.toISOString().split("T")[0]);
+          days.push(getDateWIB(d));
         }
 
         const results = await Promise.all(

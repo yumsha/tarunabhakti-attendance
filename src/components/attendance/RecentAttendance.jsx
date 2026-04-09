@@ -1,13 +1,18 @@
 import { useState, useEffect } from "react";
 import { absensiSiswa } from "../../lib/backendApi";
 
+function getTodayWIB() {
+  // YYYY-MM-DD in Asia/Jakarta timezone
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
+}
+
 export default function RecentAttendance() {
   const [recentAttendance, setRecentAttendance] = useState([]);
 
   useEffect(() => {
     const fetchAttendance = async () => {
       try {
-        const today = new Date().toISOString().split('T')[0];
+        const today = getTodayWIB();
         const res = await absensiSiswa.laporanHarian(`tanggal=${today}`);
         if (res.success && Array.isArray(res.data)) {
             // Take the last 5 or 10 entries as "recent" based on tap_in time

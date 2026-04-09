@@ -8,6 +8,11 @@ import {
 } from "lucide-react";
 import { absensiSiswa } from "../../lib/backendApi";
 
+function getTodayWIB() {
+  // YYYY-MM-DD in Asia/Jakarta timezone
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
+}
+
 // Helper: format status for export
 const getStatusText = (status) => {
   switch (status) {
@@ -54,7 +59,7 @@ export default function WalasAttendanceTable({ kelasId, kelasName }) {
   const [attendanceData, setAttendanceData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filterDate, setFilterDate] = useState(
-    new Date().toISOString().split("T")[0]
+    getTodayWIB()
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [exporting, setExporting] = useState("");

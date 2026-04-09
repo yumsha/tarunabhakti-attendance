@@ -2,6 +2,11 @@ import { useState, useEffect } from "react";
 import { CheckCircle, Clock, XCircle, Users } from "lucide-react";
 import { absensiSiswa } from "../../lib/backendApi";
 
+function getTodayWIB() {
+  // YYYY-MM-DD in Asia/Jakarta timezone
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
+}
+
 export default function WalasStudentStats({ kelasId, totalSiswa = 0 }) {
   const [stats, setStats] = useState({
     tepat_waktu: 0,
@@ -16,7 +21,7 @@ export default function WalasStudentStats({ kelasId, totalSiswa = 0 }) {
       if (!kelasId) return;
       setLoading(true);
       try {
-        const today = new Date().toISOString().split("T")[0];
+        const today = getTodayWIB();
         const res = await absensiSiswa.laporanHarian(
           `tanggal=${today}&kelas_id=${kelasId}`
         );
