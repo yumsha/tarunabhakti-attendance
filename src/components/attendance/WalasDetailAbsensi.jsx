@@ -249,25 +249,6 @@ export default function WalasDetailAbsensi() {
             
             <div className="flex items-center gap-2 flex-wrap justify-end">
               <div className="flex items-center gap-2">
-                <select
-                  className={`${inputClass} w-56`}
-                  value={kelasId}
-                  onChange={(e) => setKelasId(e.target.value)}
-                  disabled={loadingKelas}
-                >
-                  {loadingKelas ? (
-                    <option>Memuat kelas...</option>
-                  ) : kelasList.length > 0 ? (
-                    kelasList.map((k) => (
-                      <option key={k.id} value={k.id}>
-                        {(k.kelas || "Kelas") + (k.jurusan?.nama_jurusan ? ` ${k.jurusan.nama_jurusan}` : "")}
-                      </option>
-                    ))
-                  ) : (
-                    <option value="">Tidak ada kelas walas</option>
-                  )}
-                </select>
-
                 <input
                   type="date"
                   className={`${inputClass} w-44`}
@@ -275,15 +256,6 @@ export default function WalasDetailAbsensi() {
                   onChange={(e) => setTanggal(e.target.value)}
                 />
               </div>
-
-              <button
-                onClick={fetchDetail}
-                disabled={loadingData || !kelasId}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 bg-white text-gray-700 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 transition"
-              >
-                {loadingData ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                Refresh
-              </button>
 
               <button
                 onClick={handleSave}
