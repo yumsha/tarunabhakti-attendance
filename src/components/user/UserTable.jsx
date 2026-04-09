@@ -41,13 +41,17 @@ export default function UserTable({
   page,
   onPageChange,
 }) {
+  const normalizedQuery = (searchQuery || "").trim();
+  const foundCount =
+    pagination?.total ?? (normalizedQuery ? users.length : users.length);
+
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
       {/* table header */}
       <div className="px-6 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center gap-3">
           <p className="text-sm text-gray-500">
-            <span className="font-semibold text-gray-700">{users.length}</span>{" "}
+            <span className="font-semibold text-gray-700">{foundCount}</span>{" "}
             user ditemukan
           </p>
         </div>
@@ -110,7 +114,7 @@ export default function UserTable({
                   className="hover:bg-blue-50/30 transition-colors duration-150"
                 >
                   <td className="px-6 py-4 text-sm text-gray-500 font-medium">
-                    {index + 1}
+                    {(page - 1) * (pagination?.limit || 10) + index + 1}
                   </td>
                   <td className="px-6 py-4">
                     <p className="text-sm font-medium text-gray-900">

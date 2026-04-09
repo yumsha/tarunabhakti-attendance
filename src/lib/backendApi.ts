@@ -124,7 +124,7 @@ export const detailAbsensi = {
 
 // Users
 export const users = {
-  list: () => request('/api/v1/users'),
+  list: (params?: string) => request(`/api/v1/users${params ? `?${params}` : ''}`),
   get: (id: string | number) => request(`/api/v1/users/${id}`),
   update: (id: string | number, data: any) => request(`/api/v1/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string | number) => request(`/api/v1/users/${id}`, { method: 'DELETE' }),

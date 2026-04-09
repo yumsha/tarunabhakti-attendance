@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { kelas, jadwal } from "../lib/backendApi";
 
 import { UserStarIcon } from "lucide-react";
+import { UserCog } from "lucide-react";
 
 export default function SidebarContainer() {
   const [classes, setClasses] = useState([]);
@@ -191,6 +192,18 @@ export default function SidebarContainer() {
         >
           <UserStarIcon width={20} height={20}/>
           Dashboard Walas
+        </a>
+      )}
+
+      {/* admin - untuk mengelola Users */}
+      {isAdmin && (
+        <a
+          href="/dashboard/users"
+          data-astro-prefetch
+          className={getLinkClass("/dashboard/users")}
+        >
+          <UserCog width={20} height={20} />
+          Kelola Users
         </a>
       )}
 

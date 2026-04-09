@@ -22,6 +22,20 @@ function Toast({ toast }) {
   );
 }
 
+// role normalize
+function normalizeUser(raw) {
+  if (!raw) return raw;
+  const userRole = raw.userRole;
+  const roleObj = Array.isArray(userRole)
+    ? userRole[0]?.role
+    : userRole?.role ?? userRole;
+
+  return {
+    ...raw,
+    role: raw.role ?? roleObj,
+  };
+}
+
 // Main Orchestrator
 export default function UserManagement() {
   const [userList, setUserList] = useState([]);
@@ -48,14 +62,41 @@ export default function UserManagement() {
     setTimeout(() => setToast(null), 3000);
   };
 
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const isSearching = !!normalizedQuery;
+
   // Fetch
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await users.list();
+      // NOTE: client-side search across pages.
+      // When searching, fetch a large chunk once then filter+paginate locally.
+      const effectivePage = isSearching ? 1 : page;
+      const effectiveLimit = isSearching ? 10000 : pagination.limit;
+      const res = await users.list(
+        `page=${effectivePage}&limit=${effectiveLimit}`
+      );
       if (res.success) {
-        setUserList(res.data || []);
-        if (res.pagination) setPagination(res.pagination);
+        const normalized = (res.data || []).map(normalizeUser);
+        setUserList(normalized);
+
+        if (isSearching) {
+          const filteredTotal = normalized.filter((u) => {
+            return (
+              (u.email || "").toLowerCase().includes(normalizedQuery) ||
+              (u.guru?.nama || "").toLowerCase().includes(normalizedQuery) ||
+              (u.guru?.NIP || "").toLowerCase().includes(normalizedQuery)
+            );
+          }).length;
+
+          setPagination((p) => ({
+            ...p,
+            total: filteredTotal,
+            totalPages: Math.max(1, Math.ceil(filteredTotal / p.limit)),
+          }));
+        } else if (res.pagination) {
+          setPagination(res.pagination);
+        }
       }
     } catch (err) {
       console.error("Failed to fetch users:", err);
@@ -63,21 +104,32 @@ export default function UserManagement() {
     } finally {
       setLoading(false);
     }
-  }, [page]);
+  }, [page, pagination.limit, isSearching, normalizedQuery]);
 
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
 
-  // Filter
-  const filteredUsers = userList.filter((u) => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      (u.email || "").toLowerCase().includes(q) ||
-      (u.guru?.nama || "").toLowerCase().includes(q)
-    );
-  });
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery]);
+
+  const filteredUsers = isSearching
+    ? userList.filter((u) => {
+        return (
+          (u.email || "").toLowerCase().includes(normalizedQuery) ||
+          (u.guru?.nama || "").toLowerCase().includes(normalizedQuery) ||
+          (u.guru?.NIP || "").toLowerCase().includes(normalizedQuery)
+        );
+      })
+    : userList;
+
+  const pagedUsers = isSearching
+    ? filteredUsers.slice(
+        (page - 1) * pagination.limit,
+        (page - 1) * pagination.limit + pagination.limit
+      )
+    : userList;
 
   // Create / Update
   const handleSubmit = async (payload, userId, guruData, existingGuruId) => {
@@ -87,12 +139,12 @@ export default function UserManagement() {
         const guruRes = await guruApi.update(existingGuruId, guruData);
         if (!guruRes.success)
           throw new Error(guruRes.message || "Gagal mengupdate data guru");
-        payload.guru_id = existingGuruId;
+        payload.guru_id = Number(existingGuruId);
       } else if (guruData && !existingGuruId) {
         const guruRes = await guruApi.create(guruData);
         if (!guruRes.success)
           throw new Error(guruRes.message || "Gagal membuat data guru");
-        payload.guru_id = guruRes.data?.id;
+        payload.guru_id = Number(guruRes.data?.id);
       }
       const res = await users.update(userId, payload);
       if (!res.success) throw new Error(res.message || "Gagal mengupdate user");
@@ -107,12 +159,12 @@ export default function UserManagement() {
           guruListRes.data.find((g) => g.NIP === guruData.NIP);
 
         if (existingGuru) {
-          payload.guru_id = existingGuru.id;
+          payload.guru_id = Number(existingGuru.id);
         } else {
           const guruRes = await guruApi.create(guruData);
           if (!guruRes.success)
             throw new Error(guruRes.message || "Gagal membuat data guru");
-          payload.guru_id = guruRes.data?.id;
+          payload.guru_id = Number(guruRes.data?.id);
         }
       }
       const res = await auth.register(payload);
@@ -149,8 +201,22 @@ export default function UserManagement() {
   };
 
   const handleEdit = (user) => {
-    setEditUser(user);
-    setShowForm(true);
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await users.get(user.id);
+        if (!res?.success) {
+          throw new Error(res?.message || "Gagal memuat detail user");
+        }
+        setEditUser(normalizeUser(res.data));
+        setShowForm(true);
+      } catch (err) {
+        console.error("Failed to fetch user detail:", err);
+        showToast(err?.message || "Gagal memuat detail user", "error");
+      } finally {
+        setLoading(false);
+      }
+    })();
   };
 
   const handleCloseForm = () => {
@@ -167,7 +233,7 @@ export default function UserManagement() {
       {/* Content area */}
       <div className="flex-1 overflow-auto p-8">
         <UserTable
-          users={filteredUsers}
+          users={pagedUsers}
           loading={loading}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
