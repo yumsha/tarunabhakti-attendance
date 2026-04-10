@@ -1,0 +1,507 @@
+import PageHeader from "../layout/PageHeader.jsx";
+import { useState, useEffect, useRef } from "react";
+import { orangTua } from "../../lib/backendApi.js";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
+// ─── helpers ────────────────────────────────────────────────────────────────
+
+const TEMPLATE_HEADERS = ["Nama Orang Tua", "Nomor Telepon"];
+
+function downloadExcelTemplate() {
+  const ws = XLSX.utils.aoa_to_sheet([
+    TEMPLATE_HEADERS,
+    ["Budi Santoso", "08123456789"],
+  ]);
+  ws["!cols"] = TEMPLATE_HEADERS.map(() => ({ wch: 24 }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Template Orang Tua");
+  XLSX.writeFile(wb, "template_orangtua.xlsx");
+}
+
+function downloadPdfTemplate() {
+  const doc = new jsPDF({ orientation: "landscape" });
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.text("Template Import Data Orang Tua", 14, 16);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.text("Isi sesuai kolom di bawah.", 14, 23);
+  autoTable(doc, {
+    startY: 28,
+    head: [TEMPLATE_HEADERS],
+    body: [["Budi Santoso", "08123456789"]],
+    styles: { fontSize: 8 },
+    headStyles: { fillColor: [37, 99, 235] },
+  });
+  doc.save("template_orangtua.pdf");
+}
+
+function exportTablePdf(data) {
+  const doc = new jsPDF({ orientation: "landscape" });
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.text("Data Orang Tua", 14, 16);
+  autoTable(doc, {
+    startY: 22,
+    head: [["Nama Orang Tua", "Nomor Telepon"]],
+    body: data.map((o) => [o.nama_orangtua, o.nomor_telepon]),
+    styles: { fontSize: 8 },
+    headStyles: { fillColor: [37, 99, 235] },
+  });
+  doc.save("data_orangtua.pdf");
+}
+
+function exportTableExcel(data) {
+  const rows = data.map((o) => ({
+    "Nama Orang Tua": o.nama_orangtua,
+    "Nomor Telepon": o.nomor_telepon,
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws["!cols"] = Object.keys(rows[0] || {}).map(() => ({ wch: 22 }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Data Orang Tua");
+  XLSX.writeFile(wb, "data_orangtua.xlsx");
+}
+
+// ─── Icons ──────────────────────────────────────────────────────────────────
+const Icon = ({ d, size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <path d={d} />
+  </svg>
+);
+
+const UploadIcon = () => <Icon d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />;
+const DownloadIcon = () => <Icon d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />;
+const FileExcelIcon = () => <Icon d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM9 13l1.5 2.5L9 18h1.5l.75-1.5.75 1.5H13.5l-1.5-2.5L13.5 13H12l-.75 1.5L10.5 13H9z" />;
+const FilePdfIcon = () => <Icon d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM9 17v-5h1.5a1.5 1.5 0 0 1 0 3H9M14 17v-5h2M14 14.5h1.5" />;
+const ChevronLeft = () => <Icon d="M15 18l-6-6 6-6" />;
+const ChevronRight = () => <Icon d="M9 18l6-6-6-6" />;
+const AlertCircle = () => <Icon d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zM12 8v4M12 16h.01" />;
+const CheckCircle = () => <Icon d="M22 11.08V12a10 10 0 1 1-5.93-9.14M22 4 12 14.01l-3-3" />;
+const XCircle = () => <Icon d="M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10zM15 9l-6 6M9 9l6 6" />;
+
+// ─── Modal Import ────────────────────────────────────────────────────────────
+function ImportModal({ onClose, onImportDone }) {
+  const [rows, setRows] = useState([]);
+  const [results, setResults] = useState([]);
+  const [importing, setImporting] = useState(false);
+  const [done, setDone] = useState(false);
+  const fileRef = useRef();
+
+  const parseFile = (file) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const wb = XLSX.read(e.target.result, { type: "binary" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(ws, { defval: "" });
+      setRows(json);
+      setResults([]);
+      setDone(false);
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const handleFile = (e) => {
+    const file = e.target.files[0];
+    if (file) parseFile(file);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) parseFile(file);
+  };
+
+  const startImport = async () => {
+    if (!rows.length) return;
+    setImporting(true);
+    const res = [];
+    const cache = {};
+
+    for (const row of rows) {
+      try {
+        const nama = row["Nama Orang Tua"] || "";
+        const telp = String(row["Nomor Telepon"] || "");
+
+        if (!nama || !telp) {
+          res.push({ nama, ok: false, msg: "Data wajib diisi" });
+          continue;
+        }
+
+        if (cache[telp]) {
+          res.push({ nama, ok: true, msg: "Duplikat (skip)" });
+          continue;
+        }
+
+        const result = await orangTua.create({
+          nama_orangtua: nama,
+          nomor_telepon: telp,
+        });
+
+        if (result?.success) cache[telp] = true;
+
+        res.push({ nama, ok: result?.success, msg: result?.message || "" });
+      } catch (err) {
+        res.push({ nama: row["Nama Orang Tua"] || "?", ok: false, msg: err.message });
+      }
+    }
+
+    setResults(res);
+    setImporting(false);
+    setDone(true);
+    onImportDone();
+  };
+
+  const successCount = results.filter((r) => r.ok).length;
+  const failCount = results.filter((r) => !r.ok).length;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-white font-semibold text-lg">Import Data Orang Tua</h2>
+            <p className="text-blue-200 text-xs mt-0.5">Upload file Excel (.xlsx) untuk import massal</p>
+          </div>
+          <button onClick={onClose} className="text-blue-200 hover:text-white transition-colors">
+            <XCircle />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          {/* Drop Zone */}
+          {!rows.length && (
+            <div
+              onDrop={handleDrop}
+              onDragOver={(e) => e.preventDefault()}
+              onClick={() => fileRef.current.click()}
+              className="border-2 border-dashed border-blue-200 rounded-xl p-10 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all group"
+            >
+              <div className="flex justify-center mb-3 text-blue-400 group-hover:text-blue-600 transition-colors">
+                <UploadIcon />
+              </div>
+              <p className="text-sm font-medium text-gray-700">
+                Drop file Excel di sini atau <span className="text-blue-600 underline">pilih file</span>
+              </p>
+              <p className="text-xs text-gray-400 mt-1">Hanya file .xlsx yang didukung</p>
+              <input ref={fileRef} type="file" accept=".xlsx" className="hidden" onChange={handleFile} />
+            </div>
+          )}
+
+          {/* Preview */}
+          {rows.length > 0 && !done && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-semibold text-gray-700">{rows.length} baris ditemukan</p>
+                <button
+                  onClick={() => { setRows([]); setResults([]); }}
+                  className="text-xs text-red-500 hover:underline"
+                >
+                  Ganti file
+                </button>
+              </div>
+              <div className="overflow-auto max-h-48 border border-gray-200 rounded-lg">
+                <table className="w-full text-xs">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      {Object.keys(rows[0]).map((k) => (
+                        <th key={k} className="px-3 py-2 text-left font-semibold text-gray-600 whitespace-nowrap">{k}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {rows.slice(0, 10).map((r, i) => (
+                      <tr key={i}>
+                        {Object.values(r).map((v, j) => (
+                          <td key={j} className="px-3 py-2 text-gray-700 whitespace-nowrap">{String(v)}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {rows.length > 10 && (
+                  <p className="text-center text-xs text-gray-400 py-2">... dan {rows.length - 10} baris lainnya</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Results */}
+          {done && (
+            <div>
+              <div className="flex gap-4 mb-3">
+                <div className="flex-1 bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-green-600">{successCount}</p>
+                  <p className="text-xs text-green-700 font-medium">Berhasil</p>
+                </div>
+                <div className="flex-1 bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-red-500">{failCount}</p>
+                  <p className="text-xs text-red-700 font-medium">Gagal</p>
+                </div>
+              </div>
+              <div className="overflow-auto max-h-44 border border-gray-200 rounded-lg divide-y divide-gray-100">
+                {results.map((r, i) => (
+                  <div key={i} className="flex items-center gap-2 px-4 py-2 text-sm">
+                    <span className={r.ok ? "text-green-500" : "text-red-500"}>
+                      {r.ok ? <CheckCircle /> : <XCircle />}
+                    </span>
+                    <span className="font-medium text-gray-800 flex-1">{r.nama}</span>
+                    {!r.ok && <span className="text-xs text-red-500">{r.msg}</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex gap-3 pt-1">
+            <button
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+            >
+              {done ? "Tutup" : "Batal"}
+            </button>
+            {!done && (
+              <button
+                onClick={startImport}
+                disabled={!rows.length || importing}
+                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-2"
+              >
+                {importing ? (
+                  <>
+                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                    </svg>
+                    Mengimport...
+                  </>
+                ) : "Mulai Import"}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Component ──────────────────────────────────────────────────────────
+export default function AdminImport() {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [showTemplateMenu, setShowTemplateMenu] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const templateRef = useRef();
+  const exportRef = useRef();
+
+  const fetchData = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const params = new URLSearchParams({ page: page.toString(), limit: "10" });
+      const res = await orangTua.list(params.toString());
+      if (res.success) {
+        setData(res.data);
+        setTotalPages(res.pagination?.totalPages ?? 1);
+      } else {
+        setError(res.message || "Gagal memuat data orang tua");
+      }
+    } catch (err) {
+      setError("Terjadi kesalahan saat memuat data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchData(); }, [page]);
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (templateRef.current && !templateRef.current.contains(e.target)) setShowTemplateMenu(false);
+      if (exportRef.current && !exportRef.current.contains(e.target)) setShowExportMenu(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {/* ── Page Header ── */}
+      <PageHeader
+        title="Data Orang Tua"
+        subtitle="Kelola data orang tua & import massal"
+        right={
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Template dropdown */}
+            <div className="relative" ref={templateRef}>
+              <button
+                onClick={() => { setShowTemplateMenu(!showTemplateMenu); setShowExportMenu(false); }}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+              >
+                <DownloadIcon />
+                Unduh Template
+              </button>
+              {showTemplateMenu && (
+                <div className="absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-20">
+                  <button
+                    onClick={() => { downloadExcelTemplate(); setShowTemplateMenu(false); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition"
+                  >
+                    <span className="text-green-600"><FileExcelIcon /></span>
+                    Template Excel (.xlsx)
+                  </button>
+                  <button
+                    onClick={() => { downloadPdfTemplate(); setShowTemplateMenu(false); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition"
+                  >
+                    <span className="text-red-500"><FilePdfIcon /></span>
+                    Template PDF
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Export dropdown */}
+            <div className="relative" ref={exportRef}>
+              <button
+                onClick={() => { setShowExportMenu(!showExportMenu); setShowTemplateMenu(false); }}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+              >
+                <DownloadIcon />
+                Export Data
+              </button>
+              {showExportMenu && (
+                <div className="absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-20">
+                  <button
+                    onClick={() => { exportTableExcel(data); setShowExportMenu(false); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition"
+                  >
+                    <span className="text-green-600"><FileExcelIcon /></span>
+                    Export Excel (.xlsx)
+                  </button>
+                  <button
+                    onClick={() => { exportTablePdf(data); setShowExportMenu(false); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition"
+                  >
+                    <span className="text-red-500"><FilePdfIcon /></span>
+                    Export PDF
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Import button */}
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition shadow-sm"
+            >
+              <UploadIcon />
+              Import Excel
+            </button>
+          </div>
+        }
+      />
+
+      {/* ── Scrollable Content ── */}
+      <div className="flex-1 overflow-auto p-8">
+        {/* Error */}
+        {error && (
+          <div className="flex items-center gap-2 p-3 mb-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+            <AlertCircle />
+            {error}
+          </div>
+        )}
+
+        {/* ── Table ── */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100">
+            <p className="text-sm text-gray-500">
+              {loading ? (
+                <span>Memuat…</span>
+              ) : (
+                <><span className="font-semibold text-gray-700">{data.length}</span> orang tua ditemukan</>
+              )}
+            </p>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50/80">
+                <tr>
+                  {["Nama Orang Tua", "Nomor Telepon"].map((h) => (
+                    <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {loading ? (
+                  [...Array(8)].map((_, i) => (
+                    <tr key={i}>
+                      <td colSpan={2} className="px-6 py-4">
+                        <div className="h-4 bg-gray-100 rounded animate-pulse" />
+                      </td>
+                    </tr>
+                  ))
+                ) : data.length > 0 ? (
+                  data.map((o, i) => (
+                    <tr key={o.id ?? i} className="hover:bg-blue-50/30 transition-colors duration-150">
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900">{o.nama_orangtua}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{o.nomor_telepon}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={2} className="px-6 py-12 text-center">
+                      <p className="text-gray-500 text-sm">Tidak ada data orang tua.</p>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-6 py-3 bg-gray-50/50 border-t border-gray-100">
+              <p className="text-xs text-gray-500">Halaman {page} dari {totalPages}</p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition"
+                >
+                  <ChevronLeft />
+                </button>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition"
+                >
+                  <ChevronRight />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Import Modal ── */}
+      {showImportModal && (
+        <ImportModal
+          onClose={() => setShowImportModal(false)}
+          onImportDone={() => { fetchData(); }}
+        />
+      )}
+    </div>
+  );
+}
