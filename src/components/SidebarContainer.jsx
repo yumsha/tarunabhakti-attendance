@@ -224,9 +224,9 @@ export default function SidebarContainer() {
       {/* admin import */}
       {isAdmin && (
         <a
-          href="/dashboard/"
+          href="/dashboard/importSiswa"
           data-astro-prefetch
-          className={getLinkClass("/dashboard/walas-kelas")}
+          className={getLinkClass("/dashboard/importSiswa")}
         >
           <School width={20} height={20} />
           Import Siswa
