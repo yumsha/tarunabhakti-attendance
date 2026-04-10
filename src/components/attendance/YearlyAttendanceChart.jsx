@@ -2,201 +2,130 @@ import { useState, useEffect, useRef } from "react";
 import Chart from "chart.js/auto";
 import { absensiSiswa } from "../../lib/backendApi";
 
-// ─── date helper ──────────────────────────────────────────────────────────────
-function getTodayWIB() {
-  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
-}
-function getDateWIB(date) {
-  return date.toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
-}
-// ─────────────────────────────────────────────────────────────────────────────
+const months = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+];
 
-export default function WalasAttendanceChart({ kelasId, totalSiswa = 0 }) {
-  const doughnutRef   = useRef(null);
-  const barRef        = useRef(null);
-  const doughnutChart = useRef(null);
-  const barChart      = useRef(null);
+export default function YearlyAttendanceChart() {
+  const chartRef = useRef(null);
+  const chartInstance = useRef(null);
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [availableYears, setAvailableYears] = useState([currentYear, currentYear - 1, currentYear - 2]);
+  const [attendanceData, setAttendanceData] = useState(Array(12).fill(0));
+  const [isLoading, setIsLoading] = useState(true);
 
-  const [todayData,  setTodayData]  = useState({ tepat_waktu: 0, terlambat: 0, belum: 0 });
-  const [weeklyData, setWeeklyData] = useState([]);
-  const [loading,    setLoading]    = useState(true);
-
-  // today doughnut
   useEffect(() => {
-    const fetchToday = async () => {
-      if (!kelasId) return;
+    const fetchYearlyData = async () => {
+      setIsLoading(true);
       try {
-        const today = getTodayWIB();
-        const res = await absensiSiswa.laporanHarian(`tanggal=${today}&kelas_id=${kelasId}`);
-        if (res.success && res.summary) {
-          const tepatWaktu = res.summary.tepat_waktu || 0;
-          const terlambat  = res.summary.telambat    || 0;
-          const total      = totalSiswa > 0 ? totalSiswa : res.summary.total || 0;
-          setTodayData({
-            tepat_waktu: tepatWaktu,
-            terlambat,
-            belum: Math.max(0, total - tepatWaktu - terlambat),
+        const res = await absensiSiswa.rekapTahunan(selectedYear);
+        if (res.success && Array.isArray(res.data)) {
+          const data = Array(12).fill(0);
+          res.data.forEach(item => {
+            data[item.month - 1] = item.count;
           });
-        } else {
-          setTodayData({ tepat_waktu: 0, terlambat: 0, belum: totalSiswa });
+          setAttendanceData(data);
         }
-      } catch (err) {
-        console.error("Failed to fetch today attendance for chart:", err);
-      }
-    };
-    fetchToday();
-  }, [kelasId, totalSiswa]);
-
-  // 7-day bar
-  useEffect(() => {
-    const fetchWeekly = async () => {
-      if (!kelasId) return;
-      setLoading(true);
-      try {
-        const days = Array.from({ length: 7 }, (_, i) => {
-          const d = new Date();
-          d.setDate(d.getDate() - (6 - i));
-          return getDateWIB(d);
-        });
-
-        const results = await Promise.all(
-          days.map(async (date) => {
-            try {
-              const res = await absensiSiswa.laporanHarian(`tanggal=${date}&kelas_id=${kelasId}`);
-              if (res.success && res.summary) {
-                return {
-                  date,
-                  hadir: (res.summary.tepat_waktu || 0) + (res.summary.telambat || 0),
-                  belum: res.summary.belum_tap_in || 0,
-                };
-              }
-            } catch { /* ignore */ }
-            return { date, hadir: 0, belum: 0 };
-          })
-        );
-        setWeeklyData(results);
-      } catch (err) {
-        console.error("Failed to fetch weekly attendance:", err);
+      } catch (error) {
+        console.error("Failed to fetch yearly attendance:", error);
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     };
-    fetchWeekly();
-  }, [kelasId]);
 
-  // doughnut render
+    fetchYearlyData();
+  }, [selectedYear]);
+
   useEffect(() => {
-    if (!doughnutRef.current) return;
-    const ctx = doughnutRef.current.getContext("2d");
-    if (doughnutChart.current) doughnutChart.current.destroy();
-    const total = todayData.tepat_waktu + todayData.terlambat + todayData.belum;
-    doughnutChart.current = new Chart(ctx, {
-      type: "doughnut",
+    if (isLoading || !chartRef.current) return;
+
+    const ctx = chartRef.current.getContext("2d");
+    if (chartInstance.current) {
+      chartInstance.current.destroy();
+    }
+    // Gradient for current selection
+    const gradientBlue = ctx.createLinearGradient(0, 0, 0, 260);
+    gradientBlue.addColorStop(0, "rgba(37,99,235,0.15)");
+    gradientBlue.addColorStop(1, "rgba(37,99,235,0)");
+
+    chartInstance.current = new Chart(ctx, {
+      type: "line",
       data: {
-        labels: ["Tepat Waktu", "Terlambat", "Belum Hadir"],
-        datasets: [{
-          data: [todayData.tepat_waktu, todayData.terlambat, todayData.belum],
-          backgroundColor: ["#10b981", "#f59e0b", "#ef4444"],
-          borderColor: ["#ffffff", "#ffffff", "#ffffff"],
-          borderWidth: 3,
-          hoverOffset: 6,
-        }],
-      },
-      options: {
-        responsive: true,
-        cutout: "65%",
-        plugins: {
-          legend: {
-            position: "bottom",
-            labels: { usePointStyle: true, pointStyle: "circle", padding: 16, font: { size: 12 } },
-          },
-          tooltip: {
-            callbacks: {
-              label: (context) => {
-                const val = context.parsed;
-                const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
-                return ` ${context.label}: ${val} (${pct}%)`;
-              },
-            },
-          },
-        },
-      },
-    });
-    return () => { if (doughnutChart.current) doughnutChart.current.destroy(); };
-  }, [todayData]);
-
-  // bar render
-  useEffect(() => {
-    if (!barRef.current || !weeklyData.length) return;
-    const ctx = barRef.current.getContext("2d");
-    if (barChart.current) barChart.current.destroy();
-
-    const labels = weeklyData.map((d) => {
-      const [y, m, day] = d.date.split("-").map(Number);
-      return new Date(y, m - 1, day).toLocaleDateString("id-ID", { weekday: "short", day: "numeric" });
-    });
-
-    const gradientGreen = ctx.createLinearGradient(0, 0, 0, 300);
-    gradientGreen.addColorStop(0, "rgba(16,185,129,0.9)");
-    gradientGreen.addColorStop(1, "rgba(16,185,129,0.4)");
-
-    const gradientRed = ctx.createLinearGradient(0, 0, 0, 300);
-    gradientRed.addColorStop(0, "rgba(239,68,68,0.9)");
-    gradientRed.addColorStop(1, "rgba(239,68,68,0.4)");
-
-    barChart.current = new Chart(ctx, {
-      type: "bar",
-      data: {
-        labels,
+        labels: months,
         datasets: [
-          { label: "Hadir",       data: weeklyData.map((d) => d.hadir), backgroundColor: gradientGreen, borderRadius: 6, borderSkipped: false },
-          { label: "Belum Hadir", data: weeklyData.map((d) => d.belum), backgroundColor: gradientRed,   borderRadius: 6, borderSkipped: false },
+          {
+            label: `Attendance ${selectedYear}`,
+            data: attendanceData,
+            borderColor: "#2563eb",
+            backgroundColor: gradientBlue,
+            fill: true,
+            tension: 0.4,
+            pointBackgroundColor: "#2563eb",
+            pointBorderColor: "#2563eb",
+          }
         ],
       },
       options: {
         responsive: true,
         plugins: {
           legend: {
-            position: "top",
-            labels: { usePointStyle: true, pointStyle: "circle", padding: 16, font: { size: 12 } },
+            display: true,
+            labels: {
+              usePointStyle: true,
+              pointStyle: "circle",
+            },
+          },
+          title: {
+            display: false
           },
         },
+        interaction: {
+          intersect: false,
+        },
         scales: {
-          x: { grid: { display: false } },
-          y: { beginAtZero: true, grid: { color: "rgba(0,0,0,0.05)" }, ticks: { stepSize: 5 } },
+          y: {
+            beginAtZero: true,
+            ticks: {
+              precision: 0
+            },
+          },
         },
       },
     });
-    return () => { if (barChart.current) barChart.current.destroy(); };
-  }, [weeklyData]);
 
-  if (loading) {
-    return (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 animate-pulse h-72"></div>
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 animate-pulse h-72"></div>
-      </div>
-    );
-  }
+    return () => {
+      if (chartInstance.current) {
+        chartInstance.current.destroy();
+      }
+    };
+  }, [attendanceData, isLoading]);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-        <h3 className="text-lg font-semibold text-gray-900 mb-1">Kehadiran Hari Ini</h3>
-        <p className="text-sm text-gray-500 mb-4">
-          {new Date().toLocaleDateString("id-ID", {
-            weekday: "long", day: "numeric", month: "long", year: "numeric",
-          })}
-        </p>
-        <div className="flex items-center justify-center">
-          <canvas ref={doughnutRef} width={280} height={280}></canvas>
+    <div className="bg-white rounded-lg shadow p-6 mb-8 relative">
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-lg font-semibold">Yearly School Attendance</h3>
+        <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">Pilih Tahun:</span>
+            <select 
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2"
+            >
+                {availableYears.map(year => (
+                    <option key={year} value={year}>{year}</option>
+                ))}
+            </select>
         </div>
       </div>
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-        <h3 className="text-lg font-semibold text-gray-900 mb-1">Tren Kehadiran Mingguan</h3>
-        <p className="text-sm text-gray-500 mb-4">7 hari terakhir</p>
-        <canvas ref={barRef} width={400} height={280}></canvas>
-      </div>
+      
+      {isLoading ? (
+          <div className="h-[260px] flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          </div>
+      ) : (
+          <canvas ref={chartRef} width={600} height={260}></canvas>
+      )}
     </div>
   );
 } 

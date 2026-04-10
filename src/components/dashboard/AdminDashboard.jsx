@@ -7,34 +7,7 @@ import { jadwal } from "../../lib/backendApi.js";
 import PageHeader from "../layout/PageHeader.jsx";
 
 export default function AdminDashboard() {
-  const [jadwalData, setJadwalData] = useState([]);
-
-  useEffect(() => {
-    const fetchJadwal = async () => {
-      const user = JSON.parse(localStorage.getItem("user") || "null");
-      const adminId = user?.admin?.id;
-
-      const today = new Date()
-        .toLocaleDateString("id-ID", { weekday: "long" })
-        .toUpperCase();
-
-      try {
-        const res = await jadwal.list(`hari=${today}&guru_id=${adminId}`);
-        console.debug('jadwal.list response', res);
-        if (res && res.success && Array.isArray(res.data)) {
-          setJadwalData(res.data);
-        } else {
-          setJadwalData([]);
-        }
-      } catch (err) {
-        console.error('Error fetching jadwal:', err);
-      }
-    };
-
-    fetchJadwal();
-  }, []);
-
-    
+    const user = JSON.parse(localStorage.getItem("user"));
     return (
         <div className="flex-1 flex flex-col overflow-hidden">
             {/* Top Bar */}
@@ -42,7 +15,7 @@ export default function AdminDashboard() {
 
             {/* Welcome Sign */}
             <div className="p-8">
-                <h2 className="text-2xl font-bold text-gray-900">Welcome back, Admin!</h2>
+                <h2 className="text-2xl font-bold text-gray-900">Welcome back, {user.nama}!</h2>
                 <p className="text-gray-600">Ini adalah data absensi yang terjadi hari ini.</p>
             </div>
 
