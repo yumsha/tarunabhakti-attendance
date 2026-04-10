@@ -14,6 +14,8 @@ export default function UserFormModal({ isOpen, onClose, onSubmit, editUser }) {
     email: "",
     password: "",
     role: "ADMIN",
+    make_walas: false,
+    disable_walas: false,
     guru_nama: "",
     guru_nip: "",
     guru_telepon: "",
@@ -24,14 +26,47 @@ export default function UserFormModal({ isOpen, onClose, onSubmit, editUser }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
+  const resolveRoles = (userData) => {
+    const fromRoles = Array.isArray(userData?.roles)
+      ? userData.roles
+          .map((r) => (typeof r === "string" ? r : r?.name))
+          .filter(Boolean)
+      : [];
+    const fromRoleNames = Array.isArray(userData?.role_names)
+      ? userData.role_names
+      : [];
+    const fromRoleObj = userData?.role?.name ? [userData.role.name] : [];
+    const fromRoleStr =
+      typeof userData?.role === "string" ? [userData.role] : [];
+
+    const merged = [...fromRoles, ...fromRoleNames, ...fromRoleObj, ...fromRoleStr]
+      .filter(Boolean)
+      .map((r) => String(r).toUpperCase())
+      .map((r) => (r === "WALI KELAS" ? "WALAS" : r));
+
+    return Array.from(new Set(merged));
+  };
+
+  const isEditAdmin = !!editUser && resolveRoles(editUser).includes("ADMIN");
+  const isEditGuru = !!editUser && resolveRoles(editUser).includes("GURU");
+  const isEditWalas = !!editUser && resolveRoles(editUser).includes("WALAS");
+
   useEffect(() => {
     if (editUser) {
       const roleName =
         typeof editUser.role === "object" ? editUser.role?.name : editUser.role;
+      const roles = resolveRoles(editUser);
+      const isWalas = roles.includes("WALAS");
+      const effectiveRole = roles.includes("ADMIN")
+        ? "ADMIN"
+        : roleName?.toUpperCase() || "ADMIN";
+
       setForm({
         email: editUser.email || "",
         password: "",
-        role: roleName?.toUpperCase() || "ADMIN",
+        role: effectiveRole,
+        make_walas: false,
+        disable_walas: false,
         guru_nama: editUser.guru?.nama || "",
         guru_nip: editUser.guru?.NIP || "",
         guru_telepon: editUser.guru?.nomor_telepon || "",
@@ -45,6 +80,8 @@ export default function UserFormModal({ isOpen, onClose, onSubmit, editUser }) {
         email: "",
         password: "",
         role: "ADMIN",
+        make_walas: false,
+        disable_walas: false,
         guru_nama: "",
         guru_nip: "",
         guru_telepon: "",
@@ -67,7 +104,11 @@ export default function UserFormModal({ isOpen, onClose, onSubmit, editUser }) {
       if (form.password && form.password.length < 6)
         throw new Error("Password minimal 6 karakter");
 
-      if (form.role === "GURU") {
+      const finalRole = isEditAdmin ? "ADMIN" : form.role;
+      const wantsDisableWalas = !!editUser && isEditWalas && !!form.disable_walas;
+      const wantsMakeWalas = !!editUser && isEditGuru && !isEditWalas && !!form.make_walas;
+
+      if (finalRole === "GURU") {
         if (!form.guru_nama.trim()) throw new Error("Nama guru wajib diisi");
         if (!form.guru_nip.trim()) throw new Error("NIP guru wajib diisi");
         if (!form.guru_telepon.trim())
@@ -80,11 +121,21 @@ export default function UserFormModal({ isOpen, onClose, onSubmit, editUser }) {
       const payload = {
         email: form.email.trim(),
         password: form.password || undefined,
-        role: form.role,
+        role: finalRole,
+        role_names:
+          finalRole === "ADMIN"
+            ? ["ADMIN"]
+            : finalRole === "GURU"
+              ? wantsDisableWalas
+                ? ["GURU"]
+                : wantsMakeWalas || isEditWalas
+                  ? ["GURU", "WALAS"]
+                  : ["GURU"]
+              : undefined,
       };
 
       const guruData =
-        form.role === "GURU"
+        finalRole === "GURU"
           ? {
               nama: form.guru_nama.trim(),
               NIP: form.guru_nip.trim(),
@@ -196,17 +247,30 @@ export default function UserFormModal({ isOpen, onClose, onSubmit, editUser }) {
                 <button
                   key={opt.value}
                   type="button"
-                  onClick={() => setForm({ ...form, role: opt.value })}
+                  onClick={() => {
+                    if (isEditAdmin) return;
+                    setForm((prev) => ({
+                      ...prev,
+                      role: opt.value,
+                      disable_walas: false,
+                    }));
+                  }}
+                  disabled={isEditAdmin}
                   className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 text-sm font-medium transition ${
                     form.role === opt.value
                       ? "border-blue-500 bg-blue-50 text-blue-700"
                       : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
-                  }`}
+                  } ${isEditAdmin ? "opacity-60 cursor-not-allowed" : ""}`}
                 >
                   {opt.label}
                 </button>
               ))}
             </div>
+            {isEditAdmin ? (
+              <p className="mt-2 text-xs text-gray-500">
+                User dengan role <span className="font-semibold">Admin</span> tidak bisa diubah rolenya.
+              </p>
+            ) : null}
           </div>
 
           {/* field guru */}
@@ -219,6 +283,60 @@ export default function UserFormModal({ isOpen, onClose, onSubmit, editUser }) {
                 </span>
                 <div className="h-px flex-1 bg-gray-200" />
               </div>
+
+              {/* walas controls (edit only) */}
+              {editUser && isEditGuru && !isEditAdmin ? (
+                isEditWalas ? (
+                  <label className="flex items-start gap-3 p-3 rounded-xl border border-gray-200 bg-gray-50">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      checked={!!form.disable_walas}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          disable_walas: e.target.checked,
+                        }))
+                      }
+                    />
+                    <div className="text-sm">
+                      <p className="font-medium text-gray-900">
+                        Nonaktifkan guru dari jabatan walas
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Jika dicentang, role{" "}
+                        <span className="font-semibold">WALAS</span> akan dihapus
+                        dan user hanya memiliki role{" "}
+                        <span className="font-semibold">GURU</span>.
+                      </p>
+                    </div>
+                  </label>
+                ) : (
+                  <label className="flex items-start gap-3 p-3 rounded-xl border border-gray-200 bg-gray-50">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      checked={!!form.make_walas}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          make_walas: e.target.checked,
+                        }))
+                      }
+                    />
+                    <div className="text-sm">
+                      <p className="font-medium text-gray-900">
+                        Jadikan guru sebagai walas
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Jika dicentang, user punya 2 role:{" "}
+                        <span className="font-semibold">GURU</span> (utama) dan{" "}
+                        <span className="font-semibold">WALAS</span>.
+                      </p>
+                    </div>
+                  </label>
+                )
+              ) : null}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">

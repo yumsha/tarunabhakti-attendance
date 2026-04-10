@@ -3,20 +3,49 @@ import { Users, Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight } from "
 const ROLE_OPTIONS = [
   { value: "ADMIN", label: "Admin", color: "bg-purple-100 text-purple-700" },
   { value: "GURU", label: "Guru", color: "bg-blue-100 text-blue-700" },
+  { value: "WALAS", label: "Walas", color: "bg-emerald-100 text-emerald-700" },
 ];
 
-function getRoleBadge(role) {
-  if (!role) return <span className="text-gray-400">—</span>;
-  const roleName = typeof role === "object" ? role.name : role;
-  const opt = ROLE_OPTIONS.find(
-    (r) => r.value === roleName?.toUpperCase()
-  ) || { label: roleName, color: "bg-gray-100 text-gray-700" };
+function resolveRoles(user) {
+  const fromRoles = Array.isArray(user?.roles)
+    ? user.roles
+        .map((r) => (typeof r === "string" ? r : r?.name))
+        .filter(Boolean)
+    : [];
+  const fromRoleNames = Array.isArray(user?.role_names) ? user.role_names : [];
+  const fromRoleObj = user?.role?.name ? [user.role.name] : [];
+  const fromRoleStr = typeof user?.role === "string" ? [user.role] : [];
+
+  const merged = [...fromRoles, ...fromRoleNames, ...fromRoleObj, ...fromRoleStr]
+    .filter(Boolean)
+    .map((r) => String(r).toUpperCase())
+    .map((r) => (r === "WALI KELAS" ? "WALAS" : r));
+
+  return Array.from(new Set(merged));
+}
+
+function getRoleBadges(user) {
+  const roles = resolveRoles(user);
+  if (!roles.length) return <span className="text-gray-400">—</span>;
+
   return (
-    <span
-      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${opt.color}`}
-    >
-      {opt.label}
-    </span>
+    <div className="flex flex-wrap gap-1.5">
+      {roles.map((roleName) => {
+        const opt =
+          ROLE_OPTIONS.find((r) => r.value === roleName?.toUpperCase()) || {
+            label: roleName,
+            color: "bg-gray-100 text-gray-700",
+          };
+        return (
+          <span
+            key={roleName}
+            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${opt.color}`}
+          >
+            {opt.label}
+          </span>
+        );
+      })}
+    </div>
   );
 }
 
@@ -122,7 +151,7 @@ export default function UserTable({
                       {user.email}
                     </p>
                   </td>
-                  <td className="px-6 py-4">{getRoleBadge(user.role)}</td>
+                  <td className="px-6 py-4">{getRoleBadges(user)}</td>
                   <td className="px-6 py-4 text-sm text-gray-600">
                     {user.guru ? (
                       <div>

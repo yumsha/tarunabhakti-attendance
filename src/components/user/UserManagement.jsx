@@ -25,14 +25,40 @@ function Toast({ toast }) {
 // role normalize
 function normalizeUser(raw) {
   if (!raw) return raw;
+  const fromRoles = Array.isArray(raw?.roles)
+    ? raw.roles.map((r) => r?.name).filter(Boolean)
+    : [];
+  const fromRoleNames = Array.isArray(raw?.role_names) ? raw.role_names : [];
+  const fromRoleObj = raw?.role?.name ? [raw.role.name] : [];
+  const fromRoleStr = typeof raw?.role === "string" ? [raw.role] : [];
+
   const userRole = raw.userRole;
-  const roleObj = Array.isArray(userRole)
-    ? userRole[0]?.role
-    : userRole?.role ?? userRole;
+  const fromUserRole = Array.isArray(userRole)
+    ? userRole.map((ur) => ur?.role?.name ?? ur?.role).filter(Boolean)
+    : userRole?.role?.name
+      ? [userRole.role.name]
+      : userRole?.role
+        ? [userRole.role]
+        : [];
+
+  const merged = [
+    ...fromRoles,
+    ...fromRoleNames,
+    ...fromRoleObj,
+    ...fromRoleStr,
+    ...fromUserRole,
+  ]
+    .filter(Boolean)
+    .map((r) => String(r).toUpperCase())
+    .map((r) => (r === "WALI KELAS" ? "WALAS" : r));
+
+  const roles = Array.from(new Set(merged));
+  const primaryRole = roles[0] ?? "UNKNOWN";
 
   return {
     ...raw,
-    role: raw.role ?? roleObj,
+    roles,
+    role: raw.role ?? raw.role_names ?? primaryRole,
   };
 }
 
