@@ -2,16 +2,15 @@ import RecentAttendance from "../attendance/RecentAttendance.jsx";
 import StudentStats from "../attendance/StudentStats.jsx";
 import YearlyAttendanceChart from "../attendance/YearlyAttendanceChart.jsx";
 import LateStudents from "../attendance/LateStudents.jsx";
-import { useState, useEffect } from "react";
-import { jadwal } from "../../lib/backendApi.js";
-import PageHeader from "../layout/PageHeader.jsx";
 
-export default function AdminDashboard() {
+export default function KesiswaanDashboard() {
     const user = JSON.parse(localStorage.getItem("user"));
     return (
         <div className="flex-1 flex flex-col overflow-hidden">
             {/* Top Bar */}
-            <PageHeader title="Admin Dashboard" />
+            <header className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
+                <h1 className="text-2xl font-semibold text-gray-900">Kesiswaan Dashboard</h1>
+            </header>
 
             {/* Welcome Sign */}
             <div className="p-8">

@@ -16,13 +16,11 @@ export default function StudentStats() {
         const res = await absensiSiswa.laporanHarian(`tanggal=${today}`);
         
         if (res.success && res.summary) {
-            const presentCount = res.summary.tepat_waktu + res.summary.telambat;
-            
             setStats({
-                present: presentCount,
+                present: res.summary.total_tap_in,
                 absent: res.summary.belum_tap_in,
                 izin: 0,
-                totalStudents: res.summary.total
+                totalStudents: res.summary.total_siswa
             });
         }
       } catch (error) {
