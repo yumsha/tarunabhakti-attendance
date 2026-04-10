@@ -2,7 +2,7 @@ const BASE_URL = (import.meta as any).env?.PUBLIC_API_BASE_URL || 'http://localh
 
 async function request(path: string, options: RequestInit = {}) {
   const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
-  
+
   const res = await fetch(`${BASE_URL}${path}`, {
     headers: {
       'Content-Type': 'application/json',
@@ -107,6 +107,7 @@ export const absensiSiswa = {
   tapOut: (data: any) => request('/api/v1/absensi-siswa/tap-out', { method: 'POST', body: JSON.stringify(data) }),
   list: (params?: string) => request(`/api/v1/absensi-siswa${params ? `?${params}` : ''}`),
   laporanHarian: (params?: string) => request(`/api/v1/absensi-siswa/laporan/harian${params ? `?${params}` : ''}`),
+  rekapTahunan: (tahun: string | number) => request(`/api/v1/absensi-siswa/rekap/tahunan?tahun=${tahun}`),
   get: (id: string | number) => request(`/api/v1/absensi-siswa/${id}`),
   update: (id: string | number, data: any) => request(`/api/v1/absensi-siswa/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string | number) => request(`/api/v1/absensi-siswa/${id}`, { method: 'DELETE' }),

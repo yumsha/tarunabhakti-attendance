@@ -1,33 +1,53 @@
-import { useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import Chart from "chart.js/auto";
+import { absensiSiswa } from "../../lib/backendApi";
 
 const months = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-];
-const attendanceYear = [
-  620, 640, 610, 700, 680, 720, 690, 710, 730, 750, 740, 760
-];
-const attendancePrevYear = [
-  600, 660, 650, 690, 670, 710, 700, 720, 740, 760, 770, 780
 ];
 
 export default function YearlyAttendanceChart() {
   const chartRef = useRef(null);
   const chartInstance = useRef(null);
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [availableYears, setAvailableYears] = useState([currentYear, currentYear - 1, currentYear - 2]);
+  const [attendanceData, setAttendanceData] = useState(Array(12).fill(0));
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    const fetchYearlyData = async () => {
+      setIsLoading(true);
+      try {
+        const res = await absensiSiswa.rekapTahunan(selectedYear);
+        if (res.success && Array.isArray(res.data)) {
+          const data = Array(12).fill(0);
+          res.data.forEach(item => {
+            data[item.month - 1] = item.count;
+          });
+          setAttendanceData(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch yearly attendance:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchYearlyData();
+  }, [selectedYear]);
+
+  useEffect(() => {
+    if (isLoading || !chartRef.current) return;
+
     const ctx = chartRef.current.getContext("2d");
     if (chartInstance.current) {
       chartInstance.current.destroy();
     }
-    // Gradient for current year
+    // Gradient for current selection
     const gradientBlue = ctx.createLinearGradient(0, 0, 0, 260);
     gradientBlue.addColorStop(0, "rgba(37,99,235,0.15)");
     gradientBlue.addColorStop(1, "rgba(37,99,235,0)");
-    // Gradient for previous year
-    const gradientYellow = ctx.createLinearGradient(0, 0, 0, 260);
-    gradientYellow.addColorStop(0, "rgba(251,191,36,0.15)");
-    gradientYellow.addColorStop(1, "rgba(251,191,36,0)");
 
     chartInstance.current = new Chart(ctx, {
       type: "line",
@@ -35,25 +55,15 @@ export default function YearlyAttendanceChart() {
         labels: months,
         datasets: [
           {
-            label: "Attendance",
-            data: attendanceYear,
+            label: `Attendance ${selectedYear}`,
+            data: attendanceData,
             borderColor: "#2563eb",
             backgroundColor: gradientBlue,
             fill: true,
             tension: 0.4,
             pointBackgroundColor: "#2563eb",
             pointBorderColor: "#2563eb",
-          },
-          {
-            label: "Attendance (previous year)",
-            data: attendancePrevYear,
-            borderColor: "#fbbf24",
-            backgroundColor: gradientYellow,
-            fill: true,
-            tension: 0.4,
-            pointBackgroundColor: "#fbbf24",
-            pointBorderColor: "#fbbf24",
-          },
+          }
         ],
       },
       options: {
@@ -67,11 +77,7 @@ export default function YearlyAttendanceChart() {
             },
           },
           title: {
-            display: true,
-            text: "Yearly School Attendance",
-          },
-          filler: {
-            propagate: false,
+            display: false
           },
         },
         interaction: {
@@ -79,27 +85,47 @@ export default function YearlyAttendanceChart() {
         },
         scales: {
           y: {
-            beginAtZero: false,
+            beginAtZero: true,
             ticks: {
-              callback: function (value) {
-                return value;
-              },
+              precision: 0
             },
           },
         },
       },
     });
+
     return () => {
       if (chartInstance.current) {
         chartInstance.current.destroy();
       }
     };
-  }, []);
+  }, [attendanceData, isLoading]);
 
   return (
-    <div className="bg-white rounded-lg shadow p-6 mb-8">
-      <h3 className="text-lg font-semibold mb-4">Yearly School Attendance</h3>
-      <canvas ref={chartRef} width={600} height={260}></canvas>
+    <div className="bg-white rounded-lg shadow p-6 mb-8 relative">
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-lg font-semibold">Yearly School Attendance</h3>
+        <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">Pilih Tahun:</span>
+            <select 
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2"
+            >
+                {availableYears.map(year => (
+                    <option key={year} value={year}>{year}</option>
+                ))}
+            </select>
+        </div>
+      </div>
+      
+      {isLoading ? (
+          <div className="h-[260px] flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          </div>
+      ) : (
+          <canvas ref={chartRef} width={600} height={260}></canvas>
+      )}
     </div>
   );
 }
