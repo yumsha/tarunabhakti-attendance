@@ -5,6 +5,7 @@ import { UserStarIcon } from "lucide-react";
 import { UserCog } from "lucide-react";
 import { ClipboardList } from "lucide-react";
 import { School } from "lucide-react";
+import { Upload } from "lucide-react";
 
 export default function SidebarContainer() {
   const [classes, setClasses] = useState([]);
@@ -232,6 +233,18 @@ export default function SidebarContainer() {
           Import Siswa
         </a>
       )}
+          
+      {/* admin - import ortu */}
+      {isAdmin && (
+        <a
+          href="/dashboard/importOrangTua"
+          data-astro-prefetch
+          className={getLinkClass("/dashboard/importOrangTua")}
+        >
+          <Upload width={20} height={20} />
+          Import Orang Tua
+        </a>
+      )}
 
       {/* admin - untuk mengelola Users */}
       {isAdmin && (
@@ -343,10 +356,20 @@ export default function SidebarContainer() {
               )}
             </div>
           )}
-          
+          {(isAdmin || isKesiswaan) && (
+        <a
+          href="/dashboard/tambahJadwal"
+          data-astro-prefetch
+          className={getLinkClass("/dashboard/tambahJadwal", false)}
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+          </svg>
+          Tambah Jadwal
+        </a>
+      )}
         </div>
       )}
-
 
     </nav>
   );

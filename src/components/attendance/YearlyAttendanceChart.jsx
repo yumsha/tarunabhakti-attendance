@@ -199,4 +199,4 @@ export default function WalasAttendanceChart({ kelasId, totalSiswa = 0 }) {
       </div>
     </div>
   );
-}
+} 
