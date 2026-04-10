@@ -220,6 +220,18 @@ export default function SidebarContainer() {
           Informasi Kelas
         </a>
       )}
+      
+      {/* admin import */}
+      {isAdmin && (
+        <a
+          href="/dashboard/"
+          data-astro-prefetch
+          className={getLinkClass("/dashboard/walas-kelas")}
+        >
+          <School width={20} height={20} />
+          Import Siswa
+        </a>
+      )}
 
       {/* admin - untuk mengelola Users */}
       {isAdmin && (

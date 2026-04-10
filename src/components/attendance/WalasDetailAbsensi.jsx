@@ -279,24 +279,29 @@ export default function WalasDetailAbsensi() {
             </div>
 
             <div className="flex items-center gap-2 flex-wrap justify-end">
-              <input
-                type="date"
-                className={`${inputClass} w-44`}
-                value={tanggal}
-                onChange={(e) => setTanggal(e.target.value)}
-              />
-              <button
-                onClick={handleSave}
-                disabled={saving || loadingData || !kelasId || rows.length === 0}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition"
-              >
-                {saving ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Save className="w-4 h-4" />
-                )}
-                Simpan{dirtyCount > 0 ? ` (${dirtyCount})` : ""}
-              </button>
+              <div>
+                <input
+                  type="date"
+                  className={`${inputClass} w-44`}
+                  value={tanggal}
+                  onChange={(e) => setTanggal(e.target.value)}
+                />
+              </div>
+              
+              <div>
+                <button
+                  onClick={handleSave}
+                  disabled={saving || loadingData || !kelasId || rows.length === 0}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition"
+                >
+                  {saving ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4" />
+                  )}
+                  Simpan{dirtyCount > 0 ? ` (${dirtyCount})` : ""}
+                </button>                
+              </div>
             </div>
           </div>
 
@@ -338,7 +343,7 @@ export default function WalasDetailAbsensi() {
 
                     return (
                       <tr key={r.siswa_id} className={`transition-colors ${rowClass}`}>
-                        <td className="px-6 py-4 text-sm text-gray-500 font-medium">{idx + 1}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500 font-medium ">{idx + 1}</td>
 
                         {/* Nama */}
                         <td className="px-6 py-4">

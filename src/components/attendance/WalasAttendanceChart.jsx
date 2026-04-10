@@ -221,36 +221,30 @@ export default function WalasAttendanceChart({ kelasId, totalSiswa = 0 }) {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 animate-pulse h-72"></div>
+      <div className="grid grid-cols-1 gap-6 mb-6 w-full">
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 animate-pulse h-72"></div>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-      {/* Doughnut Chart - Today */}
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-        <h3 className="text-lg font-semibold text-gray-900 mb-1">Kehadiran Hari Ini</h3>
-        <p className="text-sm text-gray-500 mb-4">
-          {new Date().toLocaleDateString("id-ID", {
-            weekday: "long",
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          })}
-        </p>
-        <div className="flex items-center justify-center">
-          <canvas ref={doughnutRef} width={280} height={280}></canvas>
+    <div className="w-full mb-6">
+      <div className="w-full bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        
+        {/* Header */}
+        <div className="px-6 pt-6 pb-2">
+          <h3 className="text-lg font-semibold text-gray-900">
+            Tren Kehadiran Mingguan
+          </h3>
+          <p className="text-sm text-gray-500">
+            7 hari terakhir
+          </p>
         </div>
-      </div>
 
-      {/* Bar Chart - Weekly */}
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-        <h3 className="text-lg font-semibold text-gray-900 mb-1">Tren Kehadiran Mingguan</h3>
-        <p className="text-sm text-gray-500 mb-4">7 hari terakhir</p>
-        <canvas ref={barRef} width={400} height={280}></canvas>
+        <div className="relative w-full h-100 md:h-125 pl-15 pb-2">
+          <canvas ref={barRef} className="w-full h-full"></canvas>
+        </div>
+
       </div>
     </div>
   );
