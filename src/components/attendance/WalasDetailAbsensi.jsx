@@ -171,10 +171,12 @@ export default function WalasDetailAbsensi() {
     if (!kelasId) { setError("Kelas belum dipilih"); return; }
     if (!tanggal) { setError("Tanggal belum dipilih"); return; }
 
-    const payloadRows = rows.map((r) => ({
-      siswa_id: r.siswa_id,
-      status: normalizeStatus(r.status),
-      keterangan: r.keterangan?.trim() ? r.keterangan.trim() : null,
+    const payloadRows = rows
+      .filter((r) => r.dirty)
+      .map((r) => ({
+        siswa_id: r.siswa_id,
+        status: normalizeStatus(r.status),
+        keterangan: r.keterangan?.trim() ? r.keterangan.trim() : null,
     }));
 
     setSaving(true);
