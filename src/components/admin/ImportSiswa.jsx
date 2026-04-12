@@ -1,6 +1,6 @@
 import PageHeader from "../layout/PageHeader.jsx";
 import { useState, useEffect, useRef } from "react";
-import { siswa } from "../../lib/backendApi";
+import { siswa, kelas } from "../../lib/backendApi";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -48,7 +48,7 @@ function exportTablePdf(students) {
     head: [["Nama", "Kelas", "No Telp", "NIPD", "NISN", "Nama Orang Tua"]],
     body: students.map((s) => [
       s.nama,
-      s.kelas ? s.kelas.kelas : "-",
+      s.kelas ? `${s.kelas.kelas} ${s.kelas.jurusan ?? ""}`.trim() : "-",
       s.nomor_telepon,
       s.NIPD,
       s.NISN,
@@ -63,7 +63,7 @@ function exportTablePdf(students) {
 function exportTableExcel(students) {
   const rows = students.map((s) => ({
     Nama: s.nama,
-    Kelas: s.kelas ? s.kelas.kelas : "-",
+    Kelas: s.kelas ? `${s.kelas.kelas} ${s.kelas.jurusan ?? ""}`.trim() : "-",
     "No Telp": s.nomor_telepon,
     NIPD: s.NIPD,
     NISN: s.NISN,
@@ -92,7 +92,6 @@ const ChevronRight = () => <Icon d="M9 18l6-6-6-6" />;
 const AlertCircle = () => <Icon d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zM12 8v4M12 16h.01" />;
 const CheckCircle = () => <Icon d="M22 11.08V12a10 10 0 1 1-5.93-9.14M22 4 12 14.01l-3-3" />;
 const XCircle = () => <Icon d="M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10zM15 9l-6 6M9 9l6 6" />;
-const PlusIcon = () => <Icon d="M12 5v14M5 12h14" />;
 
 // ─── Modal Import ────────────────────────────────────────────────────────────
 function ImportModal({ onClose, onImportDone }) {
@@ -161,7 +160,6 @@ function ImportModal({ onClose, onImportDone }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden">
-        {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 flex items-center justify-between">
           <div>
             <h2 className="text-white font-semibold text-lg">Import Data Siswa</h2>
@@ -173,7 +171,6 @@ function ImportModal({ onClose, onImportDone }) {
         </div>
 
         <div className="p-6 space-y-5">
-          {/* Drop Zone */}
           {!rows.length && (
             <div
               onDrop={handleDrop}
@@ -190,15 +187,11 @@ function ImportModal({ onClose, onImportDone }) {
             </div>
           )}
 
-          {/* Preview */}
           {rows.length > 0 && !done && (
             <div>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm font-semibold text-gray-700">{rows.length} baris ditemukan</p>
-                <button
-                  onClick={() => { setRows([]); setResults([]); }}
-                  className="text-xs text-red-500 hover:underline"
-                >
+                <button onClick={() => { setRows([]); setResults([]); }} className="text-xs text-red-500 hover:underline">
                   Ganti file
                 </button>
               </div>
@@ -228,7 +221,6 @@ function ImportModal({ onClose, onImportDone }) {
             </div>
           )}
 
-          {/* Results */}
           {done && (
             <div>
               <div className="flex gap-4 mb-3">
@@ -255,7 +247,6 @@ function ImportModal({ onClose, onImportDone }) {
             </div>
           )}
 
-          {/* Actions */}
           <div className="flex gap-3 pt-1">
             <button
               onClick={onClose}
@@ -271,7 +262,10 @@ function ImportModal({ onClose, onImportDone }) {
               >
                 {importing ? (
                   <>
-                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>
+                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                    </svg>
                     Mengimport...
                   </>
                 ) : "Mulai Import"}
@@ -287,6 +281,8 @@ function ImportModal({ onClose, onImportDone }) {
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function ImportSiswa() {
   const [students, setStudents] = useState([]);
+  const [kelasList, setKelasList] = useState([]);
+  const [selectedKelas, setSelectedKelas] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
@@ -297,34 +293,61 @@ export default function ImportSiswa() {
   const templateRef = useRef();
   const exportRef = useRef();
 
-  const fetchStudents = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const userStr = localStorage.getItem("user");
-      const user = userStr ? JSON.parse(userStr) : null;
-      const role = (user?.role?.name || user?.role || "").toString().toUpperCase();
-      const guruId = user?.guru?.id;
-
-      const queryParams = { page: page.toString(), limit: "10" };
-      if (role === "WALAS" && guruId) queryParams.walas_id = guruId.toString();
-
-      const params = new URLSearchParams(queryParams);
-      const res = await siswa.list(params.toString());
-      if (res.success) {
-        setStudents(res.data);
-        setTotalPages(res.pagination.totalPages);
-      } else {
-        setError(res.message || "Gagal memuat data siswa");
+  // Fetch daftar kelas untuk filter
+  useEffect(() => {
+    const fetchKelas = async () => {
+      try {
+        const res = await kelas.list("limit=100");
+        if (res.success && res.data) setKelasList(res.data);
+      } catch (err) {
+        console.error("Error fetching kelas:", err);
       }
-    } catch (err) {
-      setError("Terjadi kesalahan saat memuat data");
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+    fetchKelas();
+  }, []);
 
-  useEffect(() => { fetchStudents(); }, [page]);
+  // Reset page saat filter berubah
+  useEffect(() => {
+    setPage(1);
+  }, [selectedKelas]);
+
+  // Fetch siswa
+  useEffect(() => {
+    const fetchStudents = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const userStr = localStorage.getItem("user");
+        const user = userStr ? JSON.parse(userStr) : null;
+        const role = (
+          user?.userRole?.[0]?.role?.name ||
+          user?.role?.name ||
+          user?.role ||
+          ""
+        ).toString().toUpperCase();
+        const guruId = user?.guru?.id;
+
+        const queryParams = { page: page.toString(), limit: "10" };
+        if (role === "WALAS" && guruId) queryParams.walas_id = guruId.toString();
+        if (selectedKelas) queryParams.kelas_id = selectedKelas;
+
+        const queryString = new URLSearchParams(queryParams).toString();
+        const res = await siswa.list(queryString);
+        if (res.success) {
+          setStudents(res.data);
+          setTotalPages(res.pagination?.totalPages ?? 1);
+        } else {
+          setError(res.message || "Gagal memuat data siswa");
+        }
+      } catch (err) {
+        setError("Terjadi kesalahan saat memuat data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStudents();
+  }, [page, selectedKelas]);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -344,80 +367,78 @@ export default function ImportSiswa() {
         subtitle="Kelola data siswa & import massal"
         right={
           <div className="flex items-center gap-2 flex-wrap">
-          {/* Template dropdown */}
-          <div className="relative" ref={templateRef}>
+            {/* Template dropdown */}
+            <div className="relative" ref={templateRef}>
+              <button
+                onClick={() => { setShowTemplateMenu(!showTemplateMenu); setShowExportMenu(false); }}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+              >
+                <DownloadIcon />
+                Unduh Template
+              </button>
+              {showTemplateMenu && (
+                <div className="absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-20">
+                  <button
+                    onClick={() => { downloadExcelTemplate(); setShowTemplateMenu(false); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition"
+                  >
+                    <span className="text-green-600"><FileExcelIcon /></span>
+                    Template Excel (.xlsx)
+                  </button>
+                  <button
+                    onClick={() => { downloadPdfTemplate(); setShowTemplateMenu(false); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition"
+                  >
+                    <span className="text-red-500"><FilePdfIcon /></span>
+                    Template PDF
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Export dropdown */}
+            <div className="relative" ref={exportRef}>
+              <button
+                onClick={() => { setShowExportMenu(!showExportMenu); setShowTemplateMenu(false); }}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+              >
+                <DownloadIcon />
+                Export Data
+              </button>
+              {showExportMenu && (
+                <div className="absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-20">
+                  <button
+                    onClick={() => { exportTableExcel(students); setShowExportMenu(false); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition"
+                  >
+                    <span className="text-green-600"><FileExcelIcon /></span>
+                    Export Excel (.xlsx)
+                  </button>
+                  <button
+                    onClick={() => { exportTablePdf(students); setShowExportMenu(false); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition"
+                  >
+                    <span className="text-red-500"><FilePdfIcon /></span>
+                    Export PDF
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Import button */}
             <button
-              onClick={() => { setShowTemplateMenu(!showTemplateMenu); setShowExportMenu(false); }}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+              onClick={() => setShowImportModal(true)}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition shadow-sm"
             >
-              <DownloadIcon />
-              Unduh Template
+              <UploadIcon />
+              Import Excel
             </button>
-            {showTemplateMenu && (
-              <div className="absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-20">
-                <button
-                  onClick={() => { downloadExcelTemplate(); setShowTemplateMenu(false); }}
-                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition"
-                >
-                  <span className="text-green-600"><FileExcelIcon /></span>
-                  Template Excel (.xlsx)
-                </button>
-                <button
-                  onClick={() => { downloadPdfTemplate(); setShowTemplateMenu(false); }}
-                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition"
-                >
-                  <span className="text-red-500"><FilePdfIcon /></span>
-                  Template PDF
-                </button>
-              </div>
-            )}
           </div>
-
-          {/* Export dropdown */}
-          <div className="relative" ref={exportRef}>
-            <button
-              onClick={() => { setShowExportMenu(!showExportMenu); setShowTemplateMenu(false); }}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-            >
-              <DownloadIcon />
-              Export Data
-            </button>
-            {showExportMenu && (
-              <div className="absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-20">
-                <button
-                  onClick={() => { exportTableExcel(students); setShowExportMenu(false); }}
-                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition"
-                >
-                  <span className="text-green-600"><FileExcelIcon /></span>
-                  Export Excel (.xlsx)
-                </button>
-                <button
-                  onClick={() => { exportTablePdf(students); setShowExportMenu(false); }}
-                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition"
-                >
-                  <span className="text-red-500"><FilePdfIcon /></span>
-                  Export PDF
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Import button */}
-          <button
-            onClick={() => setShowImportModal(true)}
-            className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition shadow-sm"
-          >
-            <UploadIcon />
-            Import Excel
-          </button>
-
-        </div>
         }
       />
 
       {/* ── Scrollable Content ── */}
       <div className="flex-1 overflow-auto p-8">
-        {/* Error */}
         {error && (
           <div className="flex items-center gap-2 p-3 mb-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
             <AlertCircle />
@@ -425,9 +446,9 @@ export default function ImportSiswa() {
           </div>
         )}
 
-        {/* ── Table ── */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100">
+          {/* Toolbar: info + filter kelas */}
+          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-4 flex-wrap">
             <p className="text-sm text-gray-500">
               {loading ? (
                 <span>Memuat…</span>
@@ -435,6 +456,23 @@ export default function ImportSiswa() {
                 <><span className="font-semibold text-gray-700">{students.length}</span> siswa ditemukan</>
               )}
             </p>
+
+            {/* Filter Kelas */}
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-600 font-medium whitespace-nowrap">Filter Kelas:</label>
+              <select
+                value={selectedKelas}
+                onChange={(e) => setSelectedKelas(e.target.value)}
+                className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[200px]"
+              >
+                <option value="">Semua Kelas</option>
+                {kelasList.map((k) => (
+                  <option key={k.id} value={k.id.toString()}>
+                    {k.kelas} {k.jurusan}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -461,7 +499,9 @@ export default function ImportSiswa() {
                   students.map((s) => (
                     <tr key={s.id} className="hover:bg-blue-50/30 transition-colors duration-150">
                       <td className="px-6 py-4 text-sm font-medium text-gray-900">{s.nama}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{s.kelas ? s.kelas.kelas : "-"}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {s.kelas ? `${s.kelas.kelas} ${s.kelas.jurusan ?? ""}`.trim() : "-"}
+                      </td>
                       <td className="px-6 py-4 text-sm text-gray-600">{s.nomor_telepon}</td>
                       <td className="px-6 py-4 text-sm text-gray-600 font-mono">{s.NIPD}</td>
                       <td className="px-6 py-4 text-sm text-gray-600 font-mono">{s.NISN}</td>
@@ -471,7 +511,9 @@ export default function ImportSiswa() {
                 ) : (
                   <tr>
                     <td colSpan={6} className="px-6 py-12 text-center">
-                      <p className="text-gray-500 text-sm">Tidak ada data siswa.</p>
+                      <p className="text-gray-500 text-sm">
+                        Tidak ada data siswa{selectedKelas ? " untuk kelas ini" : ""}.
+                      </p>
                     </td>
                   </tr>
                 )}

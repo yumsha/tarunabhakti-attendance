@@ -82,15 +82,6 @@ export const jadwal = {
   delete: (id: string | number) => request(`/api/v1/jadwal/${id}`, { method: 'DELETE' }),
 };
 
-// Jurusan
-export const jurusan = {
-  list: () => request('/api/v1/jurusan'),
-  get: (id: string | number) => request(`/api/v1/jurusan/${id}`),
-  create: (data: any) => request('/api/v1/jurusan', { method: 'POST', body: JSON.stringify(data) }),
-  update: (id: string | number, data: any) => request(`/api/v1/jurusan/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  delete: (id: string | number) => request(`/api/v1/jurusan/${id}`, { method: 'DELETE' }),
-};
-
 // RFID
 export const rfid = {
   list: () => request('/api/v1/rfid'),
@@ -149,7 +140,6 @@ export default {
   orangTua,
   kelas,
   jadwal,
-  jurusan,
   rfid,
   absensiSiswa,
   detailAbsensi,

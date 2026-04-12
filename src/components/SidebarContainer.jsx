@@ -223,7 +223,7 @@ export default function SidebarContainer() {
         </a>
       )}
       
-      {/* admin import */}
+      {/* admin menambahkan siswa dan list siswa */}
       {isAdmin && (
         <a
           href="/dashboard/importSiswa"
@@ -231,7 +231,7 @@ export default function SidebarContainer() {
           className={getLinkClass("/dashboard/importSiswa")}
         >
           <School width={20} height={20} />
-          Import Siswa
+          Tambah siswa & list siswa
         </a>
       )}
           
@@ -271,8 +271,8 @@ export default function SidebarContainer() {
         </a>
       )}
 
-      {/* Siswa - Only for ADMIN or WALAS */}
-      {(isAdmin || isWalas) && (
+      {/* Siswa - only for walas */}
+      {(isWalas) && (
         <a
           href="/dashboard/siswa"
           data-astro-prefetch

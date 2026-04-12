@@ -22,9 +22,10 @@ export default function DaftarSemuaKelas() {
     fetchClasses();
   }, []);
 
-  const filteredClasses = classList.filter(cls => 
+  const filteredClasses = classList.filter(cls =>
     cls.kelas?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cls.jurusan?.nama_jurusan?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    // FIX: jurusan adalah String di model Kelas, bukan relasi objek
+    cls.jurusan?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     cls.id?.toString().includes(searchTerm)
   );
 
@@ -43,9 +44,9 @@ export default function DaftarSemuaKelas() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </span>
-            <input 
-              type="text" 
-              placeholder="Cari ID, Kelas, atau Jurusan..." 
+            <input
+              type="text"
+              placeholder="Cari ID, Kelas, atau Jurusan..."
               className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 transition-all text-sm w-72"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -78,9 +79,7 @@ export default function DaftarSemuaKelas() {
                 filteredClasses.map((cls) => (
                   <tr key={cls.id} className="hover:bg-blue-50/30 transition-colors group">
                     <td className="px-6 py-4">
-                      <span className="text-sm font-mono text-gray-500">
-                        #{cls.id}
-                      </span>
+                      <span className="text-sm font-mono text-gray-500">#{cls.id}</span>
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-sm font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
@@ -88,13 +87,14 @@ export default function DaftarSemuaKelas() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
-                      {cls.jurusan?.nama_jurusan || "-"}
+                      {/* FIX: jurusan adalah string langsung, bukan cls.jurusan.nama_jurusan */}
+                      {cls.jurusan || "-"}
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="4" className="px-6 py-12 text-center text-gray-500 italic">
+                  <td colSpan="3" className="px-6 py-12 text-center text-gray-500 italic">
                     Tidak ada kelas yang ditemukan.
                   </td>
                 </tr>
@@ -102,8 +102,8 @@ export default function DaftarSemuaKelas() {
             </tbody>
           </table>
         </div>
-        
-        <div className="mt-6 flex items-center justify-between text-xs text-gray-500">
+
+        <div className="mt-6 text-xs text-gray-500">
           <p>Menampilkan {filteredClasses.length} dari {classList.length} kelas terdaftar.</p>
         </div>
       </div>
