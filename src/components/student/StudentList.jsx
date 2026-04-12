@@ -1,5 +1,47 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { siswa, kelas } from "../../lib/backendApi";
+
+// -----------------------------------------------------------------------
+// Helpers
+// -----------------------------------------------------------------------
+
+const resolveRoles = (userData) => {
+  const fromRoles = Array.isArray(userData?.roles)
+    ? userData.roles.map((r) => r?.name).filter(Boolean)
+    : [];
+  const fromRoleNames = Array.isArray(userData?.role_names) ? userData.role_names : [];
+  const fromUserRole = Array.isArray(userData?.userRole)
+    ? userData.userRole.map((r) => r?.role?.name).filter(Boolean)
+    : [];
+  const fromRoleObj = userData?.role?.name ? [userData.role.name] : [];
+  const fromRoleStr = typeof userData?.role === "string" ? [userData.role] : [];
+
+  const merged = [
+    ...fromRoles,
+    ...fromRoleNames,
+    ...fromUserRole,
+    ...fromRoleObj,
+    ...fromRoleStr,
+  ]
+    .filter(Boolean)
+    .map((r) => String(r).toUpperCase());
+
+  const normalized = merged.map((r) => (r === "WALI KELAS" ? "WALAS" : r));
+  return Array.from(new Set(normalized));
+};
+
+const downloadBlob = (blob, filename) => {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+// -----------------------------------------------------------------------
+// Component
+// -----------------------------------------------------------------------
 
 export default function StudentList() {
   const [students, setStudents] = useState([]);
@@ -11,8 +53,50 @@ export default function StudentList() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  // Fetch daftar kelas untuk filter
+  const [roles, setRoles] = useState(null);
+  const [userData, setUserData] = useState(null);
+
+  // -----------------------------------------------------------------------
+  // Derived roles
+  // -----------------------------------------------------------------------
+
+  const { isWalas, canSeeAllKelas } = useMemo(() => {
+    if (!roles) return { isWalas: false, canSeeAllKelas: false };
+    return {
+      isWalas: roles.includes("WALAS"),
+      // Admin & Kesiswaan: lihat semua kelas + tampilkan dropdown filter
+      canSeeAllKelas: roles.includes("ADMIN") || roles.includes("KESISWAAN"),
+    };
+  }, [roles]);
+
+  // -----------------------------------------------------------------------
+  // Load user dari localStorage
+  // -----------------------------------------------------------------------
+
   useEffect(() => {
+    const userStr = localStorage.getItem("user");
+    if (!userStr) {
+      setRoles([]);
+      return;
+    }
+    try {
+      const parsed = JSON.parse(userStr);
+      setUserData(parsed);
+      const resolved = resolveRoles(parsed);
+      setRoles(resolved.length > 0 ? resolved : ["UNKNOWN"]);
+    } catch (e) {
+      console.error("Error parsing user:", e);
+      setRoles([]);
+    }
+  }, []);
+
+  // -----------------------------------------------------------------------
+  // Fetch daftar kelas — hanya untuk admin & kesiswaan (untuk dropdown)
+  // -----------------------------------------------------------------------
+
+  useEffect(() => {
+    if (!roles || !canSeeAllKelas) return;
+
     const fetchKelas = async () => {
       try {
         const res = await kelas.list("limit=100");
@@ -21,38 +105,41 @@ export default function StudentList() {
         console.error("Error fetching kelas:", err);
       }
     };
-    fetchKelas();
-  }, []);
 
-  // Reset page ke 1 setiap kali filter kelas berubah
+    fetchKelas();
+  }, [roles, canSeeAllKelas]);
+
+  // -----------------------------------------------------------------------
+  // Reset page saat filter kelas berubah
+  // -----------------------------------------------------------------------
+
   useEffect(() => {
     setPage(1);
   }, [selectedKelas]);
 
+  // -----------------------------------------------------------------------
   // Fetch siswa
+  // -----------------------------------------------------------------------
+
   useEffect(() => {
+    if (!roles || !userData) return;
+
     const fetchStudents = async () => {
       setLoading(true);
       setError("");
       try {
-        const userStr = localStorage.getItem("user");
-        const user = userStr ? JSON.parse(userStr) : null;
-        const role = (
-          user?.userRole?.[0]?.role?.name ||
-          user?.role?.name ||
-          user?.role ||
-          ""
-        ).toString().toUpperCase();
-        const guruId = user?.guru?.id;
-
         const queryParams = { page: page.toString(), limit: "10" };
-        if (role === "WALAS" && guruId) queryParams.walas_id = guruId.toString();
-        if (selectedKelas) queryParams.kelas_id = selectedKelas;
 
-        const queryString = new URLSearchParams(queryParams).toString();
-        console.log("Fetching siswa with query:", queryString);
+        if (isWalas && userData?.guru?.id) {
+          // Walas: otomatis filter berdasarkan walas_id, tidak perlu dropdown
+          queryParams.walas_id = userData.guru.id.toString();
+        } else if (canSeeAllKelas && selectedKelas) {
+          // Admin & Kesiswaan: filter berdasarkan pilihan dropdown
+          queryParams.kelas_id = selectedKelas;
+        }
 
-        const res = await siswa.list(queryString);
+        const res = await siswa.list(new URLSearchParams(queryParams).toString());
+
         if (res.success) {
           setStudents(res.data);
           setTotalPages(res.pagination?.totalPages ?? 1);
@@ -68,72 +155,70 @@ export default function StudentList() {
     };
 
     fetchStudents();
-  }, [page, selectedKelas]);
+  }, [page, selectedKelas, roles, userData]);
 
-  const handleKelasChange = (e) => {
-    setSelectedKelas(e.target.value);
-  };
-
-  const downloadBlob = (blob, filename) => {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  // -----------------------------------------------------------------------
+  // Export
+  // -----------------------------------------------------------------------
 
   const buildExportParams = () => {
     const params = new URLSearchParams();
-    if (selectedKelas) params.set("kelas_id", selectedKelas);
+    if (isWalas && userData?.guru?.id) {
+      params.set("walas_id", userData.guru.id.toString());
+    } else if (canSeeAllKelas && selectedKelas) {
+      params.set("kelas_id", selectedKelas);
+    }
     return params.toString();
   };
 
-  const handleExportExcel = async () => {
-    setExporting(prev => ({ ...prev, excel: true }));
+  const getFileSuffix = () => {
+    if (!selectedKelas || !canSeeAllKelas) return "";
+    const found = kelasList.find((k) => k.id.toString() === selectedKelas);
+    return found
+      ? `_${found.kelas}${found.jurusan ? `_${found.jurusan}` : ""}`
+      : `_${selectedKelas}`;
+  };
+
+  const handleExport = async (type) => {
+    const isExcel = type === "excel";
+    setExporting((prev) => ({ ...prev, [type]: true }));
+    setError("");
     try {
       const token = localStorage.getItem("accessToken");
       const query = buildExportParams();
+      const endpoint = isExcel ? "excel" : "pdf";
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/export/siswa/excel${query ? `?${query}` : ""}`,
+        `${import.meta.env.VITE_API_URL}/export/siswa/${endpoint}${query ? `?${query}` : ""}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (!res.ok) throw new Error("Export gagal");
       const blob = await res.blob();
-      const suffix = selectedKelas
-        ? `_${kelasList.find(k => k.id.toString() === selectedKelas)?.kelas ?? selectedKelas}`
-        : "";
-      downloadBlob(blob, `Data_Siswa${suffix}_${new Date().toISOString().split("T")[0]}.xlsx`);
+      const date = new Date().toISOString().split("T")[0];
+      const ext = isExcel ? "xlsx" : "pdf";
+      downloadBlob(blob, `Data_Siswa${getFileSuffix()}_${date}.${ext}`);
     } catch (err) {
-      console.error("Export Excel error:", err);
-      setError("Gagal mengekspor Excel");
+      console.error(`Export ${type} error:`, err);
+      setError(`Gagal mengekspor ${isExcel ? "Excel" : "PDF"}`);
     } finally {
-      setExporting(prev => ({ ...prev, excel: false }));
+      setExporting((prev) => ({ ...prev, [type]: false }));
     }
   };
 
-  const handleExportPdf = async () => {
-    setExporting(prev => ({ ...prev, pdf: true }));
-    try {
-      const token = localStorage.getItem("accessToken");
-      const query = buildExportParams();
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/export/siswa/pdf${query ? `?${query}` : ""}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (!res.ok) throw new Error("Export gagal");
-      const blob = await res.blob();
-      const suffix = selectedKelas
-        ? `_${kelasList.find(k => k.id.toString() === selectedKelas)?.kelas ?? selectedKelas}`
-        : "";
-      downloadBlob(blob, `Data_Siswa${suffix}_${new Date().toISOString().split("T")[0]}.pdf`);
-    } catch (err) {
-      console.error("Export PDF error:", err);
-      setError("Gagal mengekspor PDF");
-    } finally {
-      setExporting(prev => ({ ...prev, pdf: false }));
-    }
-  };
+  // -----------------------------------------------------------------------
+  // Render: belum load roles
+  // -----------------------------------------------------------------------
+
+  if (roles === null) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm p-8 text-center text-gray-400 text-sm italic">
+        Memuat...
+      </div>
+    );
+  }
+
+  // -----------------------------------------------------------------------
+  // Render utama
+  // -----------------------------------------------------------------------
 
   return (
     <div className="bg-white rounded-lg shadow-sm overflow-hidden">
@@ -145,27 +230,35 @@ export default function StudentList() {
 
       {/* Toolbar: Filter + Export */}
       <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between gap-4 flex-wrap">
-        {/* Filter Kelas */}
-        <div className="flex items-center gap-2">
-          <label className="text-sm text-gray-600 font-medium whitespace-nowrap">Filter Kelas:</label>
-          <select
-            value={selectedKelas}
-            onChange={handleKelasChange}
-            className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[180px]"
-          >
-            <option value="">Semua Kelas</option>
-            {kelasList.map(k => (
-              <option key={k.id} value={k.id.toString()}>
-                {k.kelas} {k.jurusan}
-              </option>
-            ))}
-          </select>
-        </div>
+
+        {/* Dropdown filter kelas — hanya tampil untuk admin & kesiswaan */}
+        {canSeeAllKelas && (
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-600 font-medium whitespace-nowrap">
+              Filter Kelas:
+            </label>
+            <select
+              value={selectedKelas}
+              onChange={(e) => setSelectedKelas(e.target.value)}
+              className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[180px]"
+            >
+              <option value="">Semua Kelas</option>
+              {kelasList.map((k) => (
+                <option key={k.id} value={k.id.toString()}>
+                  {k.kelas} {k.jurusan}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Spacer jika walas (tidak ada dropdown, export tetap di kanan) */}
+        {isWalas && <div />}
 
         {/* Export Buttons */}
         <div className="flex items-center gap-3">
           <button
-            onClick={handleExportPdf}
+            onClick={() => handleExport("pdf")}
             disabled={exporting.pdf}
             className="flex items-center gap-2 px-4 py-2 border border-red-500 text-red-500 hover:bg-red-50 disabled:opacity-50 rounded-lg text-sm font-medium transition-colors"
           >
@@ -181,7 +274,7 @@ export default function StudentList() {
           </button>
 
           <button
-            onClick={handleExportExcel}
+            onClick={() => handleExport("excel")}
             disabled={exporting.excel}
             className="flex items-center gap-2 px-4 py-2 border border-green-500 text-green-600 hover:bg-green-50 disabled:opacity-50 rounded-lg text-sm font-medium transition-colors"
           >
@@ -235,7 +328,9 @@ export default function StudentList() {
                   <td className="px-6 py-4 text-sm text-gray-900">{student.nomor_telepon}</td>
                   <td className="px-6 py-4 text-sm text-gray-900">{student.NIPD}</td>
                   <td className="px-6 py-4 text-sm text-gray-900">{student.NISN}</td>
-                  <td className="px-6 py-4 text-sm text-gray-900">{student.orang_tua?.nama_orangtua || "-"}</td>
+                  <td className="px-6 py-4 text-sm text-gray-900">
+                    {student.orang_tua?.nama_orangtua || "-"}
+                  </td>
                 </tr>
               ))
             ) : (
@@ -252,7 +347,7 @@ export default function StudentList() {
       {/* Pagination */}
       <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
         <button
-          onClick={() => setPage(p => Math.max(1, p - 1))}
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
           disabled={page === 1}
           className={`px-3 py-1 rounded-md text-sm font-medium ${
             page === 1
@@ -262,9 +357,11 @@ export default function StudentList() {
         >
           Previous
         </button>
-        <span className="text-sm text-gray-600">Page {page} of {totalPages}</span>
+        <span className="text-sm text-gray-600">
+          Page {page} of {totalPages}
+        </span>
         <button
-          onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
           disabled={page === totalPages}
           className={`px-3 py-1 rounded-md text-sm font-medium ${
             page === totalPages

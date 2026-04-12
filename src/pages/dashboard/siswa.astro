@@ -4,6 +4,7 @@ import Sidebar from "../../components/Sidebar.astro";
 import AuthGate from "../../components/auth/AuthGate.jsx";
 import AddStudent from "../../components/student/AddStudent.jsx";
 import StudentHeader from "../../components/student/StudentHeader.jsx";
+import StudentList from "../../components/student/StudentList.jsx";
 ---
 
 <BaseLayout title="Daftar Siswa">
@@ -47,6 +48,7 @@ import StudentHeader from "../../components/student/StudentHeader.jsx";
            </div> -->
                 <div class="flex-1 overflow-auto p-8">
                     <AddStudent client:load />
+                    <StudentList client:load />
                 </div>
             </main>
         </AuthGate>

@@ -16,7 +16,7 @@ function getUserFromStorage() {
 
 function formatClassName(cls) {
   if (!cls) return "";
-  return `${cls.kelas} ${cls.jurusan?.nama_jurusan || ""}`.trim();
+  return `${cls.kelas} ${cls.jurusan || ""}`.trim();
 }
 
 function StatusTapBadge({ status }) {

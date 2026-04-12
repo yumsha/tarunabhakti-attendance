@@ -63,7 +63,7 @@ export default function WalasDashboard() {
   }, [user]);
 
   const kelasName = walasKelas
-    ? `${walasKelas.kelas} ${walasKelas.jurusan?.nama_jurusan || ""}`.trim()
+    ? `${walasKelas.kelas} ${walasKelas.jurusan || ""}`.trim()
     : "";
 
   return (

@@ -45,7 +45,7 @@ export default function WalasKelasList() {
           id: k?.id,
           nama: k?.walas?.nama || "—",
           kelas: k?.kelas || "—",
-          jurusan: k?.jurusan?.nama_jurusan || "—",
+          jurusan: k?.jurusan || "—",
         }));
 
         setRows(normalized);
