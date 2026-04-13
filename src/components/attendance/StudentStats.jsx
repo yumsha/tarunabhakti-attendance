@@ -3,11 +3,11 @@ import { absensiSiswa } from "../../lib/backendApi";
 
 export default function StudentStats() {
     const [stats, setStats] = useState({
-        present: 0,
-        absent: 0,
-        izin: 0,
-        sakit: 0,
-        totalStudents: 0,
+        tepat_waktu: 0,
+        terlambat: 0,
+        belum_tap_in: 0,
+        belum_tap_out: 0,
+        total: 0,
     });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -24,12 +24,11 @@ export default function StudentStats() {
                 if (res.success && res.summary) {
                     const s = res.summary;
                     setStats({
-                        // FIX: coba beberapa kemungkinan nama field dari API
-                        present:        s.hadir          ?? s.total_hadir    ?? s.total_tap_in   ?? 0,
-                        absent:         s.alpha          ?? s.total_alpha    ?? s.belum_tap_in   ?? 0,
-                        izin:           s.izin           ?? s.total_izin     ?? 0,
-                        sakit:          s.sakit          ?? s.total_sakit    ?? 0,
-                        totalStudents:  s.total_siswa    ?? s.total          ?? 0,
+                        tepat_waktu:   s.tepat_waktu   ?? 0,
+                        terlambat:     s.terlambat     ?? 0,
+                        belum_tap_in:  s.belum_tap_in  ?? 0,
+                        belum_tap_out: s.belum_tap_out ?? 0,
+                        total:         s.total         ?? 0,
                     });
                 } else {
                     setError("Data tidak tersedia");
@@ -47,32 +46,32 @@ export default function StudentStats() {
 
     const cards = [
         {
-            label: "Hadir",
-            value: stats.present,
+            label: "Tepat Waktu",
+            value: stats.tepat_waktu,
             bg: "bg-green-50",
             text: "text-green-700",
         },
         {
-            label: "Absen (Tanpa Keterangan)",
-            value: stats.absent,
-            bg: "bg-red-50",
-            text: "text-red-700",
-        },
-        {
-            label: "Izin",
-            value: stats.izin,
+            label: "Terlambat",
+            value: stats.terlambat,
             bg: "bg-yellow-50",
             text: "text-yellow-700",
         },
         {
-            label: "Sakit",
-            value: stats.sakit,
+            label: "Belum Tap In",
+            value: stats.belum_tap_in,
+            bg: "bg-red-50",
+            text: "text-red-700",
+        },
+        {
+            label: "Belum Tap Out",
+            value: stats.belum_tap_out,
             bg: "bg-orange-50",
             text: "text-orange-700",
         },
         {
-            label: "Total Siswa",
-            value: stats.totalStudents,
+            label: "Total Tap In",
+            value: stats.total,
             bg: "bg-blue-50",
             text: "text-blue-700",
         },
