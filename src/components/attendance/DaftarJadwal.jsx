@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { jadwal, guru, kelas, mapel } from "../../lib/backendApi";
 
-// Format waktu dari ISO string atau HH:MM:SS → HH:MM
 const formatTime = (timeStr) => {
   if (!timeStr) return "-";
   if (timeStr.includes("T")) {
@@ -16,10 +15,20 @@ const formatTime = (timeStr) => {
 
 const HARI_ORDER = ["SENIN", "SELASA", "RABU", "KAMIS", "JUMAT", "SABTU"];
 
+const HARI_COLOR = {
+  SENIN:  "bg-blue-100 text-blue-700",
+  SELASA: "bg-purple-100 text-purple-700",
+  RABU:   "bg-green-100 text-green-700",
+  KAMIS:  "bg-yellow-100 text-yellow-700",
+  JUMAT:  "bg-orange-100 text-orange-700",
+  SABTU:  "bg-pink-100 text-pink-700",
+};
+
 export default function DaftarJadwal() {
   const [jadwalList, setJadwalList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedKelasFilter, setSelectedKelasFilter] = useState("");
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -51,7 +60,6 @@ export default function DaftarJadwal() {
     setTimeout(() => setNotification(null), 3000);
   };
 
-  // Close dropdown on outside click
   useEffect(() => {
     const handler = (e) => {
       if (createMenuRef.current && !createMenuRef.current.contains(e.target)) {
@@ -67,7 +75,6 @@ export default function DaftarJadwal() {
       try {
         const res = await jadwal.list("limit=100");
         if (res.success && res.data) {
-          // Sort by hari order lalu jam mulai
           const sorted = [...res.data].sort((a, b) => {
             const hariDiff = HARI_ORDER.indexOf(a.hari) - HARI_ORDER.indexOf(b.hari);
             if (hariDiff !== 0) return hariDiff;
@@ -81,17 +88,34 @@ export default function DaftarJadwal() {
         setLoading(false);
       }
     };
+
+    const fetchKelas = async () => {
+      try {
+        const res = await kelas.list("limit=100");
+        if (res.success) setKelasList(res.data);
+      } catch (e) {
+        console.error("Failed to fetch kelas", e);
+      }
+    };
+
     fetchJadwal();
+    fetchKelas();
   }, []);
 
-  const filteredJadwal = jadwalList.filter(
-    (item) =>
+  const filteredJadwal = jadwalList.filter((item) => {
+    const matchSearch =
       item.hari?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.mata_pelajaran?.nama_mapel?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.kelas?.kelas?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.kelas?.jurusan?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.guru?.nama?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+      item.guru?.nama?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchKelas = selectedKelasFilter
+      ? String(item.kelas?.id) === selectedKelasFilter
+      : true;
+
+    return matchSearch && matchKelas;
+  });
 
   const handleDeleteJadwal = (item) => {
     setSelectedJadwal(item);
@@ -187,24 +211,17 @@ export default function DaftarJadwal() {
     }, 1500);
   };
 
-  const HARI_COLOR = {
-    SENIN:  "bg-blue-100 text-blue-700",
-    SELASA: "bg-purple-100 text-purple-700",
-    RABU:   "bg-green-100 text-green-700",
-    KAMIS:  "bg-yellow-100 text-yellow-700",
-    JUMAT:  "bg-orange-100 text-orange-700",
-    SABTU:  "bg-pink-100 text-pink-700",
-  };
-
   return (
     <main className="flex-1 flex flex-col overflow-hidden bg-gray-50">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-8 py-5 flex items-center justify-between shadow-sm">
+      <header className="bg-white border-b border-gray-200 px-8 py-5 flex items-center justify-between shadow-sm gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Manajemen Jadwal Pelajaran</h1>
           <p className="text-sm text-gray-500 mt-1">Atur waktu, mata pelajaran, dan penugasan kelas</p>
         </div>
-        <div className="flex items-center gap-4">
+
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Search */}
           <div className="relative">
             <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -214,13 +231,54 @@ export default function DaftarJadwal() {
             </span>
             <input
               type="text"
-              placeholder="Cari hari, mapel, kelas, atau guru..."
-              className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 transition-all text-sm w-80"
+              placeholder="Cari hari, mapel, atau guru..."
+              className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 transition-all text-sm w-64"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
 
+          {/* Dropdown Filter Kelas */}
+          <div className="relative">
+            <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 pointer-events-none">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+            </span>
+            <select
+              value={selectedKelasFilter}
+              onChange={(e) => setSelectedKelasFilter(e.target.value)}
+              className="pl-9 pr-8 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-sm appearance-none cursor-pointer text-gray-700 w-48"
+            >
+              <option value="">Semua Kelas</option>
+              {kelasList.map((k) => (
+                <option key={k.id} value={String(k.id)}>
+                  {k.kelas} {k.jurusan}
+                </option>
+              ))}
+            </select>
+            <span className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 pointer-events-none">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </span>
+          </div>
+
+          {/* Reset filter — muncul kalau ada filter aktif */}
+          {(searchTerm || selectedKelasFilter) && (
+            <button
+              onClick={() => { setSearchTerm(""); setSelectedKelasFilter(""); }}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              Reset
+            </button>
+          )}
+
+          {/* Tambah Jadwal */}
           <div className="relative" ref={createMenuRef}>
             <button
               onClick={() => setShowCreateMenu(!showCreateMenu)}
@@ -288,36 +346,29 @@ export default function DaftarJadwal() {
               ) : filteredJadwal.length > 0 ? (
                 filteredJadwal.map((item) => (
                   <tr key={item.id} className="hover:bg-blue-50/30 transition-colors group">
-                    {/* Hari */}
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${HARI_COLOR[item.hari] || "bg-gray-100 text-gray-700"}`}>
                         {item.hari}
                       </span>
                     </td>
-                    {/* Waktu */}
                     <td className="px-6 py-4">
                       <span className="text-xs text-gray-600 font-mono">
                         {formatTime(item.jam_mulai)} – {formatTime(item.jam_selesai)}
                       </span>
                     </td>
-                    {/* Mapel */}
                     <td className="px-6 py-4">
                       <span className="text-sm font-semibold text-blue-600">
                         {item.mata_pelajaran?.nama_mapel || "-"}
                       </span>
                     </td>
-                    {/* Kelas + Jurusan */}
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
-                        <span className="text-sm font-medium text-gray-900">
-                          {item.kelas?.kelas || "-"}
-                        </span>
+                        <span className="text-sm font-medium text-gray-900">{item.kelas?.kelas || "-"}</span>
                         {item.kelas?.jurusan && (
                           <span className="text-xs text-gray-400">{item.kelas.jurusan}</span>
                         )}
                       </div>
                     </td>
-                    {/* Guru */}
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <div className="h-7 w-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-[10px] font-bold shrink-0">
@@ -326,7 +377,6 @@ export default function DaftarJadwal() {
                         <span className="text-sm text-gray-600">{item.guru?.nama || "-"}</span>
                       </div>
                     </td>
-                    {/* Action */}
                     <td className="px-6 py-4">
                       <button
                         className="text-red-500 hover:text-red-700 font-medium text-sm transition-colors flex items-center gap-1"
@@ -344,7 +394,9 @@ export default function DaftarJadwal() {
               ) : (
                 <tr>
                   <td colSpan="6" className="px-6 py-12 text-center text-gray-500 italic">
-                    {searchTerm ? `Tidak ada jadwal cocok dengan "${searchTerm}".` : "Jadwal tidak ditemukan."}
+                    {searchTerm || selectedKelasFilter
+                      ? "Tidak ada jadwal cocok dengan filter yang dipilih."
+                      : "Jadwal tidak ditemukan."}
                   </td>
                 </tr>
               )}
@@ -353,7 +405,12 @@ export default function DaftarJadwal() {
         </div>
 
         <div className="mt-6 flex items-center justify-between text-xs text-gray-500">
-          <p>Menampilkan {filteredJadwal.length} sesi jadwal.</p>
+          <p>
+            Menampilkan {filteredJadwal.length} sesi jadwal
+            {selectedKelasFilter && kelasList.find(k => String(k.id) === selectedKelasFilter)
+              ? ` — ${kelasList.find(k => String(k.id) === selectedKelasFilter)?.kelas} ${kelasList.find(k => String(k.id) === selectedKelasFilter)?.jurusan}`
+              : ""}.
+          </p>
         </div>
       </div>
 
@@ -422,7 +479,6 @@ export default function DaftarJadwal() {
 
             <div className="p-6 overflow-y-auto max-h-[70vh]">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Hari */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5">Hari</label>
                   <select
@@ -430,13 +486,9 @@ export default function DaftarJadwal() {
                     value={newJadwal.hari}
                     onChange={(e) => setNewJadwal({ ...newJadwal, hari: e.target.value })}
                   >
-                    {HARI_ORDER.map((h) => (
-                      <option key={h} value={h}>{h}</option>
-                    ))}
+                    {HARI_ORDER.map((h) => <option key={h} value={h}>{h}</option>)}
                   </select>
                 </div>
-
-                {/* Kelas */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5">Kelas</label>
                   <select
@@ -446,14 +498,10 @@ export default function DaftarJadwal() {
                   >
                     <option value="">Pilih Kelas...</option>
                     {kelasList.map((k) => (
-                      <option key={k.id} value={k.id}>
-                        {k.kelas} {k.jurusan}
-                      </option>
+                      <option key={k.id} value={k.id}>{k.kelas} {k.jurusan}</option>
                     ))}
                   </select>
                 </div>
-
-                {/* Mapel */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5">Mata Pelajaran</label>
                   <select
@@ -467,8 +515,6 @@ export default function DaftarJadwal() {
                     ))}
                   </select>
                 </div>
-
-                {/* Guru */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5">Guru Pengampu</label>
                   <select
@@ -482,8 +528,6 @@ export default function DaftarJadwal() {
                     ))}
                   </select>
                 </div>
-
-                {/* Jam Mulai */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5">Jam Mulai</label>
                   <input
@@ -493,8 +537,6 @@ export default function DaftarJadwal() {
                     onChange={(e) => setNewJadwal({ ...newJadwal, jam_mulai: e.target.value })}
                   />
                 </div>
-
-                {/* Jam Selesai */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5">Jam Selesai</label>
                   <input
