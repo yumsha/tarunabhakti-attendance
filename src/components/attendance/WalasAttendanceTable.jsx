@@ -16,7 +16,7 @@ function getTodayWIB() {
 const getStatusText = (status) => {
   switch (status) {
     case "TEPAT_WAKTU": return "Hadir";
-    case "TELAMBAT":    return "Terlambat";
+    case "TERLAMBAT":    return "Terlambat";
     case "HADIR":       return "Hadir (Walas)";
     case "IZIN":        return "Izin";
     case "SAKIT":       return "Sakit";
@@ -129,7 +129,7 @@ export default function WalasAttendanceTable({ kelasId, kelasName }) {
             Hadir
           </span>
         );
-      case "TELAMBAT":
+      case "TERLAMBAT":
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>

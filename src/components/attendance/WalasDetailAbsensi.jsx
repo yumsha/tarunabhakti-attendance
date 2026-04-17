@@ -202,7 +202,7 @@ export default function WalasDetailAbsensi() {
     if (row.sudah_tap) {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
-          {row.status_tapin === "TELAMBAT" ? "Terlambat" : "Tepat Waktu"}
+          {row.status_tapin === "TERLAMBAT" ? "Terlambat" : "Tepat Waktu"}
         </span>
       );
     }

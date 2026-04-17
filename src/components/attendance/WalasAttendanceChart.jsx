@@ -30,7 +30,7 @@ export default function WalasAttendanceChart({ kelasId, totalSiswa = 0 }) {
         const res = await absensiSiswa.laporanHarian(`tanggal=${today}&kelas_id=${kelasId}`);
         if (res.success && res.summary) {
           const tepatWaktu = res.summary.tepat_waktu || 0;
-          const terlambat = res.summary.telambat || 0;
+          const terlambat = res.summary.TERLAMBAT || 0;
           const hadirTotal = tepatWaktu + terlambat;
           const total = totalSiswa > 0 ? totalSiswa : res.summary.total || 0;
           const belum = Math.max(0, total - hadirTotal);
@@ -69,7 +69,7 @@ export default function WalasAttendanceChart({ kelasId, totalSiswa = 0 }) {
               if (res.success && res.summary) {
                 return {
                   date,
-                  hadir: (res.summary.tepat_waktu || 0) + (res.summary.telambat || 0),
+                  hadir: (res.summary.tepat_waktu || 0) + (res.summary.TERLAMBAT || 0),
                   belum: res.summary.belum_tap_in || 0,
                 };
               }

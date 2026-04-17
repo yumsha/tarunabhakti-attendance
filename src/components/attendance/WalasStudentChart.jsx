@@ -28,7 +28,7 @@ export default function WalasStudentStats({ kelasId, totalSiswa = 0 }) {
 
         if (res.success && res.summary) {
           const tepatWaktu = res.summary.tepat_waktu || 0;
-          const terlambat = res.summary.telambat || 0;
+          const terlambat = res.summary.TERLAMBAT || 0;
           const hadirTotal = tepatWaktu + terlambat;
           const total = totalSiswa > 0 ? totalSiswa : res.summary.total || 0;
           const belumHadir = Math.max(0, total - hadirTotal);

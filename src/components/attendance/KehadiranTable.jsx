@@ -23,7 +23,7 @@ function StatusTapBadge({ status }) {
   if (!status) return <span className="text-gray-300 text-xs">—</span>;
   const map = {
     TEPAT_WAKTU: { label: "Tepat Waktu", cls: "bg-emerald-100 text-emerald-700" },
-    TELAMBAT:    { label: "Terlambat",   cls: "bg-amber-100  text-amber-700"   },
+    TERLAMBAT:   { label: "Terlambat",   cls: "bg-amber-100  text-amber-700"   },
   };
   const s = map[status] ?? { label: status, cls: "bg-gray-100 text-gray-600" };
   return (
@@ -54,7 +54,7 @@ function StatusAbsensiBadge({ status }) {
 function SkeletonRow() {
   return (
     <tr>
-      <td colSpan={7} className="px-6 py-3">
+      <td colSpan={8} className="px-6 py-3">
         <div className="h-4 bg-gray-100 rounded-full animate-pulse" />
       </td>
     </tr>
@@ -62,17 +62,17 @@ function SkeletonRow() {
 }
 
 export default function KehadiranTable() {
-  const user   = getUserFromStorage();
+  const user    = getUserFromStorage();
   const walasId = user?.guru?.id ?? null;
-  const roles  = user?.roles?.map((r) => r.name?.toUpperCase()) ?? [];
 
-  const [classList, setClassList]   = useState([]);
-  const [kelasId, setKelasId]       = useState("");
-  const [tanggal, setTanggal]       = useState(getTodayWIB());
-  const [rows, setRows]             = useState([]);
-  const [loading, setLoading]       = useState(false);
-  const [kState, setKState]         = useState({});
+  const [classList, setClassList] = useState([]);
+  const [kelasId, setKelasId]     = useState("");
+  const [tanggal, setTanggal]     = useState(getTodayWIB());
+  const [rows, setRows]           = useState([]);
+  const [loading, setLoading]     = useState(false);
+  const [kState, setKState]       = useState({});
 
+  // FIX: load semua kelas yang diampu walas, expose selector jika >1
   useEffect(() => {
     const load = async () => {
       try {
@@ -85,6 +85,7 @@ export default function KehadiranTable() {
           );
         }
         setClassList(list);
+        // set ke kelas pertama sebagai default
         const firstId = String(list[0]?.id ?? "");
         if (firstId) setKelasId(firstId);
       } catch (e) {
@@ -92,7 +93,7 @@ export default function KehadiranTable() {
       }
     };
     load();
-  }, []);
+  }, [walasId]);
 
   const fetchRows = useCallback(async () => {
     if (!kelasId || !tanggal) return;
@@ -101,6 +102,7 @@ export default function KehadiranTable() {
       const params = new URLSearchParams({ kelas_id: kelasId, tanggal });
       const res = await detailAbsensi.pratinjauWalas(params.toString());
       setRows(res.data?.daftar_siswa ?? []);
+      // hapus state yang bukan "loading" agar tidak stale
       setKState((prev) => {
         const next = {};
         for (const [id, s] of Object.entries(prev)) {
@@ -122,7 +124,10 @@ export default function KehadiranTable() {
   }, [kelasId, tanggal]);
 
   const handleKonfirmasi = async (row) => {
-    if (!walasId) { alert("User tidak punya informasi guru. Pastikan akun terhubung ke data guru."); return; }
+    if (!walasId) {
+      alert("User tidak punya informasi guru. Pastikan akun terhubung ke data guru.");
+      return;
+    }
     const sid = row.siswa_id;
     setKState((prev) => ({ ...prev, [sid]: "loading" }));
     try {
@@ -178,7 +183,6 @@ export default function KehadiranTable() {
       );
       const donePatch = Object.fromEntries(pending.map((r) => [r.siswa_id, "done"]));
       setKState((prev) => ({ ...prev, ...donePatch }));
-
       setTimeout(fetchRows, 800);
     } catch (err) {
       console.error("Konfirmasi semua error:", err);
@@ -189,7 +193,6 @@ export default function KehadiranTable() {
 
   const selectedKelas = classList.find((c) => String(c.id) === String(kelasId));
 
-  // Siswa yang sudah dikonfirmasi = sudah_diabsen dari DB ATAU "done" di session ini
   const doneCount = rows.filter(
     (r) => r.sudah_diabsen || kState[r.siswa_id] === "done"
   ).length;
@@ -198,7 +201,6 @@ export default function KehadiranTable() {
     (r) => r.tap_in && !r.sudah_diabsen && kState[r.siswa_id] !== "done"
   ).length;
 
-  // render 
   return (
     <main className="flex-1 flex flex-col overflow-hidden">
       <PageHeader
@@ -225,6 +227,26 @@ export default function KehadiranTable() {
       <div className="flex-1 overflow-auto p-6 lg:p-8 space-y-5">
 
         <div className="flex flex-wrap items-center gap-3">
+
+          {/* FIX: Selector kelas — tampil jika walas pegang lebih dari 1 kelas */}
+          {classList.length > 1 && (
+            <div className="flex items-center gap-2 bg-white rounded-xl border border-gray-200 px-3 py-2 shadow-sm">
+              <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              <select
+                value={kelasId}
+                onChange={(e) => setKelasId(e.target.value)}
+                className="outline-none text-sm text-gray-700 bg-transparent cursor-pointer"
+              >
+                {classList.map((cls) => (
+                  <option key={cls.id} value={String(cls.id)}>
+                    {formatClassName(cls)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Tanggal */}
           <div className="flex items-center gap-2 bg-white rounded-xl border border-gray-200 px-3 py-2 shadow-sm">
@@ -255,12 +277,9 @@ export default function KehadiranTable() {
           )}
         </div>
 
-
-
         {/* Table */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
 
-          {/* Table count */}
           <div className="px-6 py-3 border-b border-gray-100 flex items-center justify-between">
             <p className="text-sm text-gray-500">
               {loading ? (
@@ -307,11 +326,10 @@ export default function KehadiranTable() {
                   </tr>
                 ) : (
                   rows.map((row, idx) => {
-                    // isDone: dikonfirmasi di DB (sudah_diabsen) ATAU di sesi ini (kState)
-                    const isDone = row.sudah_diabsen || kState[row.siswa_id] === "done";
-                    const isLoading = kState[row.siswa_id] === "loading";
-                    const isError   = kState[row.siswa_id] === "error";
-                    const canConfirm = !!row.tap_in && !isDone; // hanya yang sudah tap in
+                    const isDone     = row.sudah_diabsen || kState[row.siswa_id] === "done";
+                    const isLoading  = kState[row.siswa_id] === "loading";
+                    const isError    = kState[row.siswa_id] === "error";
+                    const canConfirm = !!row.tap_in && !isDone;
 
                     return (
                       <tr
@@ -324,10 +342,8 @@ export default function KehadiranTable() {
                             : "hover:bg-blue-50/20"
                         }`}
                       >
-                        {/* No */}
                         <td className="px-4 py-4 text-sm text-gray-400 font-medium">{idx + 1}</td>
 
-                        {/* Nama */}
                         <td className="px-4 py-4">
                           <p className="text-sm font-semibold text-gray-900">{row.nama || "—"}</p>
                           {!row.punya_rfid && (
@@ -335,17 +351,14 @@ export default function KehadiranTable() {
                           )}
                         </td>
 
-                        {/* NISN */}
                         <td className="px-4 py-4 text-sm text-gray-600 font-mono">
                           {row.NISN || "—"}
                         </td>
 
-                        {/* No Telp */}
                         <td className="px-4 py-4 text-sm text-gray-600">
                           {row.nomor_telepon || "—"}
                         </td>
 
-                        {/* Waktu Tap In */}
                         <td className="px-4 py-4 text-sm text-gray-700">
                           {row.tap_in ? (
                             <span className="font-medium">{row.tap_in}</span>
@@ -354,12 +367,10 @@ export default function KehadiranTable() {
                           )}
                         </td>
 
-                        {/* Status Tap */}
                         <td className="px-4 py-4">
                           <StatusTapBadge status={row.status_tapin} />
                         </td>
 
-                        {/* Status Absensi */}
                         <td className="px-4 py-4">
                           {isDone ? (
                             <StatusAbsensiBadge status={row.status_saat_ini || "HADIR"} />
@@ -368,7 +379,6 @@ export default function KehadiranTable() {
                           )}
                         </td>
 
-                        {/* Aksi */}
                         <td className="px-4 py-4">
                           {isDone ? (
                             <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600">
@@ -429,7 +439,6 @@ export default function KehadiranTable() {
             </table>
           </div>
 
-          {/* Footer */}
           {rows.length > 0 && (
             <div className="px-6 py-3 bg-gray-50/50 border-t border-gray-100 text-xs text-gray-400 text-center">
               {rows.length} siswa • {doneCount} dikonfirmasi • {rows.length - doneCount} menunggu
