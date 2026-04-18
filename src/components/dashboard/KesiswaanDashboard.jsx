@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
-import {
-    Users, Clock, CloudOff, AlertTriangle, Moon, CalendarCheck, Settings
-} from "lucide-react";
+import { Users, Clock, CloudOff, AlertTriangle, Moon, CalendarCheck, Settings} from "lucide-react";
 import PageHeader from "../layout/PageHeader.jsx";
 import StatCard from "./StatCard.jsx";
 import AttendanceComparisonChart from "../attendance/AttendanceComparisonChart.jsx";
