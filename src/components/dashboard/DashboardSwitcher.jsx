@@ -51,6 +51,7 @@ export default function DashboardSwitcher() {
   if (roles.includes("ADMIN")) return <AdminDashboard />;
   if (roles.includes("GURU")) return <GuruDashboard />;
   if (roles.includes("WALAS")) return <WalasDashboard />;
+  if (roles.includes("KESISWAAN")) return <KesiswaanDashboard />;
 
   return (
     <div className="flex-1 flex items-center justify-center bg-gray-50">
