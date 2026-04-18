@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { kelas, detailAbsensi } from "../../lib/backendApi";
+import { kelas, detailAbsensi } from "../../lib/backendApi.js";
 import PageHeader from "../layout/PageHeader.jsx";
 
 function getTodayWIB() {
@@ -61,16 +61,25 @@ function SkeletonRow() {
   );
 }
 
-export default function KehadiranTable() {
+export default function PokjaKehadiranTable() {
   const user    = getUserFromStorage();
   const walasId = user?.guru?.id ?? null;
 
   const [classList, setClassList] = useState([]);
   const [kelasId, setKelasId]     = useState("");
   const [tanggal, setTanggal]     = useState(getTodayWIB());
+  const [tanggalMulai, setTanggalMulai] = useState("");
+  const [tanggalAkhir, setTanggalAkhir] = useState("");
   const [rows, setRows]           = useState([]);
   const [loading, setLoading]     = useState(false);
   const [kState, setKState]       = useState({});
+
+  // FIX: kalo tanggalMulai & tanggalAkhir set, override tanggal
+  useEffect(() => {
+    if (tanggalMulai && tanggalAkhir) {
+      setTanggal("");
+    }
+  }, [tanggalMulai, tanggalAkhir]);
 
   // FIX: load semua kelas yang diampu walas, expose selector jika >1
   useEffect(() => {
@@ -262,7 +271,50 @@ export default function KehadiranTable() {
             />
           </div>
 
+          {/* Multiple Tanggal (range) */}
+          <div className="flex items-center gap-2 bg-white rounded-xl border border-gray-200 px-3 py-2 shadow-sm">
+            <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <div className="text-sm text-gray-500">Atur Range tanggal</div>
+            <input
+              type="date"
+              value={tanggalMulai}
+              onChange={(e) => setTanggalMulai(e.target.value)}
+              className="outline-none text-sm text-gray-700 bg-transparent cursor-pointer"
+            />
+            <span className="text-gray-400">sampai</span>
+            <input
+              type="date"
+              value={tanggalAkhir}
+              onChange={(e) => setTanggalAkhir(e.target.value)}
+              className="outline-none text-sm text-gray-700 bg-transparent cursor-pointer"
+            />
+          </div>
+
           {/* Export */}
+          <div className="flex items-center gap-2 ml-auto px-3 py-2 bg-white rounded-xl border border-gray-200 shadow-sm">
+              <button
+                  onClick={() => handleDownloadPdf(cls)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-all border border-red-100 font-medium text-[11px]"
+                    >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                            d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                      Unduh PDF
+              </button>
+              <button
+                onClick={() => handleDownloadExcel(cls)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-all border border-green-100 font-medium text-[11px]"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                        d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                  Unduh Excel
+              </button>
+          </div>
 
           {/* Progress bar */}
           {rows.length > 0 && (
