@@ -9,7 +9,7 @@ import AdminImport from "../../components/admin/ImportSiswa.jsx";
   <div class="flex h-screen bg-gray-50 overflow-hidden">
     <Sidebar />
 
-    <AuthGate client:load allowedRoles={["ADMIN"]}>
+    <AuthGate client:load allowedRoles={["ADMIN", "SUPERADMIN"]}>
       <AdminImport client:load/>
     </AuthGate>
   </div>

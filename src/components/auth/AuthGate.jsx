@@ -1,5 +1,30 @@
 import { useState, useEffect } from 'react';
 
+// Semua varian nama SUPERADMIN yang mungkin digunakan
+const SUPERADMIN_VARIANTS = ['SUPERADMIN', 'SUPER ADMIN', 'SUPER_ADMIN'];
+
+/**
+ * Helper: resolve semua roles dari berbagai struktur data user di localStorage.
+ * Menormalkan ke uppercase dan deduplikasi.
+ */
+function resolveUserRoles(user) {
+  const fromRoles = Array.isArray(user?.roles)
+    ? user.roles.map((r) => r?.name).filter(Boolean)
+    : [];
+  const fromRoleNames = Array.isArray(user?.role_names) ? user.role_names : [];
+  const fromRoleObj = user?.role?.name ? [user.role.name] : [];
+  const fromRoleStr = typeof user?.role === 'string' ? [user.role] : [];
+
+  const merged = [...fromRoles, ...fromRoleNames, ...fromRoleObj, ...fromRoleStr]
+    .filter(Boolean)
+    .map((r) => String(r).toUpperCase().trim());
+
+  // Normalisasi alias
+  const normalized = merged.map((r) => (r === 'WALI KELAS' ? 'WALAS' : r));
+
+  return Array.from(new Set(normalized));
+}
+
 /**
  * @param {object} props
  * @param {import('react').ReactNode} props.children
@@ -21,18 +46,17 @@ export default function AuthGate({ children, allowedRoles = [] }) {
 
       try {
         const user = JSON.parse(userStr);
+        const userRoles = resolveUserRoles(user);
 
-        // Support role_names, role.name (object), role (string)
-        const userRoles = user.roles?.map(r => r.name?.toUpperCase())
-          ?? (user.role_names ?? [])
-          ?? (user.role?.name ? [user.role.name.toUpperCase()] : [])
-          ?? (typeof user.role === 'string' ? [user.role.toUpperCase()] : []);
+        // Cek apakah user adalah SuperAdmin — SuperAdmin selalu dapat akses ke semua halaman
+        const isSuperAdmin = userRoles.some((r) => SUPERADMIN_VARIANTS.includes(r));
 
-        if (allowedRoles.length === 0) {
+        if (allowedRoles.length === 0 || isSuperAdmin) {
+          // Tidak ada pembatasan role, atau user adalah SuperAdmin → izinkan
           setAuthorized(true);
         } else {
-          const normalizedAllowed = allowedRoles.map(r => r.toUpperCase());
-          const hasRole = userRoles.some(r => normalizedAllowed.includes(r));
+          const normalizedAllowed = allowedRoles.map((r) => r.toUpperCase().trim());
+          const hasRole = userRoles.some((r) => normalizedAllowed.includes(r));
           setAuthorized(hasRole);
         }
       } catch {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { kelas, jadwal } from "../lib/backendApi";
 
-import { UserStarIcon, UserCog, ClipboardList, School, Upload } from "lucide-react";
+import { UserStarIcon, UserCog, ClipboardList, School, Upload, ShieldCheck } from "lucide-react";
 
 // mampping hari 
 const HARI_MAP = ["MINGGU", "SENIN", "SELASA", "RABU", "KAMIS", "JUMAT", "SABTU"];
@@ -63,10 +63,12 @@ export default function SidebarContainer() {
   const [roles, setRoles] = useState(null);
   const [userData, setUserData] = useState(null);
 
-  const { isAdmin, isWalas, isGuru, isKesiswaan } = useMemo(() => {
-    if (!roles) return { isAdmin: false, isWalas: false, isGuru: false, isKesiswaan: false };
+  const { isAdmin, isSuperAdmin, isWalas, isGuru, isKesiswaan } = useMemo(() => {
+    if (!roles) return { isAdmin: false, isSuperAdmin: false, isWalas: false, isGuru: false, isKesiswaan: false };
+    const superAdminRoles = ["SUPERADMIN", "SUPER ADMIN", "SUPER_ADMIN"];
     return {
       isAdmin: roles.includes("ADMIN"),
+      isSuperAdmin: roles.some((r) => superAdminRoles.includes(r)),
       isWalas: roles.includes("WALAS"),
       isGuru: roles.includes("GURU"),
       isKesiswaan: roles.includes("KESISWAAN"),
@@ -106,7 +108,7 @@ export default function SidebarContainer() {
       setLoading(true);
 
       try {
-        if (isAdmin) {
+        if (isAdmin || isSuperAdmin) {
           const res = await kelas.list("limit=100");
           if (res?.success && Array.isArray(res.data)) {
             setClasses(normalizeKelas(res.data));
@@ -281,9 +283,9 @@ export default function SidebarContainer() {
         </a>
       )}
 
-      {/* ---- ADMIN ---- */}
+      {/* ADMIN & SUPERADMIN */}
 
-      {isAdmin && (
+      {(isAdmin || isSuperAdmin) && (
         <a
           href="/dashboard/importSiswa"
           data-astro-prefetch
@@ -294,7 +296,7 @@ export default function SidebarContainer() {
         </a>
       )}
 
-      { isAdmin && (
+      {(isAdmin || isSuperAdmin) && (
         <a
           href="/dashboard/importOrangTua"
           data-astro-prefetch
@@ -305,7 +307,7 @@ export default function SidebarContainer() {
         </a>
       )}
 
-      {isAdmin && (
+      {(isAdmin || isSuperAdmin) && (
         <a
           href="/dashboard/users"
           data-astro-prefetch
@@ -316,7 +318,7 @@ export default function SidebarContainer() {
         </a>
       )}
 
-      {isAdmin && (
+      {(isAdmin || isSuperAdmin) && (
         <a
           href="/dashboard/kelas"
           data-astro-prefetch
@@ -327,8 +329,8 @@ export default function SidebarContainer() {
         </a>
       )}
 
-      {/* Kehadiran langsung (tanpa dropdown) — hanya ADMIN */}
-      {isAdmin && (
+      {/* Kehadiran langsung (tanpa dropdown) — ADMIN & SUPERADMIN */}
+      {(isAdmin || isSuperAdmin) && (
         <a
           href="/dashboard/kehadiran"
           data-astro-prefetch
@@ -346,9 +348,9 @@ export default function SidebarContainer() {
         </a>
       )}
 
-      {/* ---- ADMIN & KESISWAAN ---- */}
+      {/* ADMIN, SUPERADMIN & KESISWAAN */}
 
-      {(isAdmin || isKesiswaan) && (
+      {(isAdmin || isSuperAdmin || isKesiswaan) && (
         <a
           href="/dashboard/tambahJadwal"
           data-astro-prefetch

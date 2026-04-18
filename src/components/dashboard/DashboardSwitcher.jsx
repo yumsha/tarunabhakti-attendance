@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import AdminDashboard from "./AdminDashboard.jsx";
+import SuperAdminDashboard from "./SuperAdminDashboard.jsx";
 import GuruDashboard from "./GuruDashboard.jsx";
 import WalasDashboard from "./WalasDashboard.jsx";
 import KesiswaanDashboard from "./KesiswaanDashboard.jsx";  
@@ -48,6 +49,7 @@ export default function DashboardSwitcher() {
     );
   }
 
+  if (roles.includes("SUPERADMIN") || roles.includes("SUPER ADMIN") || roles.includes("SUPER_ADMIN")) return <SuperAdminDashboard />;
   if (roles.includes("ADMIN")) return <AdminDashboard />;
   if (roles.includes("GURU")) return <GuruDashboard />;
   if (roles.includes("WALAS")) return <WalasDashboard />;

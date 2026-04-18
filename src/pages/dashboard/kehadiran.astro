@@ -8,7 +8,7 @@ import AuthGate from "../../components/auth/AuthGate.jsx";
 <BaseLayout title="Kehadiran">
   <div class="flex h-screen bg-gray-50">
     <Sidebar />
-    <AuthGate client:load allowedRoles={["ADMIN", "GURU", "WALAS", "KESISWAAN"]}>
+    <AuthGate client:load allowedRoles={["ADMIN", "SUPERADMIN", "GURU", "WALAS", "KESISWAAN"]}>
       <AttendanceMain client:load />
     </AuthGate>
   </div>
