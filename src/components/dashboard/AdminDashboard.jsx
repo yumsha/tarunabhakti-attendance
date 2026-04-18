@@ -1,35 +1,159 @@
-import RecentAttendance from "../attendance/RecentAttendance.jsx";
-import StudentStats from "../attendance/StudentStats.jsx";
-import YearlyAttendanceChart from "../attendance/YearlyAttendanceChart.jsx";
-import LateStudents from "../attendance/LateStudents.jsx";
+import { useState, useEffect } from "react";
+import {
+    Users, Clock, CloudOff, AlertTriangle, Moon, CalendarCheck, Settings
+} from "lucide-react";
 import PageHeader from "../layout/PageHeader.jsx";
+import StatCard from "./StatCard.jsx";
+import AttendanceComparisonChart from "../attendance/AttendanceComparisonChart.jsx";
+import WeeklyAttendanceChart from "../attendance/WeeklyAttendanceChart.jsx";
+import { absensiSiswa, siswa } from "../../lib/backendApi";
 
-export default function AdminDashboard() {
-    const user = JSON.parse(localStorage.getItem("user")) ?? {};
-    const displayName = user.guru?.nama ?? user.email ?? "Admin";
+// ── Realtime Clock ────────────────────────────────────────────────────────────
+function RealtimeClock() {
+    const [now, setNow] = useState(new Date());
+    useEffect(() => {
+        const id = setInterval(() => setNow(new Date()), 1000);
+        return () => clearInterval(id);
+    }, []);
+
+    const timeStr = now.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+    });
+    const dateStr = now.toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+    });
 
     return (
-        <div className="flex-1 flex flex-col overflow-hidden">
-            {/* Top Bar */}
+        <div>
+            <div className="text-3xl font-bold text-gray-900 tracking-tight">{timeStr}</div>
+            <div className="text-xs text-gray-400 mt-0.5">Realtime Insight</div>
+            <div className="mt-5 text-sm font-semibold text-gray-700">
+                Today:
+                <br />
+                <span className="text-base font-bold text-gray-900">{dateStr}</span>
+            </div>
+        </div>
+    );
+}
+
+export default function AdminDashboard() {
+    const [stats, setStats] = useState({
+        total: 0,
+        hadir: 0,
+        absen: 0,
+        telat: 0,
+        pulangAwal: 0,
+        izin: 0,
+        sakit: 0,
+    });
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const load = async () => {
+            setLoading(true);
+            try {
+                const today = new Date().toISOString().split("T")[0];
+                const [absensiRes, siswaRes] = await Promise.all([
+                    absensiSiswa.laporanHarian(`tanggal=${today}`),
+                    siswa.list(),
+                ]);
+
+                let hadir = 0, telat = 0, izin = 0, sakit = 0, pulangAwal = 0;
+                if (absensiRes?.success && Array.isArray(absensiRes.data)) {
+                    telat = absensiRes.data.filter((r) => r.status_tapin === "TERLAMBAT").length;
+                    izin = absensiRes.data.filter((r) => r.keterangan === "IZIN").length;
+                    sakit = absensiRes.data.filter((r) => r.keterangan === "SAKIT").length;
+                    pulangAwal = absensiRes.data.filter((r) => r.status_tapout === "PULANG_AWAL").length;
+                    hadir = absensiRes.data.length - telat;
+                }
+                const total = siswaRes?.data?.length ?? 0;
+                const absen = Math.max(0, total - (hadir + telat + izin + sakit));
+
+                setStats({ total, hadir, absen, telat, pulangAwal, izin, sakit });
+            } catch (e) {
+                console.error("AdminDashboard stats error", e);
+            } finally {
+                setLoading(false);
+            }
+        };
+        load();
+    }, []);
+
+    const cards = [
+        {
+            value: stats.total,
+            label: "Total Siswa",
+            icon: <Users className="w-5 h-5" />,
+            trend: { direction: "down", label: "Data tersinkronisasi" },
+        },
+        {
+            value: stats.hadir,
+            label: "Hadir Tepat Waktu",
+            icon: <Clock className="w-5 h-5" />,
+            trend: { direction: "down", label: "Absensi hari ini" },
+        },
+        {
+            value: stats.absen,
+            label: "Tidak Hadir",
+            icon: <CloudOff className="w-5 h-5" />,
+            trend: { direction: "up", label: "Absen hari ini" },
+        },
+        {
+            value: stats.telat,
+            label: "Terlambat",
+            icon: <AlertTriangle className="w-5 h-5" />,
+            trend: { direction: "up", label: "Kedatangan terlambat" },
+        },
+        {
+            value: stats.sakit,
+            label: "Sakit",
+            icon: <Moon className="w-5 h-5" />,
+            trend: { direction: "down", label: "Sakit hari ini" },
+        },
+        {
+            value: stats.izin,
+            label: "Izin",
+            icon: <CalendarCheck className="w-5 h-5" />,
+            trend: { direction: "up", label: "Izin hari ini" },
+        },
+    ];
+
+    return (
+        <div className="flex-1 flex flex-col overflow-hidden bg-gray-50">
             <PageHeader title="Admin Dashboard" />
 
-            {/* Welcome Sign */}
-            <div className="p-8">
-                <h2 className="text-2xl font-bold text-gray-900">Welcome back, {displayName}!</h2>
-                <p className="text-gray-600">Ini adalah data absensi yang terjadi hari ini.</p>
-            </div>
+            <div className="flex-1 overflow-auto p-6">
+                {/* ── Top: clock + stat cards ── */}
+                <div className="flex gap-5 mb-5">
+                    {/* Clock panel */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col justify-between min-w-[200px] w-[200px]">
+                        <Clock className="w-10 h-10 text-gray-300 mb-3" />
+                        <RealtimeClock />
+                        <button className="mt-6 flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition-colors w-full justify-center">
+                            <Settings className="w-4 h-4" />
+                            Advanced Configuration
+                        </button>
+                    </div>
 
-            {/* Stats Cards */}
-            <div className="flex-1 overflow-auto p-8 z-10">
-                <div className="mb-6">
-                    <div className="grid grid-cols-2 gap-6 mb-3">
-                        <StudentStats />
-                        <RecentAttendance />
+                    {/* 2×3 stat grid */}
+                    <div className="flex-1 grid grid-cols-3 gap-4">
+                        {cards.map((c) => (
+                            <StatCard key={c.label} {...c} loading={loading} />
+                        ))}
                     </div>
-                    <div className="mb-6">
-                        <YearlyAttendanceChart />
+                </div>
+
+                {/* ── Bottom: charts ── */}
+                <div className="grid grid-cols-3 gap-5">
+                    <div className="col-span-2">
+                        <AttendanceComparisonChart />
                     </div>
-                    <div className="grid grid-cols-2 gap-6 mb-6">
+                    <div className="col-span-1">
+                        <WeeklyAttendanceChart />
                     </div>
                 </div>
             </div>
