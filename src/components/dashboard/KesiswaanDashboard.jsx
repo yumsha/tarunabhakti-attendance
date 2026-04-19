@@ -121,7 +121,10 @@ export default function KesiswaanDashboard() {
 
     return (
         <div className="flex-1 flex flex-col overflow-hidden bg-gray-50">
-            <PageHeader title="Kesiswaan Dashboard" />
+            <PageHeader 
+                title="Kesiswaan Dashboard"
+                subtitle="Dashboard untuk Kesiswaan"
+            />
 
             <div className="flex-1 overflow-auto p-6">
                 {/* ── Top: clock + stat cards ── */}

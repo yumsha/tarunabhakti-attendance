@@ -78,15 +78,37 @@ function exportTablePdf(data) {
 function exportTableExcel(data) {
   const rows = data.map((o) => ({
     "Nama Orang Tua": o.nama_orangtua,
-    "NIK": o.NIK,
-    "Nomor Telepon": o.nomor_telepon,
+    "NIK": "\t" + String(o.NIK),
+    "Nomor Telepon": "\t" + String(o.nomor_telepon),
     "Pekerjaan": o.pekerjaan,
     "Alamat": o.alamat,
   }));
+
   const ws = XLSX.utils.json_to_sheet(rows);
-  ws["!cols"] = Object.keys(rows[0] || {}).map((k) => ({ wch: k === "Alamat" ? 36 : 22 }));
+
+  // 🔥 FORCE KOLOM NIK & TELEPON JADI STRING
+  const range = XLSX.utils.decode_range(ws["!ref"]);
+
+for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+  const nikCell  = XLSX.utils.encode_cell({ r: R, c: 1 });
+  const telpCell = XLSX.utils.encode_cell({ r: R, c: 2 });
+
+  if (ws[nikCell]) {
+    ws[nikCell].v = String(ws[nikCell].v); // 🔥 paksa ulang value
+    ws[nikCell].t = "s";                  // string
+    ws[nikCell].z = "@";                  // text format
+  }
+
+  if (ws[telpCell]) {
+    ws[telpCell].v = String(ws[telpCell].v);
+    ws[telpCell].t = "s";
+    ws[telpCell].z = "@";
+  }
+}
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Data Orang Tua");
+
   XLSX.writeFile(wb, "data_orangtua.xlsx");
 }
 
@@ -360,66 +382,15 @@ export default function AdminImport() {
   }, []);
 
   // Kolom tabel disesuaikan dengan semua field
-  const TABLE_COLS = ["Nama Orang Tua", "NIK", "Nomor Telepon", "Pekerjaan", "Alamat"];
+  const TABLE_COLS = ["ID", "Nama Orang Tua", "NIK", "Nomor Telepon", "Pekerjaan", "Alamat"];
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <PageHeader
         title="Data Orang Tua"
         subtitle="Kelola data orang tua & import massal"
-        right={
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Template dropdown */}
-            <div className="relative" ref={templateRef}>
-              <button
-                onClick={() => { setShowTemplateMenu(!showTemplateMenu); setShowExportMenu(false); }}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-              >
-                <DownloadIcon /> Unduh Template
-              </button>
-              {showTemplateMenu && (
-                <div className="absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-20">
-                  <button onClick={() => { downloadExcelTemplate(); setShowTemplateMenu(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition">
-                    <span className="text-green-600"><FileExcelIcon /></span> Template Excel (.xlsx)
-                  </button>
-                  <button onClick={() => { downloadPdfTemplate(); setShowTemplateMenu(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition">
-                    <span className="text-red-500"><FilePdfIcon /></span> Template PDF
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Export dropdown */}
-            <div className="relative" ref={exportRef}>
-              <button
-                onClick={() => { setShowExportMenu(!showExportMenu); setShowTemplateMenu(false); }}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-              >
-                <DownloadIcon /> Export Data
-              </button>
-              {showExportMenu && (
-                <div className="absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-20">
-                  <button onClick={() => { exportTableExcel(data); setShowExportMenu(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition">
-                    <span className="text-green-600"><FileExcelIcon /></span> Export Excel (.xlsx)
-                  </button>
-                  <button onClick={() => { exportTablePdf(data); setShowExportMenu(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition">
-                    <span className="text-red-500"><FilePdfIcon /></span> Export PDF
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Import button */}
-            <button
-              onClick={() => setShowImportModal(true)}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition shadow-sm"
-            >
-              <UploadIcon /> Import Excel
-            </button>
-          </div>
-        }
       />
-
+      
       <div className="flex-1 overflow-auto p-8">
         {error && (
           <div className="flex items-center gap-2 p-3 mb-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
@@ -428,14 +399,67 @@ export default function AdminImport() {
         )}
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100">
-            <p className="text-sm text-gray-500">
-              {loading
-                ? <span>Memuat…</span>
-                : <><span className="font-semibold text-gray-700">{data.length}</span> orang tua ditemukan</>
-              }
-            </p>
-          </div>
+          <div className="flex justify-between"> 
+            <div className="px-6 py-4 border-b border-gray-100">
+              <p className="text-sm text-gray-500">
+                {loading
+                  ? <span>Memuat…</span>
+                  : <><span className="font-semibold text-gray-700">{data.length}</span> orang tua ditemukan</>
+                }
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Template dropdown */}
+              <div className="relative" ref={templateRef}>
+                <button
+                  onClick={() => { setShowTemplateMenu(!showTemplateMenu); setShowExportMenu(false); }}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+                >
+                  <DownloadIcon /> Unduh Template
+                </button>
+                {showTemplateMenu && (
+                  <div className="absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-20">
+                    <button onClick={() => { downloadExcelTemplate(); setShowTemplateMenu(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition">
+                      <span className="text-green-600"><FileExcelIcon /></span> Template Excel (.xlsx)
+                    </button>
+                    <button onClick={() => { downloadPdfTemplate(); setShowTemplateMenu(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition">
+                      <span className="text-red-500"><FilePdfIcon /></span> Template PDF
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Export dropdown */}
+              <div className="relative" ref={exportRef}>
+                <button
+                  onClick={() => { setShowExportMenu(!showExportMenu); setShowTemplateMenu(false); }}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+                >
+                  <DownloadIcon /> Export Data
+                </button>
+                {showExportMenu && (
+                  <div className="absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-20">
+                    <button onClick={() => { exportTableExcel(data); setShowExportMenu(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition">
+                      <span className="text-green-600"><FileExcelIcon /></span> Export Excel (.xlsx)
+                    </button>
+                    <button onClick={() => { exportTablePdf(data); setShowExportMenu(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition">
+                      <span className="text-red-500"><FilePdfIcon /></span> Export PDF
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Import button */}
+              <button
+                onClick={() => setShowImportModal(true)}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition shadow-sm"
+              >
+                <UploadIcon /> Import Excel
+              </button>
+            </div>
+            
+        </div>
 
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -460,6 +484,7 @@ export default function AdminImport() {
                 ) : data.length > 0 ? (
                   data.map((o, i) => (
                     <tr key={o.id ?? i} className="hover:bg-blue-50/30 transition-colors duration-150">
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900">{o.id}</td>
                       <td className="px-6 py-4 text-sm font-medium text-gray-900">{o.nama_orangtua}</td>
                       <td className="px-6 py-4 text-sm text-gray-600 font-mono">{o.NIK}</td>
                       <td className="px-6 py-4 text-sm text-gray-600">{o.nomor_telepon}</td>

@@ -209,6 +209,7 @@ export default function KehadiranTable() {
             ? `Kehadiran ${formatClassName(selectedKelas)}`
             : "Daftar Kehadiran"
         }
+        subtitle={`Kehadiran siswa dari kelas ${formatClassName(selectedKelas)}`}
         right={
           pendingTapIn > 0 ? (
             <button

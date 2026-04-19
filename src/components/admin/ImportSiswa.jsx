@@ -365,76 +365,6 @@ export default function ImportSiswa() {
       <PageHeader
         title="Data Siswa"
         subtitle="Kelola data siswa & import massal"
-        right={
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Template dropdown */}
-            <div className="relative" ref={templateRef}>
-              <button
-                onClick={() => { setShowTemplateMenu(!showTemplateMenu); setShowExportMenu(false); }}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-              >
-                <DownloadIcon />
-                Unduh Template
-              </button>
-              {showTemplateMenu && (
-                <div className="absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-20">
-                  <button
-                    onClick={() => { downloadExcelTemplate(); setShowTemplateMenu(false); }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition"
-                  >
-                    <span className="text-green-600"><FileExcelIcon /></span>
-                    Template Excel (.xlsx)
-                  </button>
-                  <button
-                    onClick={() => { downloadPdfTemplate(); setShowTemplateMenu(false); }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition"
-                  >
-                    <span className="text-red-500"><FilePdfIcon /></span>
-                    Template PDF
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Export dropdown */}
-            <div className="relative" ref={exportRef}>
-              <button
-                onClick={() => { setShowExportMenu(!showExportMenu); setShowTemplateMenu(false); }}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-              >
-                <DownloadIcon />
-                Export Data
-              </button>
-              {showExportMenu && (
-                <div className="absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-20">
-                  <button
-                    onClick={() => { exportTableExcel(students); setShowExportMenu(false); }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition"
-                  >
-                    <span className="text-green-600"><FileExcelIcon /></span>
-                    Export Excel (.xlsx)
-                  </button>
-                  <button
-                    onClick={() => { exportTablePdf(students); setShowExportMenu(false); }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition"
-                  >
-                    <span className="text-red-500"><FilePdfIcon /></span>
-                    Export PDF
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Import button */}
-            <button
-              onClick={() => setShowImportModal(true)}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition shadow-sm"
-            >
-              <UploadIcon />
-              Import Excel
-            </button>
-          </div>
-        }
       />
 
       {/* ── Scrollable Content ── */}
@@ -448,31 +378,114 @@ export default function ImportSiswa() {
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           {/* Toolbar: info + filter kelas */}
-          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-4 flex-wrap">
-            <p className="text-sm text-gray-500">
-              {loading ? (
-                <span>Memuat…</span>
-              ) : (
-                <><span className="font-semibold text-gray-700">{students.length}</span> siswa ditemukan</>
-              )}
-            </p>
-
-            {/* Filter Kelas */}
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-gray-600 font-medium whitespace-nowrap">Filter Kelas:</label>
-              <select
-                value={selectedKelas}
-                onChange={(e) => setSelectedKelas(e.target.value)}
-                className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[200px]"
-              >
-                <option value="">Semua Kelas</option>
-                {kelasList.map((k) => (
-                  <option key={k.id} value={k.id.toString()}>
-                    {k.kelas} {k.jurusan}
-                  </option>
-                ))}
-              </select>
+          <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-4 flex-wrap">
+            <div className="flex justify-center items-center gap-4">
+              <div>
+                <p className="text-sm text-gray-500">
+                  {loading ? (
+                    <span>Memuat…</span>
+                  ) : (
+                    <><span className="font-semibold text-gray-700">{students.length}</span> siswa ditemukan</>
+                  )}
+                </p>
+              </div>
+              
+              <div>
+                <select
+                  value={selectedKelas}
+                  onChange={(e) => setSelectedKelas(e.target.value)}
+                  className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[200px]"
+                >
+                  <option value="">Semua Kelas</option>
+                  {kelasList.map((k) => (
+                    <option key={k.id} value={k.id.toString()}>
+                      {k.kelas} {k.jurusan}
+                          </option>
+                  ))}
+                </select>                
+              </div>
             </div>
+
+
+            <div className="flex items-center gap-3 flex-wrap ml-auto">
+              <div>
+                
+                  {/* Filter Kelas */}
+                  <div className="flex items-center gap-2">
+
+                </div>
+              </div>
+              
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Template dropdown */}
+              <div className="relative" ref={templateRef}>
+                <button
+                  onClick={() => { setShowTemplateMenu(!showTemplateMenu); setShowExportMenu(false); }}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+                >
+                  <DownloadIcon />
+                  Unduh Template
+                </button>
+                {showTemplateMenu && (
+                  <div className="absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-20">
+                    <button
+                      onClick={() => { downloadExcelTemplate(); setShowTemplateMenu(false); }}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition"
+                    >
+                      <span className="text-green-600"><FileExcelIcon /></span>
+                      Template Excel (.xlsx)
+                    </button>
+                    <button
+                      onClick={() => { downloadPdfTemplate(); setShowTemplateMenu(false); }}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition"
+                    >
+                      <span className="text-red-500"><FilePdfIcon /></span>
+                      Template PDF
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Export dropdown */}
+              <div className="relative" ref={exportRef}>
+                <button
+                  onClick={() => { setShowExportMenu(!showExportMenu); setShowTemplateMenu(false); }}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+                >
+                  <DownloadIcon />
+                  Export Data
+                </button>
+                {showExportMenu && (
+                  <div className="absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-20">
+                    <button
+                      onClick={() => { exportTableExcel(students); setShowExportMenu(false); }}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition"
+                    >
+                      <span className="text-green-600"><FileExcelIcon /></span>
+                      Export Excel (.xlsx)
+                    </button>
+                    <button
+                      onClick={() => { exportTablePdf(students); setShowExportMenu(false); }}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition"
+                    >
+                      <span className="text-red-500"><FilePdfIcon /></span>
+                      Export PDF
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Import button */}
+              <button
+                onClick={() => setShowImportModal(true)}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition shadow-sm"
+              >
+                <UploadIcon />
+                Import Excel
+              </button>
+            </div>              
+          </div>
+
           </div>
 
           <div className="overflow-x-auto">

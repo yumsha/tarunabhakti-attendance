@@ -57,7 +57,10 @@ export default function GuruDashboard() {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Top Bar */}
-      <PageHeader title="Guru Dashboard" />
+      <PageHeader 
+        title="Guru Dashboard"
+        subtitle="Dashboard Guru"
+      />
 
       {/* Welcome Sign */}
       <div className="p-8">

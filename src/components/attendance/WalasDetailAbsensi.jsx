@@ -215,7 +215,10 @@ export default function WalasDetailAbsensi() {
 
   return (
     <main className="flex-1 flex flex-col overflow-hidden bg-gray-50">
-      <PageHeader title="Detail Absensi" />
+      <PageHeader 
+        title="Detail Absensi"
+        subtitle="Detail absensi seluruh siswa wali kelas"  
+      />
 
       <div className="flex-1 overflow-auto p-8 space-y-6">
 

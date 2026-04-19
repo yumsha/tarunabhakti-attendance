@@ -3,6 +3,8 @@ import {
   Pencil, Plus, ShieldCheck, Trash2, Loader2, AlertTriangle,
   Search, X, Users, RefreshCw, ShieldAlert,
 } from "lucide-react";
+import PageHeader from "../layout/PageHeader";
+
 import { role as roleApi } from "../../lib/backendApi";
 
 // Bangun map { [role_id]: user_count } langsung dari data role.
@@ -354,12 +356,10 @@ export default function RoleManagement() {
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-gray-50/60">
       {/* Header */}
-      <div className="px-8 py-5 border-b border-gray-100 bg-white">
-        <h1 className="text-xl font-semibold text-gray-800">Manajemen Role</h1>
-        <p className="text-sm text-gray-500 mt-0.5">
-          Kelola hak akses dan role pengguna sistem.
-        </p>
-      </div>
+      <PageHeader 
+        title="Manajemen Role"
+        subtitle="Kelola hak akses dan role pengguna sistem."
+      />
 
       <div className="flex-1 overflow-auto p-8 space-y-6">
         {/* Stat cards */}

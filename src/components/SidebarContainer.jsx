@@ -307,7 +307,7 @@ export default function SidebarContainer() {
         </a>
       )}
 
-      {(isAdmin || isSuperAdmin) && (
+      {(isSuperAdmin) && (
         <a
           href="/dashboard/users"
           data-astro-prefetch
@@ -361,7 +361,7 @@ export default function SidebarContainer() {
 
       {/* ADMIN, SUPERADMIN & KESISWAAN */}
 
-      {(isAdmin || isSuperAdmin || isKesiswaan) && (
+      {(isSuperAdmin || isKesiswaan) && (
         <a
           href="/dashboard/tambahJadwal"
           data-astro-prefetch

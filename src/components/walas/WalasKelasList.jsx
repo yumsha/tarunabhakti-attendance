@@ -65,6 +65,7 @@ export default function WalasKelasList() {
     <div className="flex-1 flex flex-col overflow-hidden">
       <PageHeader
         title="Informasi Kelas Walas"
+        subtitle="Informasi Kelas Wali Kelas"
       />
 
       <div className="flex-1 overflow-auto p-8">

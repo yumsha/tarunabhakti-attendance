@@ -68,7 +68,10 @@ export default function WalasDashboard() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <PageHeader title="Wali Kelas Dashboard" />
+      <PageHeader 
+        title="Wali Kelas Dashboard"
+        subtitle="Dashboard Wali Kelas"  
+      />
 
       {/* Dashboard Content */}
       <div className="flex-1 overflow-auto p-8">

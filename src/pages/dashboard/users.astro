@@ -9,7 +9,7 @@ import UserManagement from "../../components/user/UserManagement.jsx";
   <div class="flex h-screen bg-gray-50 overflow-hidden">
     <Sidebar />
 
-    <AuthGate client:load allowedRoles={['ADMIN', 'SUPERADMIN']}>
+    <AuthGate client:load allowedRoles={['SUPERADMIN']}>
       <UserManagement client:load />
     </AuthGate>
   </div>

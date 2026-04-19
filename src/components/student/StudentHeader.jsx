@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { kelas } from "../../lib/backendApi";
+import PageHeader from "../layout/PageHeader";
 
 export default function StudentHeader() {
   const [userRole, setUserRole] = useState("");
@@ -35,8 +36,11 @@ export default function StudentHeader() {
   }, []);
 
   return (
-    <h1 className="text-2xl font-semibold text-gray-900">
-      Daftar Siswa {classNames}
-    </h1>
+  <div className="flex-1 flex flex-col overflow-hidden bg-gray-50 h-17 ">
+    <PageHeader 
+      title="Daftar siswa"
+      subtitle="Daftar seluruh siswa"
+    />
+  </div>
   );
 }
