@@ -79,7 +79,7 @@ export const guru = {
 };
 
 export const orangTua = {
-  list: () => request('/api/v1/orang-tua'),
+  list: (params?: string) => request(`/api/v1/orang-tua${params ? `?${params}` : ''}`), 
   get: (id: string | number) => request(`/api/v1/orang-tua/${id}`),
   create: (data: any) => request('/api/v1/orang-tua', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string | number, data: any) => request(`/api/v1/orang-tua/${id}`, { method: 'PUT', body: JSON.stringify(data) }),

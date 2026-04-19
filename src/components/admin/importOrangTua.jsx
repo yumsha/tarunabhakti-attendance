@@ -1,5 +1,5 @@
 import PageHeader from "../layout/PageHeader.jsx";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { orangTua } from "../../lib/backendApi.js";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
@@ -86,7 +86,7 @@ function exportTableExcel(data) {
 
   const ws = XLSX.utils.json_to_sheet(rows);
 
-  // 🔥 FORCE KOLOM NIK & TELEPON JADI STRING
+  // FORCE KOLOM NIK & TELEPON JADI STRING
   const range = XLSX.utils.decode_range(ws["!ref"]);
 
 for (let R = range.s.r + 1; R <= range.e.r; ++R) {
@@ -94,9 +94,9 @@ for (let R = range.s.r + 1; R <= range.e.r; ++R) {
   const telpCell = XLSX.utils.encode_cell({ r: R, c: 2 });
 
   if (ws[nikCell]) {
-    ws[nikCell].v = String(ws[nikCell].v); // 🔥 paksa ulang value
-    ws[nikCell].t = "s";                  // string
-    ws[nikCell].z = "@";                  // text format
+    ws[nikCell].v = String(ws[nikCell].v); 
+    ws[nikCell].t = "s";
+    ws[nikCell].z = "@";
   }
 
   if (ws[telpCell]) {
@@ -129,6 +129,8 @@ const ChevronRight = () => <Icon d="M9 18l6-6-6-6" />;
 const AlertCircle  = () => <Icon d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zM12 8v4M12 16h.01" />;
 const CheckCircle  = () => <Icon d="M22 11.08V12a10 10 0 1 1-5.93-9.14M22 4 12 14.01l-3-3" />;
 const XCircle      = () => <Icon d="M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10zM15 9l-6 6M9 9l6 6" />;
+const SearchIcon   = () => <Icon d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />;
+const XIcon        = () => <Icon d="M18 6L6 18M6 6l12 12" />;
 
 // ─── Modal Import ─────────────────────────────────────────────────────────────
 
@@ -160,7 +162,7 @@ function ImportModal({ onClose, onImportDone }) {
     setImporting(true);
 
     const res      = [];
-    const nikCache = new Set(); // ✅ cache pakai NIK, bukan nomor telepon
+    const nikCache = new Set();
 
     for (const row of rows) {
       const nama  = String(row["Nama Orang Tua"] || "").trim();
@@ -190,7 +192,7 @@ function ImportModal({ onClose, onImportDone }) {
           alamat:        alamat,
         });
 
-        if (result?.success) nikCache.add(nik); // ✅ tambah ke cache hanya jika berhasil
+        if (result?.success) nikCache.add(nik); 
         res.push({ nama, ok: result?.success ?? false, msg: result?.message || "" });
       } catch (err) {
         res.push({ nama, ok: false, msg: err.message });
@@ -200,7 +202,7 @@ function ImportModal({ onClose, onImportDone }) {
     setResults(res);
     setImporting(false);
     setDone(true);
-    onImportDone(); // ✅ refresh tabel setelah semua selesai
+    onImportDone(); 
   };
 
   const successCount = results.filter((r) => r.ok).length;
@@ -210,7 +212,7 @@ function ImportModal({ onClose, onImportDone }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 flex items-center justify-between">
+        <div className="bg-linear-to-r from-blue-600 to-blue-700 px-6 py-4 flex items-center justify-between">
           <div>
             <h2 className="text-white font-semibold text-lg">Import Data Orang Tua</h2>
             <p className="text-blue-200 text-xs mt-0.5">Upload file Excel (.xlsx) — kolom: Nama, NIK, Telepon, Pekerjaan, Alamat</p>
@@ -341,6 +343,7 @@ function ImportModal({ onClose, onImportDone }) {
 
 export default function AdminImport() {
   const [data, setData]               = useState([]);
+  const [allData, setAllData]         = useState([]); // Store all data for client-side filtering
   const [loading, setLoading]         = useState(false);
   const [error, setError]             = useState("");
   const [page, setPage]               = useState(1);
@@ -348,18 +351,22 @@ export default function AdminImport() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [showTemplateMenu, setShowTemplateMenu] = useState(false);
   const [showExportMenu, setShowExportMenu]     = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const itemsPerPage = 10;
+  
   const templateRef = useRef();
   const exportRef   = useRef();
 
-  const fetchData = async () => {
+  // Fetch all data once
+  const fetchAllData = async () => {
     setLoading(true);
     setError("");
     try {
-      const params = new URLSearchParams({ page: page.toString(), limit: "10" });
-      const res    = await orangTua.list(params.toString());
+      // Fetch all data without pagination
+      const res = await orangTua.list("limit=9999");
       if (res.success) {
-        setData(res.data);
-        setTotalPages(res.pagination?.totalPages ?? 1);
+        setAllData(res.data);
+        setTotalPages(Math.ceil(res.data.length / itemsPerPage));
       } else {
         setError(res.message || "Gagal memuat data orang tua");
       }
@@ -370,7 +377,68 @@ export default function AdminImport() {
     }
   };
 
-  useEffect(() => { fetchData(); }, [page]);
+  // Filter data based on search query (client-side)
+  const filteredData = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return allData;
+    }
+    
+    const query = searchQuery.toLowerCase().trim();
+    return allData.filter((item) => {
+      return (
+        item.nama_orangtua?.toLowerCase().includes(query) ||
+        item.NIK?.toLowerCase().includes(query) ||
+        item.nomor_telepon?.toLowerCase().includes(query) ||
+        item.pekerjaan?.toLowerCase().includes(query) ||
+        item.alamat?.toLowerCase().includes(query)
+      );
+    });
+  }, [allData, searchQuery]);
+
+  // Update pagination based on filtered data
+  useEffect(() => {
+    const newTotalPages = Math.ceil(filteredData.length / itemsPerPage);
+    setTotalPages(newTotalPages === 0 ? 1 : newTotalPages);
+    
+    // Reset to page 1 if current page is out of range
+    if (page > newTotalPages && newTotalPages > 0) {
+      setPage(1);
+    }
+  }, [filteredData, page]);
+
+  // Get current page data
+  const currentPageData = useMemo(() => {
+    const startIndex = (page - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredData.slice(startIndex, endIndex);
+  }, [filteredData, page]);
+
+  // Set data for display
+  useEffect(() => {
+    setData(currentPageData);
+  }, [currentPageData]);
+
+  // Initial fetch
+  useEffect(() => {
+    fetchAllData();
+  }, []);
+
+  // Handle search (no debounce needed for client-side)
+  const handleSearch = (value) => {
+    setSearchQuery(value);
+    setPage(1); // Reset to first page on search
+  };
+
+  // Clear search
+  const clearSearch = () => {
+    setSearchQuery("");
+    setPage(1);
+  };
+
+  // Refresh data after import
+  const refreshData = () => {
+    fetchAllData();
+  };
 
   useEffect(() => {
     const handler = (e) => {
@@ -399,14 +467,36 @@ export default function AdminImport() {
         )}
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="flex justify-between"> 
-            <div className="px-6 py-4 border-b border-gray-100">
+          <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100">
+            <div className="flex-1">
               <p className="text-sm text-gray-500">
                 {loading
                   ? <span>Memuat…</span>
-                  : <><span className="font-semibold text-gray-700">{data.length}</span> orang tua ditemukan</>
+                  : <><span className="font-semibold text-gray-700">{filteredData.length}</span> dari <span className="font-semibold text-gray-700">{allData.length}</span> orang tua ditemukan</>
                 }
               </p>
+            </div>
+            
+            {/* Search Bar */}
+            <div className="relative mx-4">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <SearchIcon />
+              </div>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+                placeholder="Cari nama, NIK, atau telepon..."
+                className="pl-10 pr-10 py-2 w-80 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              {searchQuery && (
+                <button
+                  onClick={clearSearch}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                >
+                  <XIcon />
+                </button>
+              )}
             </div>
             
             <div className="flex items-center gap-2 flex-wrap">
@@ -440,10 +530,10 @@ export default function AdminImport() {
                 </button>
                 {showExportMenu && (
                   <div className="absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-20">
-                    <button onClick={() => { exportTableExcel(data); setShowExportMenu(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition">
+                    <button onClick={() => { exportTableExcel(filteredData); setShowExportMenu(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition">
                       <span className="text-green-600"><FileExcelIcon /></span> Export Excel (.xlsx)
                     </button>
-                    <button onClick={() => { exportTablePdf(data); setShowExportMenu(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition">
+                    <button onClick={() => { exportTablePdf(filteredData); setShowExportMenu(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition">
                       <span className="text-red-500"><FilePdfIcon /></span> Export PDF
                     </button>
                   </div>
@@ -458,8 +548,7 @@ export default function AdminImport() {
                 <UploadIcon /> Import Excel
               </button>
             </div>
-            
-        </div>
+          </div>
 
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -495,7 +584,9 @@ export default function AdminImport() {
                 ) : (
                   <tr>
                     <td colSpan={TABLE_COLS.length} className="px-6 py-12 text-center">
-                      <p className="text-gray-500 text-sm">Tidak ada data orang tua.</p>
+                      <p className="text-gray-500 text-sm">
+                        {searchQuery ? "Tidak ada data yang sesuai dengan pencarian." : "Tidak ada data orang tua."}
+                      </p>
                     </td>
                   </tr>
                 )}
@@ -505,7 +596,9 @@ export default function AdminImport() {
 
           {totalPages > 1 && (
             <div className="flex items-center justify-between px-6 py-3 bg-gray-50/50 border-t border-gray-100">
-              <p className="text-xs text-gray-500">Halaman {page} dari {totalPages}</p>
+              <p className="text-xs text-gray-500">
+                Halaman {page} dari {totalPages} (Menampilkan {data.length} dari {filteredData.length} data)
+              </p>
               <div className="flex items-center gap-2">
                 <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition">
                   <ChevronLeft />
@@ -522,7 +615,7 @@ export default function AdminImport() {
       {showImportModal && (
         <ImportModal
           onClose={() => setShowImportModal(false)}
-          onImportDone={fetchData}
+          onImportDone={refreshData}
         />
       )}
     </div>

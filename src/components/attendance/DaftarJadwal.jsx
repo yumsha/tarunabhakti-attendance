@@ -649,7 +649,7 @@ export default function DaftarJadwal() {
 
       {/* Notification Toast */}
       {notification && (
-        <div className="fixed bottom-8 right-8 z-[100]">
+        <div className="fixed bottom-8 right-8 z-100">
           <div className={`px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4 text-white ${
             notification.type === "success" ? "bg-green-600" :
             notification.type === "error"   ? "bg-red-600" : "bg-blue-600"
