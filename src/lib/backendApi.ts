@@ -1,7 +1,26 @@
 const BASE_URL = (import.meta as any).env?.PUBLIC_API_BASE_URL || 'http://localhost:3000';
 
-async function request(path: string, options: RequestInit = {}) {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+function getToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('accessToken');
+}
+
+function clearAuth() {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('user');
+}
+
+function redirectToLogin() {
+  if (typeof window === 'undefined') return;
+  clearAuth();
+  if (!window.location.pathname.startsWith('/login')) {
+    window.location.href = '/login';
+  }
+}
+
+async function request(path: string, options: RequestInit = {}): Promise<any> {
+  const token = getToken();
 
   const res = await fetch(`${BASE_URL}${path}`, {
     headers: {
@@ -12,15 +31,21 @@ async function request(path: string, options: RequestInit = {}) {
     credentials: 'include',
     ...options,
   });
+
+  // 401 = token expired/invalid → langsung ke login
+  if (res.status === 401) {
+    redirectToLogin();
+    return { success: false, message: 'Sesi habis, silakan login kembali' };
+  }
+
   const text = await res.text();
   try {
     return text ? JSON.parse(text) : null;
-  } catch (e) {
+  } catch {
     return text;
   }
 }
 
-// Siswa
 export const siswa = {
   list: (params?: string) => request(`/api/v1/siswa${params ? `?${params}` : ''}`),
   get: (id: string | number) => request(`/api/v1/siswa/${id}`),
@@ -29,7 +54,6 @@ export const siswa = {
   delete: (id: string | number) => request(`/api/v1/siswa/${id}`, { method: 'DELETE' }),
 };
 
-// Tahun Ajaran
 export const tahunAjaran = {
   list: () => request('/api/v1/tahun-ajaran'),
   get: (id: string | number) => request(`/api/v1/tahun-ajaran/${id}`),
@@ -38,7 +62,6 @@ export const tahunAjaran = {
   delete: (id: string | number) => request(`/api/v1/tahun-ajaran/${id}`, { method: 'DELETE' }),
 };
 
-// Mata Pelajaran
 export const mapel = {
   list: () => request('/api/v1/mata-pelajaran'),
   get: (id: string | number) => request(`/api/v1/mata-pelajaran/${id}`),
@@ -47,7 +70,6 @@ export const mapel = {
   delete: (id: string | number) => request(`/api/v1/mata-pelajaran/${id}`, { method: 'DELETE' }),
 };
 
-// Guru
 export const guru = {
   list: () => request('/api/v1/guru'),
   get: (id: string | number) => request(`/api/v1/guru/${id}`),
@@ -56,7 +78,6 @@ export const guru = {
   delete: (id: string | number) => request(`/api/v1/guru/${id}`, { method: 'DELETE' }),
 };
 
-// Orang Tua
 export const orangTua = {
   list: () => request('/api/v1/orang-tua'),
   get: (id: string | number) => request(`/api/v1/orang-tua/${id}`),
@@ -65,7 +86,6 @@ export const orangTua = {
   delete: (id: string | number) => request(`/api/v1/orang-tua/${id}`, { method: 'DELETE' }),
 };
 
-// Kelas
 export const kelas = {
   list: (params?: string) => request(`/api/v1/kelas${params ? `?${params}` : ''}`),
   get: (id: string | number) => request(`/api/v1/kelas/${id}`),
@@ -74,7 +94,6 @@ export const kelas = {
   delete: (id: string | number) => request(`/api/v1/kelas/${id}`, { method: 'DELETE' }),
 };
 
-// Jadwal
 export const jadwal = {
   list: (params?: string) => request(`/api/v1/jadwal${params ? `?${params}` : ''}`),
   create: (data: any) => request('/api/v1/jadwal', { method: 'POST', body: JSON.stringify(data) }),
@@ -82,7 +101,6 @@ export const jadwal = {
   delete: (id: string | number) => request(`/api/v1/jadwal/${id}`, { method: 'DELETE' }),
 };
 
-// RFID
 export const rfid = {
   list: () => request('/api/v1/rfid'),
   get: (id: string | number) => request(`/api/v1/rfid/${id}`),
@@ -92,7 +110,6 @@ export const rfid = {
   delete: (id: string | number) => request(`/api/v1/rfid/${id}`, { method: 'DELETE' }),
 };
 
-// Absensi Siswa
 export const absensiSiswa = {
   tapIn: (data: any) => request('/api/v1/absensi-siswa/tap-in', { method: 'POST', body: JSON.stringify(data) }),
   tapOut: (data: any) => request('/api/v1/absensi-siswa/tap-out', { method: 'POST', body: JSON.stringify(data) }),
@@ -104,7 +121,6 @@ export const absensiSiswa = {
   delete: (id: string | number) => request(`/api/v1/absensi-siswa/${id}`, { method: 'DELETE' }),
 };
 
-// Detail Absensi
 export const detailAbsensi = {
   absensiGuru: (data: any) => request('/api/v1/detail-absensi/absensi-guru', { method: 'POST', body: JSON.stringify(data) }),
   updateStatus: (data: any) => request('/api/v1/detail-absensi/update-status', { method: 'PUT', body: JSON.stringify(data) }),
@@ -116,7 +132,6 @@ export const detailAbsensi = {
   delete: (id: string | number) => request(`/api/v1/detail-absensi/${id}`, { method: 'DELETE' }),
 };
 
-// Users
 export const users = {
   list: (params?: string) => request(`/api/v1/users${params ? `?${params}` : ''}`),
   get: (id: string | number) => request(`/api/v1/users/${id}`),
@@ -124,17 +139,14 @@ export const users = {
   delete: (id: string | number) => request(`/api/v1/users/${id}`, { method: 'DELETE' }),
 };
 
-// Role: BE hanya menerima `name` (unique)
 export const role = {
   list: () => request('/api/v1/role'),
   get: (id: string | number) => request(`/api/v1/role/${id}`),
   create: (data: { name: string }) => request('/api/v1/role', { method: 'POST', body: JSON.stringify(data) }),
-  update: (id: string | number, data: { name: string }) =>
-    request(`/api/v1/role/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  update: (id: string | number, data: { name: string }) => request(`/api/v1/role/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string | number) => request(`/api/v1/role/${id}`, { method: 'DELETE' }),
 };
 
-// Auth
 export const auth = {
   register: (data: any) => request('/api/v1/auth/register', { method: 'POST', body: JSON.stringify(data) }),
   login: (data: any) => request('/api/v1/auth/login', { method: 'POST', body: JSON.stringify(data) }),
@@ -142,18 +154,4 @@ export const auth = {
   me: () => request('/api/v1/auth/me'),
 };
 
-export default {
-  siswa,
-  tahunAjaran,
-  mapel,
-  guru,
-  orangTua,
-  kelas,
-  jadwal,
-  rfid,
-  absensiSiswa,
-  detailAbsensi,
-  users,
-  role,
-  auth,
-};
+export default { siswa, tahunAjaran, mapel, guru, orangTua, kelas, jadwal, rfid, absensiSiswa, detailAbsensi, users, role, auth };

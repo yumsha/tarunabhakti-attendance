@@ -6,7 +6,7 @@ import UserTable from "./UserTable";
 import UserFormModal from "./UserFormModal";
 import DeleteConfirmModal from "./DeleteConfirmModal";
 
-// Toast 
+// ─── Toast ────────────────────────────────────────────────────────────────────
 function Toast({ toast }) {
   if (!toast) return null;
   return (
@@ -22,11 +22,14 @@ function Toast({ toast }) {
   );
 }
 
-// role normalize
+// ─── normalizeUser ────────────────────────────────────────────────────────────
+// Selalu hasilkan `roles` sebagai array string uppercase dari berbagai bentuk
+// response BE (userRole[].role.name, roles[], role_names[], dll.)
 function normalizeUser(raw) {
   if (!raw) return raw;
+
   const fromRoles = Array.isArray(raw?.roles)
-    ? raw.roles.map((r) => r?.name).filter(Boolean)
+    ? raw.roles.map((r) => r?.name ?? r).filter(Boolean)
     : [];
   const fromRoleNames = Array.isArray(raw?.role_names) ? raw.role_names : [];
   const fromRoleObj = raw?.role?.name ? [raw.role.name] : [];
@@ -58,37 +61,30 @@ function normalizeUser(raw) {
   return {
     ...raw,
     roles,
-    role: raw.role ?? raw.role_names ?? primaryRole,
+    role: raw.role ?? primaryRole,
   };
 }
 
-/** Saat GET /role gagal (mis. bukan superadmin), dropdown tetap punya pilihan dasar. */
 const FALLBACK_ROLE_OPTIONS = ["ADMIN", "GURU", "WALAS", "KESISWAAN", "SUPER ADMIN"];
 
-// Main Orchestrator
+// Main Orchestrator 
 export default function UserManagement() {
   const [userList, setUserList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState({
-    total: 0,
-    totalPages: 1,
-    limit: 10,
-  });
+  const [pagination, setPagination] = useState({ total: 0, totalPages: 1, limit: 10 });
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
 
-  // modal states
   const [showForm, setShowForm] = useState(false);
   const [editUser, setEditUser] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
-  // toast
   const [toast, setToast] = useState(null);
-
   const [roleOptions, setRoleOptions] = useState([]);
 
+  // Load role options
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -96,7 +92,9 @@ export default function UserManagement() {
         const res = await roleApi.list();
         if (cancelled) return;
         if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
-          setRoleOptions(res.data.filter((r) => r?.name).map((r) => ({ id: r.id, name: r.name })));
+          setRoleOptions(
+            res.data.filter((r) => r?.name).map((r) => ({ id: r.id, name: r.name }))
+          );
         } else {
           setRoleOptions(FALLBACK_ROLE_OPTIONS.map((name) => ({ id: null, name })));
         }
@@ -104,9 +102,7 @@ export default function UserManagement() {
         if (!cancelled) setRoleOptions(FALLBACK_ROLE_OPTIONS.map((name) => ({ id: null, name })));
       }
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
   const showToast = (message, type = "success") => {
@@ -118,6 +114,7 @@ export default function UserManagement() {
   const roleFilterTrimmed = roleFilter.trim();
   const needsClientFilter = !!normalizedQuery || !!roleFilterTrimmed;
 
+  // Baca filterRole dari URL query param
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
@@ -130,24 +127,23 @@ export default function UserManagement() {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
     url.searchParams.delete("filterRole");
-    const next = url.pathname + (url.search || "");
-    window.history.replaceState({}, "", next || url.pathname);
+    window.history.replaceState({}, "", url.pathname + (url.search || ""));
   };
 
-  // Fetch
+  // Fetch 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      // Saat filter pencarian atau role di klien, ambil banyak baris sekali lalu slice lokal.
       const effectivePage = needsClientFilter ? 1 : page;
       const effectiveLimit = needsClientFilter ? 10000 : pagination.limit;
       const res = await users.list(`page=${effectivePage}&limit=${effectiveLimit}`);
       if (res.success) {
-        const normalized = (res.data || []).map(normalizeUser);
-        setUserList(normalized);
+        setUserList((res.data || []).map(normalizeUser));
         if (!needsClientFilter && res.pagination) {
           setPagination(res.pagination);
         }
+      } else {
+        showToast(res.message || "Gagal memuat data user", "error");
       }
     } catch (err) {
       console.error("Failed to fetch users:", err);
@@ -157,13 +153,8 @@ export default function UserManagement() {
     }
   }, [page, pagination.limit, needsClientFilter]);
 
-  useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [searchQuery, roleFilter]);
+  useEffect(() => { fetchUsers(); }, [fetchUsers]);
+  useEffect(() => { setPage(1); }, [searchQuery, roleFilter]);
 
   const filteredUsers = useMemo(() => {
     let rows = userList;
@@ -174,13 +165,11 @@ export default function UserManagement() {
       );
     }
     if (normalizedQuery) {
-      rows = rows.filter((u) => {
-        return (
-          (u.email || "").toLowerCase().includes(normalizedQuery) ||
-          (u.guru?.nama || "").toLowerCase().includes(normalizedQuery) ||
-          (u.guru?.NIP || "").toLowerCase().includes(normalizedQuery)
-        );
-      });
+      rows = rows.filter((u) =>
+        (u.email || "").toLowerCase().includes(normalizedQuery) ||
+        (u.guru?.nama || "").toLowerCase().includes(normalizedQuery) ||
+        (u.guru?.NIP || "").toLowerCase().includes(normalizedQuery)
+      );
     }
     return rows;
   }, [userList, roleFilterTrimmed, normalizedQuery]);
@@ -214,14 +203,18 @@ export default function UserManagement() {
           throw new Error(guruRes.message || "Gagal mengupdate data guru");
         payload.guru_id = Number(existingGuruId);
       } else if (guruData && !existingGuruId) {
+        // Role berubah ke GURU/WALAS dan belum punya guru record
         const guruRes = await guruApi.create(guruData);
         if (!guruRes.success)
           throw new Error(guruRes.message || "Gagal membuat data guru");
         payload.guru_id = Number(guruRes.data?.id);
       }
+
+      // Update user
       const res = await users.update(userId, payload);
       if (!res.success) throw new Error(res.message || "Gagal mengupdate user");
       showToast("User berhasil diperbarui");
+
     } else {
       // CREATE
       if (guruData) {
@@ -240,14 +233,16 @@ export default function UserManagement() {
           payload.guru_id = Number(guruRes.data?.id);
         }
       }
+
       const res = await auth.register(payload);
       if (!res.success) throw new Error(res.message || "Gagal menambah user");
       showToast("User baru berhasil ditambahkan");
     }
+
     fetchUsers();
   };
 
-  // Delete
+  // Delete 
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
@@ -267,7 +262,7 @@ export default function UserManagement() {
     }
   };
 
-  // Handlers
+  // Handlers 
   const handleAdd = () => {
     setEditUser(null);
     setShowForm(true);
@@ -278,9 +273,7 @@ export default function UserManagement() {
       setLoading(true);
       try {
         const res = await users.get(user.id);
-        if (!res?.success) {
-          throw new Error(res?.message || "Gagal memuat detail user");
-        }
+        if (!res?.success) throw new Error(res?.message || "Gagal memuat detail user");
         setEditUser(normalizeUser(res.data));
         setShowForm(true);
       } catch (err) {
@@ -297,13 +290,11 @@ export default function UserManagement() {
     setEditUser(null);
   };
 
-  // Render
+  // Render 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Page Header row — title + profile avatar */}
       <UserPageHeader />
 
-      {/* Content area */}
       <div className="flex-1 overflow-auto p-8">
         <UserTable
           users={pagedUsers}
@@ -321,7 +312,6 @@ export default function UserManagement() {
         />
       </div>
 
-      {/* Modals */}
       <UserFormModal
         isOpen={showForm}
         onClose={handleCloseForm}
@@ -338,7 +328,6 @@ export default function UserManagement() {
         deleting={deleting}
       />
 
-      {/* Toast notification */}
       <Toast toast={toast} />
     </div>
   );

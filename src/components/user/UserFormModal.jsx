@@ -1,6 +1,6 @@
-// UserFormModal.jsx
+// UserFormModal.jsx — Fixed: multi-role selection + unauthorized bug
 import { useState, useEffect, useRef } from "react";
-import { X, AlertTriangle, Loader2, Eye, EyeOff, ChevronDown } from "lucide-react";
+import { X, AlertTriangle, Loader2, Eye, EyeOff, ChevronDown, Check } from "lucide-react";
 
 const inputClass =
   "w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition";
@@ -21,100 +21,174 @@ function resolveRoles(userData) {
   return Array.from(new Set(merged));
 }
 
-/** Samakan pilihan dropdown dengan nama role di DB (huruf besar/kecil mengikuti opsi API). */
-function pickRoleOptionName(editUser, roleOptions) {
+function pickRoleOptionNames(editUser, roleOptions) {
   const userRoles = resolveRoles(editUser);
   const names = roleOptions.map((o) => o.name);
+  const matched = [];
+
   for (const ur of userRoles) {
     const hit = names.find((n) => n.trim().toUpperCase() === ur.trim().toUpperCase());
-    if (hit) return hit;
+    if (hit && !matched.includes(hit)) matched.push(hit);
   }
-  const walas = names.find((n) => n.trim().toUpperCase() === "WALAS");
-  if (walas && userRoles.includes("WALAS")) return walas;
-  const guru = names.find((n) => n.trim().toUpperCase() === "GURU");
-  if (guru && userRoles.includes("GURU")) return guru;
-  const fallback = names[0] ?? "";
-  return fallback || defaultRoleOption(roleOptions);
+
+  // Fallback ke role pertama kalau tidak ada yang cocok
+  if (!matched.length && names.length) matched.push(names[0]);
+  return matched;
 }
 
-function defaultRoleOption(roleOptions) {
-  const admin = roleOptions.find((r) => r.name.trim().toUpperCase() === "ADMIN");
-  return admin?.name ?? roleOptions[0]?.name ?? "";
+function defaultRoleOptions(roleOptions) {
+  const admin = roleOptions.find((r) => r.name.trim().toUpperCase() === "GURU");
+  return admin ? [admin.name] : roleOptions.length ? [roleOptions[0].name] : [];
 }
 
-/** Susun payload `role` + `role_names` untuk API (combo GURU+WALAS tetap seperti sebelumnya). */
-function deriveRolePayload(selectedExactName) {
-  const raw = selectedExactName.trim();
-  const upper = raw.toUpperCase();
+function deriveRolePayload(selectedNames) {
+  const uppers = selectedNames.map((n) => n.trim().toUpperCase());
 
-  let role_names;
-  if (upper === "ADMIN") role_names = ["ADMIN"];
-  else if (upper === "WALAS") role_names = ["GURU", "WALAS"];
-  else if (upper === "GURU") role_names = ["GURU"];
-  else role_names = [raw];
+  if (uppers.includes("ADMIN")) {
+    return { role: "ADMIN", role_names: ["ADMIN"] };
+  }
 
-  let role = raw;
-  if (upper === "WALAS") role = "WALAS";
-  else if (upper === "GURU") role = "GURU";
-  else if (upper === "ADMIN") role = "ADMIN";
+  const role_names_set = new Set(selectedNames.map((n) => n.trim()));
+
+  // WALAS selalu butuh GURU juga di BE
+  if (uppers.includes("WALAS")) {
+    // Cari nama asli GURU dari array
+    const guruName = selectedNames.find((n) => n.trim().toUpperCase() === "GURU") ?? "GURU";
+    role_names_set.add(guruName);
+  }
+
+  const role_names = Array.from(role_names_set);
+
+  // `role` primary = nama pertama
+  const role = role_names[0] ?? selectedNames[0];
 
   return { role, role_names };
 }
 
-// Komponen Custom Select
-function CustomRoleSelect({ value, onChange, options, disabled, isEditAdmin }) {
+// Multi-select Role Dropdown 
+function MultiRoleSelect({ value = [], onChange, options, disabled, isEditAdmin }) {
   const [isOpen, setIsOpen] = useState(false);
-  const selectRef = useRef(null);
+  const ref = useRef(null);
 
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (selectRef.current && !selectRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setIsOpen(false);
     };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const selectedOption = options.find(opt => opt.name === value);
+  const toggleOption = (name) => {
+    if (isEditAdmin) return;
+
+    const uppers = value.map((v) => v.trim().toUpperCase());
+    const targetUpper = name.trim().toUpperCase();
+
+    if (uppers.includes(targetUpper)) {
+      // Jangan hapus kalau itu satu-satunya
+      if (value.length === 1) return;
+      onChange(value.filter((v) => v.trim().toUpperCase() !== targetUpper));
+    } else {
+      // Kalau pilih ADMIN, reset ke ADMIN saja
+      if (targetUpper === "ADMIN") {
+        onChange([name]);
+      } else {
+        // Hapus ADMIN kalau ada, lalu tambahkan
+        const without_admin = value.filter((v) => v.trim().toUpperCase() !== "ADMIN");
+        onChange([...without_admin, name]);
+      }
+    }
+  };
+
+  const displayLabel =
+    value.length === 0
+      ? "Pilih role"
+      : value.length === 1
+      ? value[0]
+      : `${value.length} role dipilih`;
+
+  const isLocked = disabled || isEditAdmin;
 
   return (
-    <div className="relative" ref={selectRef}>
+    <div className="relative" ref={ref}>
       <button
         type="button"
-        onClick={() => !disabled && !isEditAdmin && setIsOpen(!isOpen)}
-        disabled={disabled || isEditAdmin}
-        className={`${inputClass} text-left flex items-center justify-between ${
-          (disabled || isEditAdmin) ? "opacity-60 cursor-not-allowed" : ""
+        onClick={() => !isLocked && setIsOpen((o) => !o)}
+        disabled={isLocked}
+        className={`${inputClass} text-left flex items-center justify-between gap-2 ${
+          isLocked ? "opacity-60 cursor-not-allowed" : "cursor-pointer"
         }`}
       >
-        <span className={!selectedOption && options.length > 0 ? "text-gray-400" : "text-gray-900"}>
-          {selectedOption?.name || (options.length === 0 ? "Memuat daftar role…" : "Pilih role")}
+        {/* Badge chips */}
+        <span className="flex flex-wrap gap-1 flex-1 min-w-0">
+          {value.length === 0 ? (
+            <span className="text-gray-400">{options.length === 0 ? "Memuat daftar role…" : "Pilih role"}</span>
+          ) : (
+            value.map((v) => (
+              <span
+                key={v}
+                className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-lg text-xs font-medium"
+              >
+                {v}
+                {!isLocked && value.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleOption(v);
+                    }}
+                    className="ml-0.5 hover:text-blue-900"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </span>
+            ))
+          )}
         </span>
-        {!(disabled || isEditAdmin) && (
-          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+        {!isLocked && (
+          <ChevronDown
+            className={`w-4 h-4 text-gray-400 shrink-0 transition-transform duration-200 ${
+              isOpen ? "rotate-180" : ""
+            }`}
+          />
         )}
       </button>
 
-      {isOpen && !disabled && !isEditAdmin && options.length > 0 && (
+      {isOpen && !isLocked && options.length > 0 && (
         <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
-          <div className="max-h-56 overflow-y-auto">
-            {options.map((opt) => (
-              <button
-                key={`${opt.id ?? "x"}-${opt.name}`}
-                type="button"
-                onClick={() => {
-                  onChange(opt.name);
-                  setIsOpen(false);
-                }}
-                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors ${
-                  value === opt.name ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-700"
-                }`}
-              >
-                {opt.name}
-              </button>
-            ))}
+          <div className="max-h-56 overflow-y-auto divide-y divide-gray-50">
+            {options.map((opt) => {
+              const isSelected = value.some(
+                (v) => v.trim().toUpperCase() === opt.name.trim().toUpperCase()
+              );
+              const isAdminOpt = opt.name.trim().toUpperCase() === "ADMIN";
+              const hasAdmin = value.some((v) => v.trim().toUpperCase() === "ADMIN");
+
+              // Disable non-admin pilihan ketika ADMIN sudah dipilih
+              const isDisabledOpt = hasAdmin && !isAdminOpt;
+
+              return (
+                <button
+                  key={`${opt.id ?? "x"}-${opt.name}`}
+                  type="button"
+                  onClick={() => !isDisabledOpt && toggleOption(opt.name)}
+                  disabled={isDisabledOpt}
+                  className={`w-full text-left px-4 py-2.5 text-sm flex items-center justify-between transition-colors
+                    ${isDisabledOpt ? "opacity-40 cursor-not-allowed bg-white" : "hover:bg-gray-50"}
+                    ${isSelected ? "bg-blue-50" : ""}
+                  `}
+                >
+                  <span className={isSelected ? "text-blue-700 font-medium" : "text-gray-700"}>
+                    {opt.name}
+                  </span>
+                  {isSelected && <Check className="w-4 h-4 text-blue-600 shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
+          <div className="px-4 py-2 bg-gray-50 border-t border-gray-100 text-xs text-gray-400">
+            {value.length} role dipilih · Klik untuk toggle
           </div>
         </div>
       )}
@@ -122,11 +196,12 @@ function CustomRoleSelect({ value, onChange, options, disabled, isEditAdmin }) {
   );
 }
 
+// Main Modal
 export default function UserFormModal({ isOpen, onClose, onSubmit, editUser, roleOptions = [] }) {
   const [form, setForm] = useState({
     email: "",
     password: "",
-    role: "",
+    roles: [],
     guru_nama: "",
     guru_nip: "",
     guru_telepon: "",
@@ -143,7 +218,7 @@ export default function UserFormModal({ isOpen, onClose, onSubmit, editUser, rol
     if (!isOpen) return;
 
     if (!roleOptions.length) {
-      setForm((prev) => ({ ...prev, role: "" }));
+      setForm((prev) => ({ ...prev, roles: [] }));
       setError("");
       setShowPassword(false);
       return;
@@ -153,7 +228,7 @@ export default function UserFormModal({ isOpen, onClose, onSubmit, editUser, rol
       setForm({
         email: editUser.email || "",
         password: "",
-        role: pickRoleOptionName(editUser, roleOptions),
+        roles: pickRoleOptionNames(editUser, roleOptions),
         guru_nama: editUser.guru?.nama || "",
         guru_nip: editUser.guru?.NIP || "",
         guru_telepon: editUser.guru?.nomor_telepon || "",
@@ -166,7 +241,7 @@ export default function UserFormModal({ isOpen, onClose, onSubmit, editUser, rol
       setForm({
         email: "",
         password: "",
-        role: defaultRoleOption(roleOptions),
+        roles: defaultRoleOptions(roleOptions),
         guru_nama: "",
         guru_nip: "",
         guru_telepon: "",
@@ -187,12 +262,15 @@ export default function UserFormModal({ isOpen, onClose, onSubmit, editUser, rol
       if (!form.email.trim()) throw new Error("Email wajib diisi");
       if (!editUser && !form.password) throw new Error("Password wajib diisi");
       if (form.password && form.password.length < 6) throw new Error("Password minimal 6 karakter");
-      if (!form.role) throw new Error("Pilih role");
+      if (!form.roles.length) throw new Error("Pilih minimal satu role");
 
-      const { role, role_names } = isEditAdmin ? { role: "ADMIN", role_names: ["ADMIN"] } : deriveRolePayload(form.role);
+      const { role, role_names } = isEditAdmin
+        ? { role: "ADMIN", role_names: ["ADMIN"] }
+        : deriveRolePayload(form.roles);
 
-      const upperSel = form.role.trim().toUpperCase();
-      const needsGuru = !isEditAdmin && (upperSel === "GURU" || upperSel === "WALAS");
+      // Guru fields wajib kalau ada GURU atau WALAS (dan bukan admin)
+      const upperRoles = form.roles.map((r) => r.trim().toUpperCase());
+      const needsGuru = !isEditAdmin && (upperRoles.includes("GURU") || upperRoles.includes("WALAS"));
 
       if (needsGuru) {
         if (!form.guru_nama.trim()) throw new Error("Nama guru wajib diisi");
@@ -230,17 +308,24 @@ export default function UserFormModal({ isOpen, onClose, onSubmit, editUser, rol
 
   if (!isOpen) return null;
 
-  const upperSel = form.role.trim().toUpperCase();
-  const showGuruFields = !isEditAdmin && (upperSel === "GURU" || upperSel === "WALAS");
+  const upperRoles = form.roles.map((r) => r.trim().toUpperCase());
+  const showGuruFields = !isEditAdmin && (upperRoles.includes("GURU") || upperRoles.includes("WALAS"));
   const rolesLoading = !roleOptions.length;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-xl mx-auto overflow-hidden max-h-[90vh] flex flex-col">
+        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
-          <h2 className="text-lg font-semibold text-gray-900">{editUser ? "Edit User" : "Tambah User Baru"}</h2>
-          <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors">
+          <h2 className="text-lg font-semibold text-gray-900">
+            {editUser ? "Edit User" : "Tambah User Baru"}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors"
+          >
             <X className="w-5 h-5 text-gray-500" />
           </button>
         </div>
@@ -253,6 +338,7 @@ export default function UserFormModal({ isOpen, onClose, onSubmit, editUser, rol
             </div>
           )}
 
+          {/* Email */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
             <input
@@ -265,10 +351,15 @@ export default function UserFormModal({ isOpen, onClose, onSubmit, editUser, rol
             />
           </div>
 
+          {/* Password */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
               Password{" "}
-              {editUser && <span className="text-gray-400 font-normal">(kosongkan jika tidak ingin mengubah)</span>}
+              {editUser && (
+                <span className="text-gray-400 font-normal">
+                  (kosongkan jika tidak ingin mengubah)
+                </span>
+              )}
             </label>
             <div className="relative">
               <input
@@ -289,32 +380,50 @@ export default function UserFormModal({ isOpen, onClose, onSubmit, editUser, rol
             </div>
           </div>
 
+          {/* Role — multi-select */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Role</label>
-            <CustomRoleSelect
-              value={form.role}
-              onChange={(value) => setForm({ ...form, role: value })}
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Role
+              {!isEditAdmin && (
+                <span className="text-gray-400 font-normal ml-1">(bisa pilih lebih dari satu)</span>
+              )}
+            </label>
+            <MultiRoleSelect
+              value={form.roles}
+              onChange={(roles) => setForm({ ...form, roles })}
               options={roleOptions}
               disabled={rolesLoading}
               isEditAdmin={isEditAdmin}
             />
             {isEditAdmin && (
               <p className="mt-2 text-xs text-gray-500">
-                User dengan role <span className="font-semibold">Admin</span> tidak bisa diubah rolenya.
+                User dengan role <span className="font-semibold">Admin</span> tidak bisa diubah
+                rolenya.
+              </p>
+            )}
+            {/* Info WALAS */}
+            {!isEditAdmin && upperRoles.includes("WALAS") && !upperRoles.includes("GURU") && (
+              <p className="mt-2 text-xs text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200">
+                Role <b>WALAS</b> otomatis menyertakan role <b>GURU</b> di backend.
               </p>
             )}
           </div>
 
+          {/* Guru Fields */}
           {showGuruFields && (
             <div className="space-y-4 pt-2 border-t border-gray-100">
               <div className="flex items-center gap-2 pb-1">
                 <div className="h-px flex-1 bg-gray-200" />
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Data Guru</span>
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                  Data Guru
+                </span>
                 <div className="h-px flex-1 bg-gray-200" />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Nama Lengkap</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Nama Lengkap
+                </label>
                 <input
                   type="text"
                   value={form.guru_nama}
@@ -339,7 +448,9 @@ export default function UserFormModal({ isOpen, onClose, onSubmit, editUser, rol
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">No. Telepon</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    No. Telepon
+                  </label>
                   <input
                     type="text"
                     value={form.guru_telepon}
@@ -350,7 +461,9 @@ export default function UserFormModal({ isOpen, onClose, onSubmit, editUser, rol
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Tanggal Lahir</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Tanggal Lahir
+                  </label>
                   <input
                     type="date"
                     value={form.guru_tanggal_lahir}
@@ -375,6 +488,7 @@ export default function UserFormModal({ isOpen, onClose, onSubmit, editUser, rol
             </div>
           )}
 
+          {/* Actions */}
           <div className="flex gap-3 pt-4 border-t border-gray-100">
             <button
               type="button"
