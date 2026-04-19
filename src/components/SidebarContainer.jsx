@@ -318,6 +318,17 @@ export default function SidebarContainer() {
         </a>
       )}
 
+      {isSuperAdmin && (
+        <a
+          href="/dashboard/roles"
+          data-astro-prefetch
+          className={getLinkClass("/dashboard/roles")}
+        >
+          <ShieldCheck width={20} height={20} />
+          Manajemen Role
+        </a>
+      )}
+
       {(isAdmin || isSuperAdmin) && (
         <a
           href="/dashboard/kelas"

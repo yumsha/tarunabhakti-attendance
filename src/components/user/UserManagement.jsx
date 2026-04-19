@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import { users, auth, guru as guruApi } from "../../lib/backendApi";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { users, auth, guru as guruApi, role as roleApi } from "../../lib/backendApi";
 
 import UserPageHeader from "./UserPageHeader";
 import UserTable from "./UserTable";
@@ -62,6 +62,9 @@ function normalizeUser(raw) {
   };
 }
 
+/** Saat GET /role gagal (mis. bukan superadmin), dropdown tetap punya pilihan dasar. */
+const FALLBACK_ROLE_OPTIONS = ["ADMIN", "GURU", "WALAS", "KESISWAAN", "SUPER ADMIN"];
+
 // Main Orchestrator
 export default function UserManagement() {
   const [userList, setUserList] = useState([]);
@@ -73,6 +76,7 @@ export default function UserManagement() {
     limit: 10,
   });
   const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
 
   // modal states
   const [showForm, setShowForm] = useState(false);
@@ -83,44 +87,65 @@ export default function UserManagement() {
   // toast
   const [toast, setToast] = useState(null);
 
+  const [roleOptions, setRoleOptions] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await roleApi.list();
+        if (cancelled) return;
+        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+          setRoleOptions(res.data.filter((r) => r?.name).map((r) => ({ id: r.id, name: r.name })));
+        } else {
+          setRoleOptions(FALLBACK_ROLE_OPTIONS.map((name) => ({ id: null, name })));
+        }
+      } catch {
+        if (!cancelled) setRoleOptions(FALLBACK_ROLE_OPTIONS.map((name) => ({ id: null, name })));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const showToast = (message, type = "success") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   };
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
-  const isSearching = !!normalizedQuery;
+  const roleFilterTrimmed = roleFilter.trim();
+  const needsClientFilter = !!normalizedQuery || !!roleFilterTrimmed;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const fr = params.get("filterRole");
+    if (fr) setRoleFilter(fr);
+  }, []);
+
+  const clearRoleFilter = () => {
+    setRoleFilter("");
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("filterRole");
+    const next = url.pathname + (url.search || "");
+    window.history.replaceState({}, "", next || url.pathname);
+  };
 
   // Fetch
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      // NOTE: client-side search across pages.
-      // When searching, fetch a large chunk once then filter+paginate locally.
-      const effectivePage = isSearching ? 1 : page;
-      const effectiveLimit = isSearching ? 10000 : pagination.limit;
-      const res = await users.list(
-        `page=${effectivePage}&limit=${effectiveLimit}`
-      );
+      // Saat filter pencarian atau role di klien, ambil banyak baris sekali lalu slice lokal.
+      const effectivePage = needsClientFilter ? 1 : page;
+      const effectiveLimit = needsClientFilter ? 10000 : pagination.limit;
+      const res = await users.list(`page=${effectivePage}&limit=${effectiveLimit}`);
       if (res.success) {
         const normalized = (res.data || []).map(normalizeUser);
         setUserList(normalized);
-
-        if (isSearching) {
-          const filteredTotal = normalized.filter((u) => {
-            return (
-              (u.email || "").toLowerCase().includes(normalizedQuery) ||
-              (u.guru?.nama || "").toLowerCase().includes(normalizedQuery) ||
-              (u.guru?.NIP || "").toLowerCase().includes(normalizedQuery)
-            );
-          }).length;
-
-          setPagination((p) => ({
-            ...p,
-            total: filteredTotal,
-            totalPages: Math.max(1, Math.ceil(filteredTotal / p.limit)),
-          }));
-        } else if (res.pagination) {
+        if (!needsClientFilter && res.pagination) {
           setPagination(res.pagination);
         }
       }
@@ -130,7 +155,7 @@ export default function UserManagement() {
     } finally {
       setLoading(false);
     }
-  }, [page, pagination.limit, isSearching, normalizedQuery]);
+  }, [page, pagination.limit, needsClientFilter]);
 
   useEffect(() => {
     fetchUsers();
@@ -138,24 +163,46 @@ export default function UserManagement() {
 
   useEffect(() => {
     setPage(1);
-  }, [searchQuery]);
+  }, [searchQuery, roleFilter]);
 
-  const filteredUsers = isSearching
-    ? userList.filter((u) => {
+  const filteredUsers = useMemo(() => {
+    let rows = userList;
+    if (roleFilterTrimmed) {
+      const target = roleFilterTrimmed.toUpperCase();
+      rows = rows.filter((u) =>
+        (u.roles || []).some((r) => String(r).trim().toUpperCase() === target)
+      );
+    }
+    if (normalizedQuery) {
+      rows = rows.filter((u) => {
         return (
           (u.email || "").toLowerCase().includes(normalizedQuery) ||
           (u.guru?.nama || "").toLowerCase().includes(normalizedQuery) ||
           (u.guru?.NIP || "").toLowerCase().includes(normalizedQuery)
         );
-      })
-    : userList;
+      });
+    }
+    return rows;
+  }, [userList, roleFilterTrimmed, normalizedQuery]);
 
-  const pagedUsers = isSearching
-    ? filteredUsers.slice(
+  useEffect(() => {
+    if (!needsClientFilter) return;
+    setPagination((p) => ({
+      ...p,
+      total: filteredUsers.length,
+      totalPages: Math.max(1, Math.ceil(filteredUsers.length / p.limit)),
+    }));
+  }, [needsClientFilter, filteredUsers.length, pagination.limit]);
+
+  const pagedUsers = useMemo(() => {
+    if (needsClientFilter) {
+      return filteredUsers.slice(
         (page - 1) * pagination.limit,
         (page - 1) * pagination.limit + pagination.limit
-      )
-    : userList;
+      );
+    }
+    return userList;
+  }, [needsClientFilter, filteredUsers, page, pagination.limit, userList]);
 
   // Create / Update
   const handleSubmit = async (payload, userId, guruData, existingGuruId) => {
@@ -263,6 +310,8 @@ export default function UserManagement() {
           loading={loading}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
+          roleFilterLabel={roleFilterTrimmed}
+          onClearRoleFilter={clearRoleFilter}
           onAdd={handleAdd}
           onEdit={handleEdit}
           onDelete={setDeleteTarget}
@@ -278,6 +327,7 @@ export default function UserManagement() {
         onClose={handleCloseForm}
         onSubmit={handleSubmit}
         editUser={editUser}
+        roleOptions={roleOptions}
       />
 
       <DeleteConfirmModal

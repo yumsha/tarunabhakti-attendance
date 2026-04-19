@@ -1,9 +1,13 @@
-import { Users, Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Users, Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight, X } from "lucide-react";
 
 const ROLE_OPTIONS = [
   { value: "ADMIN", label: "Admin", color: "bg-purple-100 text-purple-700" },
   { value: "GURU", label: "Guru", color: "bg-blue-100 text-blue-700" },
   { value: "WALAS", label: "Walas", color: "bg-emerald-100 text-emerald-700" },
+  { value: "KESISWAAN", label: "Kesiswaan", color: "bg-amber-100 text-amber-800" },
+  { value: "SUPER ADMIN", label: "Super Admin", color: "bg-rose-100 text-rose-800" },
+  { value: "SUPERADMIN", label: "Super Admin", color: "bg-rose-100 text-rose-800" },
+  { value: "SUPER_ADMIN", label: "Super Admin", color: "bg-rose-100 text-rose-800" },
 ];
 
 function resolveRoles(user) {
@@ -31,8 +35,9 @@ function getRoleBadges(user) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {roles.map((roleName) => {
+        const upper = roleName?.toUpperCase();
         const opt =
-          ROLE_OPTIONS.find((r) => r.value === roleName?.toUpperCase()) || {
+          ROLE_OPTIONS.find((r) => r.value === upper) || {
             label: roleName,
             color: "bg-gray-100 text-gray-700",
           };
@@ -63,6 +68,8 @@ export default function UserTable({
   loading,
   searchQuery,
   onSearchChange,
+  roleFilterLabel,
+  onClearRoleFilter,
   onAdd,
   onEdit,
   onDelete,
@@ -71,19 +78,30 @@ export default function UserTable({
   onPageChange,
 }) {
   const normalizedQuery = (searchQuery || "").trim();
-  const foundCount = normalizedQuery
-    ? users.length
-    : pagination?.total ?? users.length;
+  const foundCount = pagination?.total ?? users.length;
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
       {/* table header */}
       <div className="px-6 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <p className="text-sm text-gray-500">
             <span className="font-semibold text-gray-700">{foundCount}</span>{" "}
             user ditemukan
           </p>
+          {roleFilterLabel ? (
+            <span className="inline-flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-800 border border-blue-100">
+              Role: {roleFilterLabel}
+              <button
+                type="button"
+                onClick={onClearRoleFilter}
+                className="p-0.5 rounded-full hover:bg-blue-100 text-blue-700"
+                title="Hapus filter role"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </span>
+          ) : null}
         </div>
         <div className="flex items-center gap-3">
           {/* Search */}

@@ -124,6 +124,16 @@ export const users = {
   delete: (id: string | number) => request(`/api/v1/users/${id}`, { method: 'DELETE' }),
 };
 
+// Role: BE hanya menerima `name` (unique)
+export const role = {
+  list: () => request('/api/v1/role'),
+  get: (id: string | number) => request(`/api/v1/role/${id}`),
+  create: (data: { name: string }) => request('/api/v1/role', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string | number, data: { name: string }) =>
+    request(`/api/v1/role/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (id: string | number) => request(`/api/v1/role/${id}`, { method: 'DELETE' }),
+};
+
 // Auth
 export const auth = {
   register: (data: any) => request('/api/v1/auth/register', { method: 'POST', body: JSON.stringify(data) }),
@@ -144,5 +154,6 @@ export default {
   absensiSiswa,
   detailAbsensi,
   users,
+  role,
   auth,
 };
