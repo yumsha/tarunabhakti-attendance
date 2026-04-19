@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { kelas, jadwal } from "../lib/backendApi";
 
-import { UserStarIcon, UserCog, ClipboardList, School, Upload, ShieldCheck } from "lucide-react";
+import { UserStarIcon, UserCog, ClipboardList, School, Upload, ShieldCheck, BookOpen } from "lucide-react";
 
 // mampping hari 
 const HARI_MAP = ["MINGGU", "SENIN", "SELASA", "RABU", "KAMIS", "JUMAT", "SABTU"];
@@ -356,6 +356,18 @@ export default function SidebarContainer() {
             />
           </svg>
           Daftar Kehadiran
+        </a>
+      )}
+
+      {/* Manajemen Mapel | SUPERADMIN */}
+      {isSuperAdmin && (
+        <a
+          href="/dashboard/mapel"
+          data-astro-prefetch
+          className={getLinkClass("/dashboard/mapel")}
+        >
+          <BookOpen width={20} height={20} />
+          Manajemen Mapel
         </a>
       )}
 
