@@ -185,8 +185,8 @@ export default function SidebarContainer() {
   const getLinkClass = (path, exact = true) => {
     const isActive = exact ? currentPath === path : currentPath.startsWith(path);
     return `flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${isActive
-        ? "bg-blue-600 text-white font-medium shadow-sm"
-        : "text-gray-600 hover:bg-blue-50 hover:text-blue-600"
+      ? "bg-blue-600 text-white font-medium shadow-sm"
+      : "text-gray-600 hover:bg-blue-50 hover:text-blue-600"
       }`;
   };
 
@@ -251,7 +251,7 @@ export default function SidebarContainer() {
 
 
       {/* daftar siswa  */}
-      { isKesiswaan || isWalas ? (
+      {isKesiswaan || isWalas ? (
         <a href="/dashboard/siswa" data-astro-prefetch className={getLinkClass("/dashboard/siswa")}>
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -263,7 +263,7 @@ export default function SidebarContainer() {
           </svg>
           Daftar Siswa
         </a>
-      ): null}
+      ) : null}
 
       {isKesiswaan && (
         <a
@@ -279,7 +279,7 @@ export default function SidebarContainer() {
               d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
             />
           </svg>
-           Manajemen Pokja
+          Manajemen Pokja
         </a>
       )}
 
@@ -318,17 +318,6 @@ export default function SidebarContainer() {
         </a>
       )}
 
-      {isSuperAdmin && (
-        <a
-          href="/dashboard/roles"
-          data-astro-prefetch
-          className={getLinkClass("/dashboard/roles")}
-        >
-          <ShieldCheck width={20} height={20} />
-          Manajemen Role
-        </a>
-      )}
-
       {(isAdmin || isSuperAdmin) && (
         <a
           href="/dashboard/kelas"
@@ -359,17 +348,6 @@ export default function SidebarContainer() {
         </a>
       )}
 
-      {/* Manajemen Mapel | SUPERADMIN */}
-      {isSuperAdmin && (
-        <a
-          href="/dashboard/mapel"
-          data-astro-prefetch
-          className={getLinkClass("/dashboard/mapel")}
-        >
-          <BookOpen width={20} height={20} />
-          Manajemen Mapel
-        </a>
-      )}
 
       {/* ADMIN, SUPERADMIN & KESISWAAN */}
 
@@ -387,7 +365,32 @@ export default function SidebarContainer() {
               d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
             />
           </svg>
-           Jadwal
+          Jadwal
+        </a>
+      )}
+
+
+      {/* Manajemen Mapel | SUPERADMIN */}
+      {isSuperAdmin && (
+        <a  
+          href="/dashboard/mapel"
+          data-astro-prefetch
+          className={getLinkClass("/dashboard/mapel")}
+        >
+          <BookOpen width={20} height={20} />
+          Manajemen Mapel
+        </a>
+      )}
+
+
+      {isSuperAdmin && (
+        <a
+          href="/dashboard/roles"
+          data-astro-prefetch
+          className={getLinkClass("/dashboard/roles")}
+        >
+          <ShieldCheck width={20} height={20} />
+          Manajemen Role
         </a>
       )}
 
@@ -398,8 +401,8 @@ export default function SidebarContainer() {
           <button
             onClick={toggleAttendanceMenu}
             className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all duration-200 ${currentPath.startsWith("/dashboard/kehadiran") && !currentClassId
-                ? "bg-blue-50 text-blue-600 font-medium"
-                : "text-gray-600 hover:bg-blue-50 hover:text-blue-600"
+              ? "bg-blue-50 text-blue-600 font-medium"
+              : "text-gray-600 hover:bg-blue-50 hover:text-blue-600"
               }`}
           >
             <div className="flex items-center gap-3">
@@ -437,8 +440,8 @@ export default function SidebarContainer() {
                     href={`/dashboard/kehadiran?kelasId=${cls.id}`}
                     data-astro-prefetch
                     className={`block px-4 py-2 rounded-lg text-xs transition-all duration-200 ${currentClassId === String(cls.id)
-                        ? "bg-blue-100 text-blue-700 font-semibold"
-                        : "text-gray-500 hover:bg-gray-100 hover:text-blue-600"
+                      ? "bg-blue-100 text-blue-700 font-semibold"
+                      : "text-gray-500 hover:bg-gray-100 hover:text-blue-600"
                       }`}
                   >
                     {cls.kelas}
