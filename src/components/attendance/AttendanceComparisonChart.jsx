@@ -14,28 +14,33 @@ function lastNDates(n) {
   });
 }
 
-/** Pretty-print a date string for x-axis labels */
 function fmtDate(dateStr) {
   const d = new Date(dateStr);
   return d.toLocaleDateString("id-ID", { day: "2-digit", month: "short" });
 }
 
-function fmtWeek(dateStr) {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString("id-ID", { weekday: "short" });
-}
-
-function fmtMonth(dateStr) {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString("id-ID", { month: "short" });
+/**
+ * Fetch semua absensi dalam satu range → 1 request saja.
+ * Response: { success: true, data: { "2025-04-01": 23, "2025-04-02": 18, ... } }
+ */
+async function fetchRange(tanggal_mulai, tanggal_akhir) {
+  try {
+    const res = await absensiSiswa.laporanRange(
+      `tanggal_mulai=${tanggal_mulai}&tanggal_akhir=${tanggal_akhir}`
+    );
+    if (res?.success && res.data) return res.data;
+    return {};
+  } catch {
+    return {};
+  }
 }
 
 export default function AttendanceComparisonChart() {
-  const chartRef = useRef(null);
+  const chartRef      = useRef(null);
   const chartInstance = useRef(null);
-  const [period, setPeriod] = useState("Daily");
-  const [labels, setLabels] = useState([]);
-  const [counts, setCounts] = useState([]);
+  const [period, setPeriod]     = useState("Daily");
+  const [labels, setLabels]     = useState([]);
+  const [counts, setCounts]     = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -43,70 +48,60 @@ export default function AttendanceComparisonChart() {
       setIsLoading(true);
       try {
         if (period === "Daily") {
-          // Last 14 days – one request per day
+          // ✅ 1 request untuk 14 hari
           const dates = lastNDates(14);
-          const results = await Promise.all(
-            dates.map((d) =>
-              absensiSiswa
-                .laporanHarian(`tanggal=${d}`)
-                .then((r) => (r?.success && Array.isArray(r.data) ? r.data.length : 0))
-                .catch(() => 0)
-            )
-          );
+          const grouped = await fetchRange(dates[0], dates[dates.length - 1]);
           setLabels(dates.map(fmtDate));
-          setCounts(results);
+          setCounts(dates.map(d => grouped[d] || 0));
+
         } else if (period === "Weekly") {
-          // Last 6 weeks – aggregate 7 days each
-          const weeks = 6;
+          // ✅ 1 request untuk 6 minggu (42 hari)
+          const totalDays  = 6 * 7;
+          const allDates   = lastNDates(totalDays);
+          const grouped    = await fetchRange(allDates[0], allDates[allDates.length - 1]);
+
           const weekLabels = [];
           const weekCounts = [];
-          for (let w = weeks - 1; w >= 0; w--) {
-            const weekDates = Array.from({ length: 7 }, (_, di) => {
-              const d = new Date();
-              d.setDate(d.getDate() - w * 7 - (6 - di));
-              return d.toISOString().split("T")[0];
-            });
-            const totals = await Promise.all(
-              weekDates.map((d) =>
-                absensiSiswa
-                  .laporanHarian(`tanggal=${d}`)
-                  .then((r) => (r?.success && Array.isArray(r.data) ? r.data.length : 0))
-                  .catch(() => 0)
-              )
-            );
-            weekLabels.push(`Mgg ${weeks - w}`);
-            weekCounts.push(totals.reduce((a, b) => a + b, 0));
+
+          for (let w = 0; w < 6; w++) {
+            const weekDates = allDates.slice(w * 7, w * 7 + 7);
+            const total     = weekDates.reduce((sum, d) => sum + (grouped[d] || 0), 0);
+            weekLabels.push(`Mgg ${w + 1}`);
+            weekCounts.push(total);
           }
+
           setLabels(weekLabels);
           setCounts(weekCounts);
+
         } else {
-          // Monthly – last 6 months
-          const months = 6;
+          // ✅ 1 request untuk 6 bulan
+          const today     = new Date();
+          const sixMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 5, 1);
+          const startStr  = sixMonthsAgo.toISOString().split("T")[0];
+          const endStr    = today.toISOString().split("T")[0];
+
+          const grouped   = await fetchRange(startStr, endStr);
+
           const monthLabels = [];
           const monthCounts = [];
-          for (let m = months - 1; m >= 0; m--) {
-            const date = new Date();
-            date.setMonth(date.getMonth() - m);
-            const year = date.getFullYear();
+
+          for (let m = 5; m >= 0; m--) {
+            const date  = new Date(today.getFullYear(), today.getMonth() - m, 1);
+            const year  = date.getFullYear();
             const month = date.getMonth() + 1;
-            const daysInMonth = new Date(year, month, 0).getDate();
-            const dates = Array.from({ length: daysInMonth }, (_, i) => {
+            const days  = new Date(year, month, 0).getDate();
+
+            const total = Array.from({ length: days }, (_, i) => {
               const day = String(i + 1).padStart(2, "0");
               return `${year}-${String(month).padStart(2, "0")}-${day}`;
-            });
-            const totals = await Promise.all(
-              dates.map((d) =>
-                absensiSiswa
-                  .laporanHarian(`tanggal=${d}`)
-                  .then((r) => (r?.success && Array.isArray(r.data) ? r.data.length : 0))
-                  .catch(() => 0)
-              )
-            );
+            }).reduce((sum, d) => sum + (grouped[d] || 0), 0);
+
             monthLabels.push(
               date.toLocaleDateString("id-ID", { month: "short", year: "2-digit" })
             );
-            monthCounts.push(totals.reduce((a, b) => a + b, 0));
+            monthCounts.push(total);
           }
+
           setLabels(monthLabels);
           setCounts(monthCounts);
         }
@@ -116,6 +111,7 @@ export default function AttendanceComparisonChart() {
         setIsLoading(false);
       }
     };
+
     fetchData();
   }, [period]);
 
