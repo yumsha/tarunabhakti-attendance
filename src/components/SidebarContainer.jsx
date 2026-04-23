@@ -318,14 +318,14 @@ export default function SidebarContainer() {
         </a>
       )}
 
-      {(isAdmin || isSuperAdmin) && (
+      {isSuperAdmin && (
         <a
           href="/dashboard/kelas"
           data-astro-prefetch
           className={getLinkClass("/dashboard/kelas")}
         >
           <School width={20} height={20} />
-          Daftar Kelas
+          Manajemen Kelas
         </a>
       )}
 
@@ -381,7 +381,6 @@ export default function SidebarContainer() {
           Manajemen Mapel
         </a>
       )}
-
 
       {isSuperAdmin && (
         <a
