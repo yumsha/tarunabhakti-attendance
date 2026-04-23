@@ -1,9 +1,11 @@
 import PageHeader from "../layout/PageHeader.jsx";
 import { useState, useEffect, useRef, useMemo } from "react";
+import { CheckCircle2, AlertTriangle } from "lucide-react";
 import { siswa, kelas } from "../../lib/backendApi";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import InfoStatCard from "../layout/InfoStatCard";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -225,15 +227,21 @@ function ImportModal({ onClose, onImportDone }) {
 
           {done && (
             <div>
-              <div className="flex gap-4 mb-3">
-                <div className="flex-1 bg-green-50 border border-green-200 rounded-lg p-3 text-center">
-                  <p className="text-2xl font-bold text-green-600">{successCount}</p>
-                  <p className="text-xs text-green-700 font-medium">Berhasil</p>
-                </div>
-                <div className="flex-1 bg-red-50 border border-red-200 rounded-lg p-3 text-center">
-                  <p className="text-2xl font-bold text-red-500">{failCount}</p>
-                  <p className="text-xs text-red-700 font-medium">Gagal</p>
-                </div>
+              <div className="grid grid-cols-1 gap-4 mb-3 sm:grid-cols-2">
+                <InfoStatCard
+                  label="Berhasil"
+                  value={successCount}
+                  helper="Baris yang lolos proses import"
+                  icon={<CheckCircle2 className="h-5 w-5" />}
+                  tone="emerald"
+                />
+                <InfoStatCard
+                  label="Gagal"
+                  value={failCount}
+                  helper="Baris yang perlu dicek lagi"
+                  icon={<AlertTriangle className="h-5 w-5" />}
+                  tone="red"
+                />
               </div>
               <div className="overflow-auto max-h-44 border border-gray-200 rounded-lg divide-y divide-gray-100">
                 {results.map((r, i) => (

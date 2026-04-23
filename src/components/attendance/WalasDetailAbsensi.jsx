@@ -1,6 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
-import { ClipboardList, Save, Loader2, AlertCircle } from "lucide-react";
+import {
+  ClipboardList,
+  Save,
+  Loader2,
+  AlertCircle,
+  School,
+  Users,
+  ScanLine,
+  UserX,
+  IdCard,
+} from "lucide-react";
 import PageHeader from "../layout/PageHeader.jsx";
+import InfoStatCard from "../layout/InfoStatCard";
 import { kelas, detailAbsensi } from "../../lib/backendApi";
 
 const inputClass =
@@ -245,8 +256,50 @@ export default function WalasDetailAbsensi() {
           </div>
         )}
 
-        {/* Summary cards */}
-        <div className="w-full grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        {/* Summary cards walas */}
+        <div className="w-full grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+          <InfoStatCard
+            label="Kelas"
+            value={selectedKelasName || "—"}
+            helper="Kelas yang sedang dikelola walas"
+            icon={<School className="h-5 w-5" />}
+            tone="blue"
+            loading={loadingKelas}
+          />
+          <InfoStatCard
+            label="Total Siswa"
+            value={summary?.total ?? rows.length}
+            helper="Jumlah siswa di daftar absensi hari ini"
+            icon={<Users className="h-5 w-5" />}
+            tone="slate"
+            loading={loadingData}
+          />
+          <InfoStatCard
+            label="Sudah Tap"
+            value={summary?.sudah_tap ?? "—"}
+            helper="Siswa yang sudah tercatat tap masuk"
+            icon={<ScanLine className="h-5 w-5" />}
+            tone="emerald"
+            loading={loadingData}
+          />
+          <InfoStatCard
+            label="Belum Tap"
+            value={summary?.belum_tap ?? "—"}
+            helper="Masih perlu ditindaklanjuti walas"
+            icon={<UserX className="h-5 w-5" />}
+            tone="amber"
+            loading={loadingData}
+          />
+          <InfoStatCard
+            label="Tanpa RFID"
+            value={summary?.tanpa_rfid ?? "—"}
+            helper="Perlu perhatian pada perangkat kartu"
+            icon={<IdCard className="h-5 w-5" />}
+            tone="violet"
+            loading={loadingData}
+          />
+        </div>
+        <div className="hidden w-full grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
           <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
             <p className="text-xs text-gray-500">Kelas</p>
             <p className="mt-1 text-sm font-semibold text-gray-900">{selectedKelasName || "—"}</p>

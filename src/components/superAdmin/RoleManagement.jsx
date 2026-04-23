@@ -4,6 +4,7 @@ import {
   Search, X, Users, RefreshCw, ShieldAlert,
 } from "lucide-react";
 import PageHeader from "../layout/PageHeader";
+import InfoStatCard from "../layout/InfoStatCard";
 
 import { role as roleApi } from "../../lib/backendApi";
 
@@ -362,9 +363,32 @@ export default function RoleManagement() {
       />
 
       <div className="flex-1 overflow-auto p-8 space-y-6">
-        {/* Stat cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[
+          <InfoStatCard
+            label="Total Role"
+            value={roles.length}
+            helper="Semua role yang terdaftar di sistem"
+            icon={<ShieldCheck className="w-5 h-5" />}
+            tone="blue"
+            loading={fetchLoading}
+          />
+          <InfoStatCard
+            label="Role Digunakan"
+            value={totalUsed}
+            helper="Role yang sedang dipakai user"
+            icon={<Users className="w-5 h-5" />}
+            tone="orange"
+            loading={fetchLoading}
+          />
+          <InfoStatCard
+            label="Role Kosong"
+            value={roles.length - totalUsed}
+            helper="Belum terhubung ke user mana pun"
+            icon={<ShieldAlert className="w-5 h-5" />}
+            tone="emerald"
+            loading={fetchLoading}
+          />
+          {false && [
             {
               label: "Total Role",
               value: fetchLoading ? "—" : roles.length,

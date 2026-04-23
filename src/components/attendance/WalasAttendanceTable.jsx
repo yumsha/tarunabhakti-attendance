@@ -115,7 +115,6 @@ export default function WalasAttendanceTable({ kelasId, kelasName }) {
             <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`}></span>
             {s.label}
           </span>
-          <span className="text-xs text-gray-400">via walas</span>
         </div>
       );
     }
