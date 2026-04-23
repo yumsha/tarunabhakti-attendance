@@ -5,7 +5,9 @@ import { AlignJustify } from "lucide-react";
 
 const PERIODS = ["Daily", "Weekly", "Monthly"];
 
-/** Returns last `n` date strings (YYYY-MM-DD), newest last */
+//  Module-level cache — hidup selama tab terbuka
+const rangeCache = {};
+
 function lastNDates(n) {
   return Array.from({ length: n }, (_, i) => {
     const d = new Date();
@@ -19,16 +21,18 @@ function fmtDate(dateStr) {
   return d.toLocaleDateString("id-ID", { day: "2-digit", month: "short" });
 }
 
-/**
- * Fetch semua absensi dalam satu range → 1 request saja.
- * Response: { success: true, data: { "2025-04-01": 23, "2025-04-02": 18, ... } }
- */
 async function fetchRange(tanggal_mulai, tanggal_akhir) {
+  const key = `${tanggal_mulai}_${tanggal_akhir}`;
+  if (rangeCache[key]) return rangeCache[key]; // cache hit
+
   try {
     const res = await absensiSiswa.laporanRange(
       `tanggal_mulai=${tanggal_mulai}&tanggal_akhir=${tanggal_akhir}`
     );
-    if (res?.success && res.data) return res.data;
+    if (res?.success && res.data) {
+      rangeCache[key] = res.data; //  simpan ke cache
+      return res.data;
+    }
     return {};
   } catch {
     return {};
@@ -38,9 +42,9 @@ async function fetchRange(tanggal_mulai, tanggal_akhir) {
 export default function AttendanceComparisonChart() {
   const chartRef      = useRef(null);
   const chartInstance = useRef(null);
-  const [period, setPeriod]     = useState("Daily");
-  const [labels, setLabels]     = useState([]);
-  const [counts, setCounts]     = useState([]);
+  const [period, setPeriod]       = useState("Daily");
+  const [labels, setLabels]       = useState([]);
+  const [counts, setCounts]       = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -48,43 +52,36 @@ export default function AttendanceComparisonChart() {
       setIsLoading(true);
       try {
         if (period === "Daily") {
-          // ✅ 1 request untuk 14 hari
-          const dates = lastNDates(14);
+          const dates   = lastNDates(14);
           const grouped = await fetchRange(dates[0], dates[dates.length - 1]);
           setLabels(dates.map(fmtDate));
-          setCounts(dates.map(d => grouped[d] || 0));
+          setCounts(dates.map((d) => grouped[d] || 0));
 
         } else if (period === "Weekly") {
-          // ✅ 1 request untuk 6 minggu (42 hari)
-          const totalDays  = 6 * 7;
-          const allDates   = lastNDates(totalDays);
-          const grouped    = await fetchRange(allDates[0], allDates[allDates.length - 1]);
+          const totalDays = 6 * 7;
+          const allDates  = lastNDates(totalDays);
+          const grouped   = await fetchRange(allDates[0], allDates[allDates.length - 1]);
 
           const weekLabels = [];
           const weekCounts = [];
-
           for (let w = 0; w < 6; w++) {
             const weekDates = allDates.slice(w * 7, w * 7 + 7);
             const total     = weekDates.reduce((sum, d) => sum + (grouped[d] || 0), 0);
             weekLabels.push(`Mgg ${w + 1}`);
             weekCounts.push(total);
           }
-
           setLabels(weekLabels);
           setCounts(weekCounts);
 
         } else {
-          // ✅ 1 request untuk 6 bulan
-          const today     = new Date();
+          const today        = new Date();
           const sixMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 5, 1);
-          const startStr  = sixMonthsAgo.toISOString().split("T")[0];
-          const endStr    = today.toISOString().split("T")[0];
-
-          const grouped   = await fetchRange(startStr, endStr);
+          const startStr     = sixMonthsAgo.toISOString().split("T")[0];
+          const endStr       = today.toISOString().split("T")[0];
+          const grouped      = await fetchRange(startStr, endStr);
 
           const monthLabels = [];
           const monthCounts = [];
-
           for (let m = 5; m >= 0; m--) {
             const date  = new Date(today.getFullYear(), today.getMonth() - m, 1);
             const year  = date.getFullYear();
@@ -101,7 +98,6 @@ export default function AttendanceComparisonChart() {
             );
             monthCounts.push(total);
           }
-
           setLabels(monthLabels);
           setCounts(monthCounts);
         }
@@ -125,7 +121,7 @@ export default function AttendanceComparisonChart() {
     gradient.addColorStop(0, "rgba(99,102,241,0.18)");
     gradient.addColorStop(1, "rgba(99,102,241,0)");
 
-    const maxVal = Math.max(...counts);
+    const maxVal  = Math.max(...counts);
     const peakIdx = counts.indexOf(maxVal);
 
     chartInstance.current = new Chart(ctx, {
