@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { siswa, kelas } from "../../lib/backendApi";
+import Pagination from "../layout/Pagination.jsx";
 
 // -----------------------------------------------------------------------
 // Helpers
@@ -344,34 +345,13 @@ export default function StudentList() {
         </table>
       </div>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
-        <button
-          onClick={() => setPage((p) => Math.max(1, p - 1))}
-          disabled={page === 1}
-          className={`px-3 py-1 rounded-md text-sm font-medium ${
-            page === 1
-              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-              : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-300"
-          }`}
-        >
-          Previous
-        </button>
-        <span className="text-sm text-gray-600">
-          Page {page} of {totalPages}
-        </span>
-        <button
-          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-          disabled={page === totalPages}
-          className={`px-3 py-1 rounded-md text-sm font-medium ${
-            page === totalPages
-              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-              : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-300"
-          }`}
-        >
-          Next
-        </button>
-      </div>
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        summary={`Halaman ${page} dari ${totalPages}`}
+        className="border-gray-200 bg-white"
+      />
     </div>
   );
 }
