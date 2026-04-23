@@ -117,6 +117,7 @@ export const absensiSiswa = {
   laporanHarian: (params?: string) => request(`/api/v1/absensi-siswa/laporan/harian${params ? `?${params}` : ''}`),
   laporanRange: (params?: string) => request(`/api/v1/absensi-siswa/laporan/range${params ? `?${params}` : ''}`),
   rekapTahunan: (tahun: string | number) => request(`/api/v1/absensi-siswa/rekap/tahunan?tahun=${tahun}`),
+  rekapMingguan: (tanggal_mulai: string, tanggal_akhir: string) => request(`/api/v1/absensi-siswa/rekap/mingguan?tanggal_mulai=${tanggal_mulai}&tanggal_akhir=${tanggal_akhir}`),
   get: (id: string | number) => request(`/api/v1/absensi-siswa/${id}`),
   update: (id: string | number, data: any) => request(`/api/v1/absensi-siswa/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string | number) => request(`/api/v1/absensi-siswa/${id}`, { method: 'DELETE' }),
