@@ -4,6 +4,8 @@ import {
   Search, X, Users, RefreshCw, ShieldAlert,
 } from "lucide-react";
 import PageHeader from "../layout/PageHeader";
+import InfoStatCard from "../layout/InfoStatCard";
+import Pagination from "../layout/Pagination";
 
 import { role as roleApi } from "../../lib/backendApi";
 
@@ -51,7 +53,7 @@ function Toast({ message, type, onClose }) {
     : "bg-emerald-50 border-emerald-200 text-emerald-700";
 
   return (
-    <div className={`fixed bottom-6 right-6 z-[100] flex items-center gap-2.5
+    <div className={`fixed bottom-6 right-6 z-100 flex items-center gap-2.5
       px-4 py-3 rounded-xl border shadow-xl text-sm font-medium max-w-xs ${styles}`}>
       {type === "error"
         ? <AlertTriangle className="w-4 h-4 shrink-0" />
@@ -255,7 +257,7 @@ function SkeletonRow({ delay = 0 }) {
   return (
     <tr className="border-b border-gray-50">
       {[32, 180, 56, 100, 100, 120].map((w, i) => (
-        <td key={i} className="px-6 py-[18px]">
+        <td key={i} className="px-6 py-4.5">
           <div
             className="h-3.5 rounded-lg bg-gray-100 animate-pulse"
             style={{ width: w, animationDelay: `${delay}ms` }}
@@ -272,9 +274,11 @@ export default function RoleManagement() {
   const [roleUserCount, setRoleUserCount] = useState({}); // { [role_id]: number }
   const [fetchLoading, setFetchLoading]   = useState(true);
   const [fetchError, setFetchError]       = useState("");
+  const [page, setPage]                   = useState(1);
 
   const [search, setSearch]               = useState("");
   const searchRef                         = useRef(null);
+  const pageSize = 10;
 
   const [showModal, setShowModal]         = useState(false);
   const [editRole, setEditRole]           = useState(null);
@@ -309,6 +313,17 @@ export default function RoleManagement() {
   const filtered = roles.filter((r) =>
     r.name.toLowerCase().includes(search.toLowerCase())
   );
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const pagedRoles = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   // Create / Update 
   const handleSubmitRole = async (name) => {
@@ -362,9 +377,32 @@ export default function RoleManagement() {
       />
 
       <div className="flex-1 overflow-auto p-8 space-y-6">
-        {/* Stat cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[
+          <InfoStatCard
+            label="Total Role"
+            value={roles.length}
+            helper="Semua role yang terdaftar di sistem"
+            icon={<ShieldCheck className="w-5 h-5" />}
+            tone="blue"
+            loading={fetchLoading}
+          />
+          <InfoStatCard
+            label="Role Digunakan"
+            value={totalUsed}
+            helper="Role yang sedang dipakai user"
+            icon={<Users className="w-5 h-5" />}
+            tone="orange"
+            loading={fetchLoading}
+          />
+          <InfoStatCard
+            label="Role Kosong"
+            value={roles.length - totalUsed}
+            helper="Belum terhubung ke user mana pun"
+            icon={<ShieldAlert className="w-5 h-5" />}
+            tone="emerald"
+            loading={fetchLoading}
+          />
+          {false && [
             {
               label: "Total Role",
               value: fetchLoading ? "—" : roles.length,
@@ -533,7 +571,7 @@ export default function RoleManagement() {
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((role, idx) => {
+                  pagedRoles.map((role, idx) => {
                     const count   = roleUserCount[role.id] ?? 0;
                     const iconCls = roleIconColor(role.name);
 
@@ -544,7 +582,7 @@ export default function RoleManagement() {
                       >
                         {/* # */}
                         <td className="px-6 py-4 text-sm text-gray-400 font-mono">
-                          {idx + 1}
+                          {(page - 1) * pageSize + idx + 1}
                         </td>
 
                         {/* Nama Role */}
@@ -627,22 +665,17 @@ export default function RoleManagement() {
 
             {/* Footer */}
             {!fetchLoading && !fetchError && filtered.length > 0 && (
-              <div className="px-6 py-3 border-t border-gray-50 flex items-center
-                justify-between text-xs text-gray-400">
-                <span>
-                  Menampilkan{" "}
-                  <span className="font-medium text-gray-600">{filtered.length}</span>{" "}
-                  dari{" "}
-                  <span className="font-medium text-gray-600">{roles.length}</span>{" "}
-                  role
-                </span>
-                {search && (
-                  <span>
-                    Filter:{" "}
-                    <span className="font-medium text-gray-600">"{search}"</span>
-                  </span>
-                )}
-              </div>
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                onPageChange={setPage}
+                summary={
+                  search
+                    ? `Menampilkan ${pagedRoles.length} hasil pencarian dari ${filtered.length} data, total role ${roles.length}`
+                    : `Menampilkan ${pagedRoles.length} data dari total ${roles.length} role`
+                }
+                className="border-gray-100 bg-gray-50/50"
+              />
             )}
           </div>
         </div>

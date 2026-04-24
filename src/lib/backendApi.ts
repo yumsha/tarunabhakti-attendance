@@ -71,7 +71,8 @@ export const mapel = {
 };
 
 export const guru = {
-  list: () => request('/api/v1/guru'),
+  list: (params?: string) => request(`/api/v1/guru${params ? `?${params}` : ''}`),
+  walas: () => request('/api/v1/guru/walas/${id'),
   get: (id: string | number) => request(`/api/v1/guru/${id}`),
   create: (data: any) => request('/api/v1/guru', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string | number, data: any) => request(`/api/v1/guru/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
@@ -92,17 +93,20 @@ export const kelas = {
   create: (data: any) => request('/api/v1/kelas', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string | number, data: any) => request(`/api/v1/kelas/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string | number) => request(`/api/v1/kelas/${id}`, { method: 'DELETE' }),
+  assignWalas: (id: string | number, walas_id: number | null) =>
+    request(`/api/v1/kelas/${id}/assign/walas`, { method: 'PATCH', body: JSON.stringify({ walas_id }) }),
 };
 
 export const jadwal = {
   list: (params?: string) => request(`/api/v1/jadwal${params ? `?${params}` : ''}`),
+  get: (id: string | number) => request(`/api/v1/jadwal/${id}`),
   create: (data: any) => request('/api/v1/jadwal', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string | number, data: any) => request(`/api/v1/jadwal/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string | number) => request(`/api/v1/jadwal/${id}`, { method: 'DELETE' }),
 };
 
 export const rfid = {
-  list: () => request('/api/v1/rfid'),
+  list: (params?: string) => request(`/api/v1/rfid${params ? `?${params}` : ''}`),
   get: (id: string | number) => request(`/api/v1/rfid/${id}`),
   create: (data: any) => request('/api/v1/rfid', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string | number, data: any) => request(`/api/v1/rfid/${id}`, { method: 'PUT', body: JSON.stringify(data) }),

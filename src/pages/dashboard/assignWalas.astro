@@ -2,15 +2,15 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import Sidebar from "../../components/Sidebar.astro";
 import AuthGate from "../../components/auth/AuthGate.jsx";
-import DaftarSemuaKelas from "../../components/attendance/DaftarSemuaKelas";
+import AssignWalasKelas from "../../components/superAdmin/AssignWalasKelas.jsx";
 ---
 
-<BaseLayout title="Manajemen Kelas">
+<BaseLayout title="Assign Walas">
   <div class="flex h-screen bg-gray-50 overflow-hidden">
     <Sidebar />
 
     <AuthGate client:load allowedRoles={["SUPERADMIN"]}>
-      <DaftarSemuaKelas client:load />
+      <AssignWalasKelas client:load />
     </AuthGate>
   </div>
 </BaseLayout>

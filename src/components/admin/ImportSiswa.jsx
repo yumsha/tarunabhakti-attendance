@@ -1,9 +1,12 @@
 import PageHeader from "../layout/PageHeader.jsx";
+import Pagination from "../layout/Pagination.jsx";
 import { useState, useEffect, useRef, useMemo } from "react";
+import { CheckCircle2, AlertTriangle } from "lucide-react";
 import { siswa, kelas } from "../../lib/backendApi";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import InfoStatCard from "../layout/InfoStatCard";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -87,8 +90,6 @@ const UploadIcon = () => <Icon d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8
 const DownloadIcon = () => <Icon d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />;
 const FileExcelIcon = () => <Icon d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM9 13l1.5 2.5L9 18h1.5l.75-1.5.75 1.5H13.5l-1.5-2.5L13.5 13H12l-.75 1.5L10.5 13H9z" />;
 const FilePdfIcon = () => <Icon d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM9 17v-5h1.5a1.5 1.5 0 0 1 0 3H9M14 17v-5h2M14 14.5h1.5" />;
-const ChevronLeft = () => <Icon d="M15 18l-6-6 6-6" />;
-const ChevronRight = () => <Icon d="M9 18l6-6-6-6" />;
 const AlertCircle = () => <Icon d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zM12 8v4M12 16h.01" />;
 const CheckCircle = () => <Icon d="M22 11.08V12a10 10 0 1 1-5.93-9.14M22 4 12 14.01l-3-3" />;
 const XCircle = () => <Icon d="M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10zM15 9l-6 6M9 9l6 6" />;
@@ -225,15 +226,21 @@ function ImportModal({ onClose, onImportDone }) {
 
           {done && (
             <div>
-              <div className="flex gap-4 mb-3">
-                <div className="flex-1 bg-green-50 border border-green-200 rounded-lg p-3 text-center">
-                  <p className="text-2xl font-bold text-green-600">{successCount}</p>
-                  <p className="text-xs text-green-700 font-medium">Berhasil</p>
-                </div>
-                <div className="flex-1 bg-red-50 border border-red-200 rounded-lg p-3 text-center">
-                  <p className="text-2xl font-bold text-red-500">{failCount}</p>
-                  <p className="text-xs text-red-700 font-medium">Gagal</p>
-                </div>
+              <div className="grid grid-cols-1 gap-4 mb-3 sm:grid-cols-2">
+                <InfoStatCard
+                  label="Berhasil"
+                  value={successCount}
+                  helper="Baris yang lolos proses import"
+                  icon={<CheckCircle2 className="h-5 w-5" />}
+                  tone="emerald"
+                />
+                <InfoStatCard
+                  label="Gagal"
+                  value={failCount}
+                  helper="Baris yang perlu dicek lagi"
+                  icon={<AlertTriangle className="h-5 w-5" />}
+                  tone="red"
+                />
               </div>
               <div className="overflow-auto max-h-44 border border-gray-200 rounded-lg divide-y divide-gray-100">
                 {results.map((r, i) => (
@@ -612,29 +619,12 @@ export default function ImportSiswa() {
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between px-6 py-3 bg-gray-50/50 border-t border-gray-100">
-          <p className="text-xs text-gray-500">
-            Halaman {page} dari {totalPages} (Menampilkan {currentPageData.length} dari {filteredStudents.length} data)
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition"
-            >
-              <ChevronLeft />
-            </button>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition"
-            >
-              <ChevronRight />
-            </button>
-          </div>
-        </div>
-      )}
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        summary={`Halaman ${page} dari ${totalPages} (Menampilkan ${currentPageData.length} dari ${filteredStudents.length} data)`}
+      />
     </div>
   </div>
 

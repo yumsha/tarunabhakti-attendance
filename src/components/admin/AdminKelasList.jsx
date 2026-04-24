@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { kelas, users } from "../../lib/backendApi";
 import PageHeader from "../layout/PageHeader.jsx";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import Pagination from "../layout/Pagination.jsx";
 
 function resolveRoles(userData) {
   const fromRoles = Array.isArray(userData?.roles)
@@ -171,29 +171,12 @@ export default function AdminKelasList() {
           </div>
 
           {/* pagination */}
-          {totalPages > 1 ? (
-            <div className="flex items-center justify-between px-6 py-3 bg-gray-50/50 border-t border-gray-100">
-              <p className="text-xs text-gray-500">
-                Halaman {page} dari {totalPages} ({total} total)
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                  className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          ) : null}
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            summary={`Halaman ${page} dari ${totalPages} (${total} total)`}
+          />
         </div>
       </div>
     </div>

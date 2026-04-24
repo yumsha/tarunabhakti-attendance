@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { CheckCircle, Clock, XCircle, Users } from "lucide-react";
 import { absensiSiswa } from "../../lib/backendApi";
+import InfoStatCard from "../layout/InfoStatCard";
 
 function getTodayWIB() {
   // YYYY-MM-DD in Asia/Jakarta timezone
@@ -67,33 +68,29 @@ export default function WalasStudentStats({ kelasId, totalSiswa = 0 }) {
     {
       label: "Hadir Tepat Waktu",
       value: stats.tepat_waktu,
-      color: "from-emerald-500 to-emerald-600",
-      bgLight: "bg-emerald-50",
-      textColor: "text-emerald-700",
+      helper: "Siswa hadir sesuai jadwal hari ini",
+      tone: "emerald",
       icon: <CheckCircle className="w-6 h-6" />,
     },
     {
       label: "Terlambat",
       value: stats.terlambat,
-      color: "from-amber-500 to-orange-500",
-      bgLight: "bg-amber-50",
-      textColor: "text-amber-700",
+      helper: "Perlu tindak lanjut dari walas",
+      tone: "amber",
       icon: <Clock className="w-6 h-6" />,
     },
     {
       label: "Belum Hadir",
       value: stats.belum_hadir,
-      color: "from-red-500 to-rose-500",
-      bgLight: "bg-red-50",
-      textColor: "text-red-700",
+      helper: "Belum ada catatan kehadiran masuk",
+      tone: "red",
       icon: <XCircle className="w-6 h-6" />,
     },
     {
       label: "Total Siswa",
       value: stats.totalStudents,
-      color: "from-blue-500 to-indigo-500",
-      bgLight: "bg-blue-50",
-      textColor: "text-blue-700",
+      helper: "Jumlah siswa yang dipantau di kelas ini",
+      tone: "blue",
       icon: <Users className="w-6 h-6" />,
     },
   ];
@@ -102,10 +99,15 @@ export default function WalasStudentStats({ kelasId, totalSiswa = 0 }) {
     return (
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 animate-pulse">
-            <div className="h-4 bg-gray-200 rounded w-24 mb-3"></div>
-            <div className="h-8 bg-gray-200 rounded w-16"></div>
-          </div>
+          <InfoStatCard
+            key={i}
+            label="Memuat"
+            value="0"
+            helper="Menyiapkan ringkasan kelas"
+            icon={<Users className="w-5 h-5" />}
+            tone="slate"
+            loading
+          />
         ))}
       </div>
     );
@@ -114,19 +116,15 @@ export default function WalasStudentStats({ kelasId, totalSiswa = 0 }) {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
       {cards.map((card, index) => (
-        <div
+        <InfoStatCard
           key={index}
-          className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-200"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium text-gray-500">{card.label}</span>
-            <div className={`${card.bgLight} ${card.textColor} p-2 rounded-xl`}>
-              {card.icon}
-            </div>
-          </div>
-          <div className={`text-3xl font-bold ${card.textColor}`}>{card.value}</div>
-          <div className="mt-1 text-xs text-gray-400">Hari ini</div>
-        </div>
+          label={card.label}
+          value={card.value}
+          helper={card.helper}
+          icon={card.icon}
+          tone={card.tone}
+          className="hover:shadow-md transition-shadow duration-200"
+        />
       ))}
     </div>
   );

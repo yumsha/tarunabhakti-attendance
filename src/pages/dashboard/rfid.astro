@@ -2,15 +2,15 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import Sidebar from "../../components/Sidebar.astro";
 import AuthGate from "../../components/auth/AuthGate.jsx";
-import DaftarSemuaKelas from "../../components/attendance/DaftarSemuaKelas";
+import RfidManagement from "../../components/superAdmin/RfidManagement.jsx";
 ---
 
-<BaseLayout title="Manajemen Kelas">
+<BaseLayout title="Manajemen RFID">
   <div class="flex h-screen bg-gray-50 overflow-hidden">
     <Sidebar />
 
-    <AuthGate client:load allowedRoles={["SUPERADMIN"]}>
-      <DaftarSemuaKelas client:load />
+    <AuthGate client:load allowedRoles={["ADMIN", "SUPERADMIN"]}>
+      <RfidManagement client:load />
     </AuthGate>
   </div>
 </BaseLayout>

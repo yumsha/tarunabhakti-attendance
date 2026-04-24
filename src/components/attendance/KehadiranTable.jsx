@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { kelas, detailAbsensi } from "../../lib/backendApi";
 import PageHeader from "../layout/PageHeader.jsx";
+import Pagination from "../layout/Pagination.jsx";
 
 function getTodayWIB() {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
@@ -71,6 +72,8 @@ export default function KehadiranTable() {
   const [rows, setRows]           = useState([]);
   const [loading, setLoading]     = useState(false);
   const [kState, setKState]       = useState({});
+  const [page, setPage]           = useState(1);
+  const pageSize = 10;
 
   // FIX: load semua kelas yang diampu walas, expose selector jika >1
   useEffect(() => {
@@ -120,8 +123,16 @@ export default function KehadiranTable() {
 
   useEffect(() => {
     setKState({});
+    setPage(1);
     fetchRows();
   }, [kelasId, tanggal]);
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const pagedRows = rows.slice((page - 1) * pageSize, page * pageSize);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const handleKonfirmasi = async (row) => {
     if (!walasId) {
@@ -329,7 +340,7 @@ export default function KehadiranTable() {
                     </td>
                   </tr>
                 ) : (
-                  rows.map((row, idx) => {
+                  pagedRows.map((row, idx) => {
                     const isDone     = row.sudah_diabsen || kState[row.siswa_id] === "done";
                     const isLoading  = kState[row.siswa_id] === "loading";
                     const isError    = kState[row.siswa_id] === "error";
@@ -346,7 +357,7 @@ export default function KehadiranTable() {
                             : "hover:bg-blue-50/20"
                         }`}
                       >
-                        <td className="px-4 py-4 text-sm text-gray-400 font-medium">{idx + 1}</td>
+                        <td className="px-4 py-4 text-sm text-gray-400 font-medium">{(page - 1) * pageSize + idx + 1}</td>
 
                         <td className="px-4 py-4">
                           <p className="text-sm font-semibold text-gray-900">{row.nama || "—"}</p>
@@ -443,10 +454,14 @@ export default function KehadiranTable() {
             </table>
           </div>
 
-          {rows.length > 0 && (
-            <div className="px-6 py-3 bg-gray-50/50 border-t border-gray-100 text-xs text-gray-400 text-center">
-              {rows.length} siswa • {doneCount} dikonfirmasi • {rows.length - doneCount} menunggu
-            </div>
+          {!loading && rows.length > 0 && (
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              summary={`Menampilkan ${pagedRows.length} data dari total ${rows.length} siswa. ${doneCount} dikonfirmasi, ${rows.length - doneCount} menunggu`}
+              className="border-gray-100 bg-gray-50/50"
+            />
           )}
         </div>
       </div>

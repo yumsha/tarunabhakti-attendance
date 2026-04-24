@@ -1,4 +1,5 @@
-import { Users, Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Users, Plus, Search, Pencil, Trash2, X } from "lucide-react";
+import Pagination from "../layout/Pagination.jsx";
 
 const ROLE_OPTIONS = [
   { value: "ADMIN", label: "Admin", color: "bg-purple-100 text-purple-700" },
@@ -227,32 +228,12 @@ export default function UserTable({
       </div>
 
       {/* pagination */}
-      {pagination.totalPages > 1 && (
-        <div className="flex items-center justify-between px-6 py-3 bg-gray-50/50 border-t border-gray-100">
-          <p className="text-xs text-gray-500">
-            Halaman {page} dari {pagination.totalPages} ({pagination.total}{" "}
-            total)
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => onPageChange((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() =>
-                onPageChange((p) => Math.min(pagination.totalPages, p + 1))
-              }
-              disabled={page === pagination.totalPages}
-              className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
+      <Pagination
+        page={page}
+        totalPages={pagination.totalPages}
+        onPageChange={onPageChange}
+        summary={`Halaman ${page} dari ${pagination.totalPages} (${pagination.total} total)`}
+      />
     </div>
   );
 }

@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
+import { CheckCircle2, Clock3, ScanLine, LogOut } from "lucide-react";
 import { absensiSiswa } from "../../lib/backendApi";
+import InfoStatCard from "../layout/InfoStatCard";
 
 export default function StudentStats() {
     const [stats, setStats] = useState({
@@ -48,32 +50,37 @@ export default function StudentStats() {
         {
             label: "Tepat Waktu",
             value: stats.tepat_waktu,
-            bg: "bg-green-50",
-            text: "text-green-700",
+            helper: "Siswa hadir sesuai jam masuk",
+            tone: "emerald",
+            icon: <CheckCircle2 className="h-5 w-5" />,
         },
         {
             label: "Terlambat",
             value: stats.terlambat,
-            bg: "bg-yellow-50",
-            text: "text-yellow-700",
+            helper: "Perlu perhatian kedisiplinan",
+            tone: "amber",
+            icon: <Clock3 className="h-5 w-5" />,
         },
         {
             label: "Belum Tap In",
             value: stats.belum_tap_in,
-            bg: "bg-red-50",
-            text: "text-red-700",
+            helper: "Belum tercatat masuk hari ini",
+            tone: "red",
+            icon: <ScanLine className="h-5 w-5" />,
         },
         {
             label: "Belum Tap Out",
             value: stats.belum_tap_out,
-            bg: "bg-orange-50",
-            text: "text-orange-700",
+            helper: "Sudah masuk, belum tercatat pulang",
+            tone: "orange",
+            icon: <LogOut className="h-5 w-5" />,
         },
         {
             label: "Total Tap In",
             value: stats.total,
-            bg: "bg-blue-50",
-            text: "text-blue-700",
+            helper: "Total siswa yang sudah tap masuk",
+            tone: "blue",
+            icon: <CheckCircle2 className="h-5 w-5" />,
         },
     ];
 
@@ -84,16 +91,17 @@ export default function StudentStats() {
             {error ? (
                 <div className="text-sm text-red-500 py-4 text-center">{error}</div>
             ) : (
-                <div className="grid grid-cols-2 gap-4">
-                    {cards.map(({ label, value, bg, text }) => (
-                        <div key={label} className={`${bg} p-4 rounded`}>
-                            <span className="text-sm text-gray-700">{label}</span>
-                            {loading ? (
-                                <div className="h-8 w-12 bg-gray-200 rounded animate-pulse mt-1" />
-                            ) : (
-                                <div className={`text-2xl font-bold ${text}`}>{value}</div>
-                            )}
-                        </div>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {cards.map(({ label, value, helper, tone, icon }) => (
+                        <InfoStatCard
+                            key={label}
+                            label={label}
+                            value={value}
+                            helper={helper}
+                            tone={tone}
+                            icon={icon}
+                            loading={loading}
+                        />
                     ))}
                 </div>
             )}
