@@ -152,9 +152,11 @@ export default function AdminDashboard() {
                     <div className="col-span-2">
                         <AttendanceComparisonChart />
                     </div>
-                    <div className="col-span-1">
+
+                    {/* klep klep klep siklepp */}
+                    {/* <div className="col-span-1">
                         <WeeklyAttendanceChart />
-                    </div>
+                    </div> */}
                 </div>
             </div>
         </div>

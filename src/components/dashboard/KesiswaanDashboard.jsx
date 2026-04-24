@@ -144,13 +144,15 @@ export default function KesiswaanDashboard() {
                 </div>
 
                 {/* ── Bottom: charts ── */}
-                <div className="grid grid-cols-3 gap-5">
+                <div className="grid grid-cols-1 gap-10">
                     <div className="col-span-2">
                         <AttendanceComparisonChart />
                     </div>
-                    <div className="col-span-1">
+
+                    {/* klep klep sikleppp */}
+                    {/* <div className="col-span-1">
                         <WeeklyAttendanceChart />
-                    </div>
+                    </div> */}
                 </div>
             </div>
         </div>
