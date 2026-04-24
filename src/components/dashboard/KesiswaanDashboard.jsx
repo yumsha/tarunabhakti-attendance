@@ -84,7 +84,7 @@ export default function KesiswaanDashboard() {
               status_tapout: r.status_tapout,
             });
           });
-          
+
           hadir = tapRes.data.filter(
             (r) => r.status_tapin === "TEPAT_WAKTU"
           ).length;
@@ -98,9 +98,6 @@ export default function KesiswaanDashboard() {
           ).length;
         }
 
-        // ======================
-        // WALAS FINAL
-        // ======================
         let izin = 0;
         let sakit = 0;
         let alpha = 0;
