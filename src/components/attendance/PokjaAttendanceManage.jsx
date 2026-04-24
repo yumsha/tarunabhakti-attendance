@@ -268,7 +268,7 @@ export default function DaftarKehadiranKelas() {
                         </button>
 
                         <button
-                          onClick={() => window.location.href = `/dashboard/kehadiran?kelasId=${cls.id}`}
+                          onClick={() => window.location.href = `/dashboard/pokjaKehadiran?kelasId=${cls.id}`}
                           className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-blue-600 rounded-lg text-xs font-semibold hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-sm"
                         >
                           Lihat Kehadiran
