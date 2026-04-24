@@ -106,7 +106,7 @@ export const jadwal = {
 };
 
 export const rfid = {
-  list: () => request('/api/v1/rfid'),
+  list: (params?: string) => request(`/api/v1/rfid${params ? `?${params}` : ''}`),
   get: (id: string | number) => request(`/api/v1/rfid/${id}`),
   create: (data: any) => request('/api/v1/rfid', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string | number, data: any) => request(`/api/v1/rfid/${id}`, { method: 'PUT', body: JSON.stringify(data) }),

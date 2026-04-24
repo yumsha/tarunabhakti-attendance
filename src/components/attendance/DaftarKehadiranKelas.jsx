@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { kelas } from "../../lib/backendApi";
 import PageHeader from "../layout/PageHeader.jsx";
+import Pagination from "../layout/Pagination.jsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import XLSX from "xlsx-js-style";
@@ -9,6 +10,8 @@ export default function DaftarKehadiranKelas() {
   const [classList, setClassList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
   useEffect(() => {
     const fetchClasses = async () => {
@@ -45,6 +48,17 @@ export default function DaftarKehadiranKelas() {
       cls.kelas?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       cls.jurusan?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredClasses.length / pageSize));
+  const pagedClasses = filteredClasses.slice((page - 1) * pageSize, page * pageSize);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const handleDownloadPdf = (cls) => {
     const doc = new jsPDF();
@@ -176,7 +190,7 @@ export default function DaftarKehadiranKelas() {
       <div className="flex-1 overflow-auto p-8">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           {/* Search Bar Section */}
-          <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+          <div className="p-4 border-b border-gray-100 bg-linear-to-r from-gray-50 to-white">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
 
@@ -234,7 +248,7 @@ export default function DaftarKehadiranKelas() {
                   </tr>
                 ))
               ) : filteredClasses.length > 0 ? (
-                filteredClasses.map((cls) => (
+                pagedClasses.map((cls) => (
                   <tr key={cls.id} className="hover:bg-blue-50/30 transition-colors group">
                     <td className="px-6 py-4">
                       <span className="text-sm font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
@@ -291,10 +305,20 @@ export default function DaftarKehadiranKelas() {
               )}
             </tbody>
           </table>
-        </div>
 
-        <div className="mt-4 text-xs text-gray-500">
-          Menampilkan {filteredClasses.length} dari {classList.length} kelas terdaftar.
+          {!loading && filteredClasses.length > 0 && (
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              summary={
+                searchTerm
+                  ? `Menampilkan ${pagedClasses.length} hasil pencarian dari ${filteredClasses.length} data, total kelas ${classList.length}`
+                  : `Menampilkan ${pagedClasses.length} data dari total ${classList.length} kelas`
+              }
+              className="border-gray-100 bg-gray-50/50"
+            />
+          )}
         </div>
       </div>
     </main>

@@ -16,6 +16,7 @@ import {
 import { kelas, tahunAjaran } from "../../lib/backendApi";
 import InfoStatCard from "../layout/InfoStatCard";
 import PageHeader from "../layout/PageHeader";
+import Pagination from "../layout/Pagination";
 
 const inputClass =
   "w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm " +
@@ -335,6 +336,7 @@ export default function DaftarSemuaKelas() {
   const [tahunList, setTahunList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(1);
   const [refreshing, setRefreshing] = useState(false);
   const [fetchError, setFetchError] = useState("");
   const [toast, setToast] = useState(null);
@@ -343,6 +345,7 @@ export default function DaftarSemuaKelas() {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const pageSize = 10;
 
   const showToast = (message, type = "success") => setToast({ message, type });
 
@@ -424,6 +427,17 @@ export default function DaftarSemuaKelas() {
         .includes(keyword)
     );
   }, [classList, searchTerm]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredClasses.length / pageSize));
+  const pagedClasses = filteredClasses.slice((page - 1) * pageSize, page * pageSize);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const handleSubmit = async (payload) => {
     setSubmitLoading(true);
@@ -523,8 +537,8 @@ export default function DaftarSemuaKelas() {
           <div className="px-6 py-5 border-b border-gray-100 bg-white">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div>
-                <h3 className="text-lg font-semibold text-gray-800">Daftar Kelas</h3>
-                <p className="mt-1 text-sm text-gray-500">
+                <h3 className="font-semibold text-gray-800">Daftar Kelas</h3>
+                <p className="mt-1 text-xs text-gray-500">
                   Fokus hanya ke kelas, jurusan, tahun ajaran, dan aksi manajemen.
                 </p>
               </div>
@@ -557,7 +571,7 @@ export default function DaftarSemuaKelas() {
           </div>
           
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px]">
+            <table className="w-full min-w-190">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">No</th>
@@ -581,9 +595,9 @@ export default function DaftarSemuaKelas() {
                     </tr>
                   ))
                 ) : filteredClasses.length > 0 ? (
-                  filteredClasses.map((cls, index) => (
+                  pagedClasses.map((cls, index) => (
                     <tr key={cls.id} className="hover:bg-blue-50/30 transition-colors group">
-                      <td className="px-6 py-4 text-sm text-gray-500">{index + 1}</td>
+                      <td className="px-6 py-4 text-sm text-gray-500">{(page - 1) * pageSize + index + 1}</td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
                           <span className="text-sm font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
@@ -636,10 +650,20 @@ export default function DaftarSemuaKelas() {
               </tbody>
             </table>
           </div>
-        </div>
 
-        <div className="mt-6 text-xs text-gray-500">
-          <p>Menampilkan {filteredClasses.length} dari {classList.length} kelas terdaftar.</p>
+          {!loading && filteredClasses.length > 0 ? (
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              summary={
+                searchTerm
+                  ? `Menampilkan ${pagedClasses.length} hasil pencarian dari ${filteredClasses.length} data, total kelas ${classList.length}`
+                  : `Menampilkan ${pagedClasses.length} data dari total ${classList.length} kelas`
+              }
+              className="border-gray-100 bg-gray-50/50"
+            />
+          ) : null}
         </div>
       </div>
 

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import PageHeader from "../layout/PageHeader";
 import InfoStatCard from "../layout/InfoStatCard";
+import Pagination from "../layout/Pagination";
 import { kelas, role as roleApi, users } from "../../lib/backendApi";
 
 const inputClass =
@@ -364,11 +365,27 @@ function RemoveConfirmModal({ isOpen, data, loading, onClose, onConfirm }) {
   );
 }
 
+function AssignWalasSkeletonRow({ delay = 0 }) {
+  return (
+    <tr className="border-b border-gray-50">
+      {[32, 180, 180, 100, 100, 140].map((width, index) => (
+        <td key={index} className="px-6 py-4">
+          <div
+            className="h-3.5 rounded-lg bg-gray-100 animate-pulse"
+            style={{ width, animationDelay: `${delay}ms` }}
+          />
+        </td>
+      ))}
+    </tr>
+  );
+}
+
 export default function AssignWalasKelas() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [toast, setToast] = useState(null);
   const [fetchError, setFetchError] = useState("");
+  const [page, setPage] = useState(1);
 
   const [kelasList, setKelasList] = useState([]);
   const [userList, setUserList] = useState([]);
@@ -381,6 +398,7 @@ export default function AssignWalasKelas() {
 
   const [removeTarget, setRemoveTarget] = useState(null);
   const [removeLoading, setRemoveLoading] = useState(false);
+  const pageSize = 10;
 
   const loadData = useCallback(async ({ silent = false } = {}) => {
     if (silent) {
@@ -457,6 +475,17 @@ export default function AssignWalasKelas() {
       return haystack.includes(keyword);
     });
   }, [search, kelasRows]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const pagedRows = filteredRows.slice((page - 1) * pageSize, page * pageSize);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const stats = useMemo(() => {
     const walasAssigned = kelasList.filter((item) =>
@@ -571,17 +600,6 @@ export default function AssignWalasKelas() {
     setShowModal(true);
   };
 
-  if (loading) {
-    return (
-      <div className="flex flex-1 items-center justify-center bg-gray-50">
-        <div className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-white px-6 py-4 shadow-sm">
-          <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
-          <span className="text-sm font-medium text-gray-600">Memuat data assign walas...</span>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-1 flex-col overflow-hidden bg-gray-50/60">
       <PageHeader
@@ -608,6 +626,7 @@ export default function AssignWalasKelas() {
             helper="Kelas yang bisa diisi walas"
             icon={<School className="h-5 w-5" />}
             tone="blue"
+            loading={loading}
           />
           <InfoStatCard
             label="Sudah Ada Walas"
@@ -615,6 +634,7 @@ export default function AssignWalasKelas() {
             helper="Kelas yang sudah terisi"
             icon={<UserCheck className="h-5 w-5" />}
             tone="emerald"
+            loading={loading}
           />
           <InfoStatCard
             label="Butuh Walas"
@@ -622,6 +642,7 @@ export default function AssignWalasKelas() {
             helper="Kelas yang belum ter-assign"
             icon={<AlertTriangle className="h-5 w-5" />}
             tone="amber"
+            loading={loading}
           />
           <InfoStatCard
             label="User WALAS Siap Assign"
@@ -629,6 +650,7 @@ export default function AssignWalasKelas() {
             helper="Atur role user dulu di Kelola Users"
             icon={<ShieldCheck className="h-5 w-5" />}
             tone="violet"
+            loading={loading}
           />
         </div>
 
@@ -647,8 +669,8 @@ export default function AssignWalasKelas() {
         <div className="rounded-3xl border border-gray-100 bg-white shadow-sm">
           <div className="flex flex-col gap-4 border-b border-gray-100 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Tabel Assign Walas</h3>
-              <p className="mt-1 text-sm text-gray-500">
+              <h3 className="font-semibold text-gray-900">Tabel Assign Walas</h3>
+              <p className="mt-1 text-xs text-gray-500">
                 Halaman ini hanya menampilkan dan meng-assign user yang sudah punya role <b>WALAS</b>.
               </p>
             </div>
@@ -688,10 +710,14 @@ export default function AssignWalasKelas() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {filteredRows.length > 0 ? (
-                  filteredRows.map((row, index) => (
+                {loading ? (
+                  Array.from({ length: 6 }).map((_, index) => (
+                    <AssignWalasSkeletonRow key={index} delay={index * 60} />
+                  ))
+                ) : filteredRows.length > 0 ? (
+                  pagedRows.map((row, index) => (
                     <tr key={row.id} className="transition hover:bg-blue-50/20">
-                      <td className="px-6 py-4 text-sm text-gray-400">{index + 1}</td>
+                      <td className="px-6 py-4 text-sm text-gray-400">{(page - 1) * pageSize + index + 1}</td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
                           <span className="text-sm font-semibold text-gray-900">{getClassLabel(row)}</span>
@@ -768,6 +794,20 @@ export default function AssignWalasKelas() {
               </tbody>
             </table>
           </div>
+
+          {!loading && filteredRows.length > 0 ? (
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              summary={
+                search
+                  ? `Menampilkan ${pagedRows.length} hasil pencarian dari ${filteredRows.length} data, total assign walas ${kelasRows.length}`
+                  : `Menampilkan ${pagedRows.length} data dari total ${kelasRows.length} kelas`
+              }
+              className="border-gray-100 bg-gray-50/50"
+            />
+          ) : null}
         </div>
       </div>
 

@@ -4,6 +4,7 @@ import {
   Search, X, RefreshCw, BookMarked, BookX, Calendar,
 } from "lucide-react";
 import PageHeader from "../layout/PageHeader";
+import Pagination from "../layout/Pagination";
 import { mapel as mapelApi } from "../../lib/backendApi";
 
 // Tooltip 
@@ -259,9 +260,11 @@ export default function MapelManagement() {
   const [mapels, setMapels]               = useState([]);
   const [fetchLoading, setFetchLoading]   = useState(true);
   const [fetchError, setFetchError]       = useState("");
+  const [page, setPage]                   = useState(1);
 
   const [search, setSearch]               = useState("");
   const searchRef                         = useRef(null);
+  const pageSize = 10;
 
   const [showModal, setShowModal]         = useState(false);
   const [editMapel, setEditMapel]         = useState(null);
@@ -293,6 +296,17 @@ export default function MapelManagement() {
   const filtered = mapels.filter((m) =>
     m.nama_mapel.toLowerCase().includes(search.toLowerCase())
   );
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const pagedMapels = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   // Create / Update
   const handleSubmitMapel = async (namaMapel) => {
@@ -480,7 +494,7 @@ export default function MapelManagement() {
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((mapel, idx) => {
+                  pagedMapels.map((mapel, idx) => {
                     return (
                       <tr
                         key={mapel.id}
@@ -488,7 +502,7 @@ export default function MapelManagement() {
                       >
                         {/* No */}
                         <td className="px-6 py-4 text-sm text-gray-400 font-mono">
-                          {idx + 1}
+                          {(page - 1) * pageSize + idx + 1}
                         </td>
 
                         {/* Nama Mapel - tanpa badge dan icon */}
@@ -544,22 +558,17 @@ export default function MapelManagement() {
 
             {/* Footer info */}
             {!fetchLoading && !fetchError && filtered.length > 0 && (
-              <div className="px-6 py-3 border-t border-gray-50 flex items-center
-                justify-between text-xs text-gray-400">
-                <span>
-                  Menampilkan{" "}
-                  <span className="font-medium text-gray-600">{filtered.length}</span>{" "}
-                  dari{" "}
-                  <span className="font-medium text-gray-600">{mapels.length}</span>{" "}
-                  mata pelajaran
-                </span>
-                {search && (
-                  <span>
-                    Filter:{" "}
-                    <span className="font-medium text-gray-600">"{search}"</span>
-                  </span>
-                )}
-              </div>
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                onPageChange={setPage}
+                summary={
+                  search
+                    ? `Menampilkan ${pagedMapels.length} hasil pencarian dari ${filtered.length} data, total mapel ${mapels.length}`
+                    : `Menampilkan ${pagedMapels.length} data dari total ${mapels.length} mata pelajaran`
+                }
+                className="border-gray-100 bg-gray-50/50"
+              />
             )}
           </div>
         </div>
