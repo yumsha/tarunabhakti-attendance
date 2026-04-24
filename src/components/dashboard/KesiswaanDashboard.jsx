@@ -49,7 +49,7 @@ export default function KesiswaanDashboard() {
     });
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
+useEffect(() => {
         const load = async () => {
             setLoading(true);
             try {
@@ -59,16 +59,32 @@ export default function KesiswaanDashboard() {
                     siswa.list(),
                 ]);
 
-                let hadir = 0, telat = 0, izin = 0, sakit = 0, pulangAwal = 0;
+                let hadir = 0, telat = 0, izin = 0, sakit = 0, pulangAwal = 0, alpha = 0;
+
                 if (absensiRes?.success && Array.isArray(absensiRes.data)) {
+                    // 1. TEPAT_WAKTU and HADIR (Walas) count as Hadir
+                    hadir = absensiRes.data.filter((r) => 
+                        r.status_tapin === "TEPAT_WAKTU" || r.status_saat_ini === "HADIR"
+                    ).length;
+
+                    // 2. TERLAMBAT count
                     telat = absensiRes.data.filter((r) => r.status_tapin === "TERLAMBAT").length;
-                    izin = absensiRes.data.filter((r) => r.keterangan === "IZIN").length;
-                    sakit = absensiRes.data.filter((r) => r.keterangan === "SAKIT").length;
+
+                    // 3. Status assigned by Walas (The fix is using status_saat_ini)
+                    izin = absensiRes.data.filter((r) => r.status_saat_ini === "IZIN").length;
+                    sakit = absensiRes.data.filter((r) => r.status_saat_ini === "SAKIT").length;
+                    alpha = absensiRes.data.filter((r) => r.status_saat_ini === "ALPHA").length;
+
+                    // 4. Tap Out logic
                     pulangAwal = absensiRes.data.filter((r) => r.status_tapout === "PULANG_AWAL").length;
-                    hadir = absensiRes.data.length - telat;
                 }
+
                 const total = siswaRes?.data?.length ?? 0;
-                const absen = Math.max(0, total - (hadir + telat + izin + sakit));
+                
+                // Calculate "Tidak Hadir" by subtracting everyone who has a record from the total
+                // This ensures those not tapping AND not marked by Walas are counted as 'absen'
+                const totalRecorded = hadir + telat + izin + sakit + alpha;
+                const absen = Math.max(0, total - totalRecorded);
 
                 setStats({ total, hadir, absen, telat, pulangAwal, izin, sakit });
             } catch (e) {
