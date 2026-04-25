@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { kelas, jadwal } from "../lib/backendApi";
+import { jadwal } from "../lib/backendApi";
 
 import { UserStarIcon, UserCog, ClipboardList, School, Upload, ShieldCheck, BookOpen, GraduationCap, ScanLine } from "lucide-react";
 
@@ -63,15 +63,18 @@ export default function SidebarContainer() {
   const [roles, setRoles] = useState(null);
   const [userData, setUserData] = useState(null);
 
-  const { isAdmin, isSuperAdmin, isWalas, isGuru, isKesiswaan } = useMemo(() => {
-    if (!roles) return { isAdmin: false, isSuperAdmin: false, isWalas: false, isGuru: false, isKesiswaan: false };
+  const { isAdmin, isSuperAdmin, isWalas, isGuru, isKesiswaan, canAccessAttendance } = useMemo(() => {
+    if (!roles) return { isAdmin: false, isSuperAdmin: false, isWalas: false, isGuru: false, isKesiswaan: false, canAccessAttendance: false };
     const superAdminRoles = ["SUPERADMIN", "SUPER ADMIN", "SUPER_ADMIN"];
+    const guru = roles.includes("GURU");
+    const walas = roles.includes("WALAS");
     return {
       isAdmin: roles.includes("ADMIN"),
       isSuperAdmin: roles.some((r) => superAdminRoles.includes(r)),
-      isWalas: roles.includes("WALAS"),
-      isGuru: roles.includes("GURU"),
+      isWalas: walas,
+      isGuru: guru,
       isKesiswaan: roles.includes("KESISWAAN"),
+      canAccessAttendance: guru && !walas,
     };
   }, [roles]);
 
@@ -108,25 +111,7 @@ export default function SidebarContainer() {
       setLoading(true);
 
       try {
-        if (isAdmin || isSuperAdmin) {
-          const res = await kelas.list("limit=100");
-          if (res?.success && Array.isArray(res.data)) {
-            setClasses(normalizeKelas(res.data));
-          }
-        } else if (isWalas) {
-          const res = await kelas.list("limit=100");
-          if (res?.success && Array.isArray(res.data)) {
-            const guruId = userData.guru?.id;
-
-            const filtered = res.data.filter(
-              (c) =>
-                c.walas_id === guruId ||
-                c.wali_kelas_id === guruId ||
-                c.walas?.id === guruId
-            );
-            setClasses(normalizeKelas(filtered));
-          }
-        } else if (isGuru) {
+        if (canAccessAttendance) {
           const guruId = userData.guru?.id;
           const today = getTodayHari();
 
@@ -134,6 +119,8 @@ export default function SidebarContainer() {
           if (res?.success && Array.isArray(res.data)) {
             setClasses(normalizeKelas(res.data));
           }
+        } else {
+          setClasses([]);
         }
       } catch (e) {
         console.error("Gagal fetch kelas untuk sidebar:", e);
@@ -143,7 +130,7 @@ export default function SidebarContainer() {
     };
 
     fetchClasses();
-  }, [roles, userData]);
+  }, [roles, userData, canAccessAttendance]);
 
   useEffect(() => {
     const updateState = () => {
@@ -329,27 +316,7 @@ export default function SidebarContainer() {
         </a>
       )}
 
-      {/* Kehadiran langsung (tanpa dropdown) — ADMIN & SUPERADMIN */}
-      {(isAdmin || isSuperAdmin) && (
-        <a
-          href="/dashboard/kehadiran"
-          data-astro-prefetch
-          className={getLinkClass("/dashboard/kehadiran", false)}
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
-            />
-          </svg>
-          Daftar Kehadiran
-        </a>
-      )}
-
-
-      {/* ADMIN, SUPERADMIN & KESISWAAN */}
+      {/* SUPERADMIN & KESISWAAN */}
 
       {(isSuperAdmin || isKesiswaan) && (
         <a
@@ -417,7 +384,7 @@ export default function SidebarContainer() {
 
       {/* ---- WALAS & GURU: Dropdown kehadiran per kelas ---- */}
 
-      {(isWalas || isGuru) && (
+      {canAccessAttendance && (
         <div className="space-y-1">
           <button
             onClick={toggleAttendanceMenu}
@@ -471,9 +438,7 @@ export default function SidebarContainer() {
                 ))
               ) : (
                 <div className="px-4 py-2 text-xs text-gray-400 italic">
-                  {isWalas
-                    ? "Anda belum ditugaskan sebagai wali kelas."
-                    : "Tidak ada kelas untuk hari ini."}
+                  Tidak ada kelas untuk hari ini.
                 </div>
               )}
             </div>

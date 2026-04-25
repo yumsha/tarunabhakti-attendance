@@ -1,10 +1,53 @@
 import { useState, useEffect } from "react";
-import { kelas } from "../../lib/backendApi";
+import { jadwal } from "../../lib/backendApi";
 import PageHeader from "../layout/PageHeader.jsx";
 import Pagination from "../layout/Pagination.jsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import XLSX from "xlsx-js-style";
+
+const HARI_MAP = ["MINGGU", "SENIN", "SELASA", "RABU", "KAMIS", "JUMAT", "SABTU"];
+
+function getTodayHari() {
+  return HARI_MAP[new Date().getDay()];
+}
+
+function resolveRoles(userData) {
+  const fromRoles = Array.isArray(userData?.roles)
+    ? userData.roles.map((r) => (typeof r === "string" ? r : r?.name)).filter(Boolean)
+    : [];
+  const fromRoleNames = Array.isArray(userData?.role_names) ? userData.role_names : [];
+  const fromRoleObj = userData?.role?.name ? [userData.role.name] : [];
+  const fromRoleStr = typeof userData?.role === "string" ? [userData.role] : [];
+
+  return Array.from(
+    new Set(
+      [...fromRoles, ...fromRoleNames, ...fromRoleObj, ...fromRoleStr]
+        .filter(Boolean)
+        .map((item) => String(item).toUpperCase())
+        .map((item) => (item === "WALI KELAS" ? "WALAS" : item))
+    )
+  );
+}
+
+function normalizeKelas(items = []) {
+  return items
+    .map((item) => {
+      if (item?.kelas && typeof item.kelas === "object") {
+        return {
+          id: item.kelas.id,
+          kelas: item.kelas.kelas,
+          jurusan: item.kelas.jurusan || "",
+          walas: item.kelas.walas || null,
+          tahun: item.kelas.tahun || null,
+        };
+      }
+
+      return item;
+    })
+    .filter((item) => item?.id != null)
+    .filter((item, index, self) => index === self.findIndex((cls) => cls.id === item.id));
+}
 
 export default function DaftarKehadiranKelas() {
   const [classList, setClassList] = useState([]);
@@ -18,21 +61,17 @@ export default function DaftarKehadiranKelas() {
       try {
         const userStr = localStorage.getItem("user");
         const parsedUser = userStr ? JSON.parse(userStr) : null;
-        const role = (
-          parsedUser?.userRole?.[0]?.role?.name ||
-          parsedUser?.role?.name ||
-          parsedUser?.role ||
-          ""
-        ).toString().toUpperCase();
+        const roles = resolveRoles(parsedUser);
         const guruId = parsedUser?.guru?.id;
 
-        const res = await kelas.list("limit=100");
-        if (res.success && res.data) {
-          let data = res.data;
-          if (role === "WALAS" && guruId) {
-            data = data.filter((c) => c.walas_id === guruId);
-          }
-          setClassList(data);
+        if (!guruId || !roles.includes("GURU") || roles.includes("WALAS")) {
+          setClassList([]);
+          return;
+        }
+
+        const res = await jadwal.list(`hari=${getTodayHari()}&guru_id=${guruId}`);
+        if (res?.success && res.data) {
+          setClassList(normalizeKelas(res.data));
         }
       } catch (e) {
         console.error("Failed to fetch classes", e);
@@ -184,7 +223,7 @@ export default function DaftarKehadiranKelas() {
     <main className="flex-1 flex flex-col overflow-hidden bg-gray-50">
       <PageHeader
         title="Daftar Kehadiran Siswa"
-        subtitle="Pilih kelas untuk melihat rekap kehadiran"
+        subtitle="Pilih kelas yang Anda ajar untuk melihat kehadiran siswa"
       />
 
       <div className="flex-1 overflow-auto p-8">
@@ -299,7 +338,7 @@ export default function DaftarKehadiranKelas() {
                   <td colSpan="5" className="px-6 py-12 text-center text-gray-500 italic">
                     {searchTerm
                       ? `Tidak ada kelas yang cocok dengan "${searchTerm}".`
-                      : "Tidak ada kelas yang ditemukan."}
+                      : "Tidak ada kelas mengajar yang ditemukan untuk hari ini."}
                   </td>
                 </tr>
               )}
