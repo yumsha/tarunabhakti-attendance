@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Search,
   ClipboardList,
@@ -7,34 +7,48 @@ import {
   Printer,
 } from "lucide-react";
 import { detailAbsensi } from "../../lib/backendApi";
+import Pagination from "../layout/Pagination.jsx";
 
 function getTodayWIB() {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
 }
 
-// Helper: format status for export
 const getStatusText = (status) => {
   switch (status) {
-    case "TEPAT_WAKTU": return "Hadir";
-    case "TERLAMBAT":    return "Terlambat";
-    case "HADIR":       return "Hadir (Walas)";
-    case "IZIN":        return "Izin";
-    case "SAKIT":       return "Sakit";
-    case "ALPHA":       return "Alpha";
-    default:            return "Belum Hadir";
+    case "TEPAT_WAKTU":
+      return "Hadir";
+    case "TERLAMBAT":
+      return "Terlambat";
+    case "HADIR":
+      return "Hadir (Walas)";
+    case "IZIN":
+      return "Izin";
+    case "SAKIT":
+      return "Sakit";
+    case "ALPHA":
+      return "Alpha";
+    default:
+      return "Belum Hadir";
   }
 };
 
 const formatFileDate = (dateStr) => {
   const d = new Date(dateStr);
-  return d.toLocaleDateString("id-ID", {
-    day: "2-digit", month: "2-digit", year: "numeric",
-  }).replace(/\//g, "-");
+  return d
+    .toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    })
+    .replace(/\//g, "-");
 };
 
 const formatDateTitle = (dateStr) =>
   new Date(dateStr).toLocaleDateString("id-ID", {
-    weekday: "long", day: "numeric", month: "long", year: "numeric",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
   });
 
 const buildExportRows = (data) =>
@@ -45,30 +59,35 @@ const buildExportRows = (data) =>
     "Waktu Keluar": item.tap_out || "-",
     "Status Tap": getStatusText(item.status_tapin),
     "Status Absensi Walas": item.walasStatus || "-",
-    "Keterangan": item.walasKeterangan || "-",
+    Keterangan: item.walasKeterangan || "-",
   }));
 
-
 export default function WalasAttendanceTable({ kelasId, kelasName }) {
+  const pageSize = 10;
   const [attendanceData, setAttendanceData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filterDate, setFilterDate] = useState(getTodayWIB());
   const [searchQuery, setSearchQuery] = useState("");
   const [exporting, setExporting] = useState("");
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     const fetchAttendance = async () => {
-      if (!kelasId) { setAttendanceData([]); return; }
+      if (!kelasId) {
+        setAttendanceData([]);
+        return;
+      }
+
       setLoading(true);
       try {
-        // pratinjauWalas sebagai sumber utama — mencakup semua siswa kelas,
-        // termasuk yang belum tap, berikut status walas jika sudah diabsen manual
         const res = await detailAbsensi.pratinjauWalas(
           new URLSearchParams({ kelas_id: kelasId, tanggal: filterDate }).toString()
         );
-        if (!res?.success) { setAttendanceData([]); return; }
+        if (!res?.success) {
+          setAttendanceData([]);
+          return;
+        }
 
-        // Normalisasi ke shape yang dipakai tabel
         const normalized = (res.data?.daftar_siswa || []).map((s) => ({
           id: s.siswa_id,
           siswa: { nama: s.nama },
@@ -88,30 +107,70 @@ export default function WalasAttendanceTable({ kelasId, kelasName }) {
         setLoading(false);
       }
     };
+
     fetchAttendance();
   }, [kelasId, filterDate]);
 
-  const filteredData = attendanceData.filter((item) => {
-    if (!searchQuery.trim()) return true;
-    return (item.siswa?.nama || "").toLowerCase().includes(searchQuery.toLowerCase());
-  });
+  const filteredData = useMemo(
+    () =>
+      attendanceData.filter((item) => {
+        if (!searchQuery.trim()) return true;
+        return (item.siswa?.nama || "")
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase());
+      }),
+    [attendanceData, searchQuery]
+  );
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
+  const pagedData = useMemo(
+    () => filteredData.slice((page - 1) * pageSize, page * pageSize),
+    [filteredData, page]
+  );
 
-  // Badge untuk kolom Status (gabungan tap + walas)
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, filterDate, kelasId, attendanceData.length]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
   const getStatusBadge = (item) => {
     const walasStatus = item.walasStatus;
 
-    // Jika walas sudah absen manual, tampilkan status walas
     if (item.sudahDiabsenWalas && walasStatus) {
       const map = {
-        HADIR:  { bg: "bg-emerald-100", text: "text-emerald-700", dot: "bg-emerald-500", label: "Hadir" },
-        IZIN:   { bg: "bg-blue-100",    text: "text-blue-700",    dot: "bg-blue-500",    label: "Izin" },
-        SAKIT:  { bg: "bg-purple-100",  text: "text-purple-700",  dot: "bg-purple-500",  label: "Sakit" },
-        ALPHA:  { bg: "bg-red-100",     text: "text-red-700",     dot: "bg-red-500",     label: "Alpha" },
+        HADIR: {
+          bg: "bg-emerald-100",
+          text: "text-emerald-700",
+          dot: "bg-emerald-500",
+          label: "Hadir",
+        },
+        IZIN: {
+          bg: "bg-blue-100",
+          text: "text-blue-700",
+          dot: "bg-blue-500",
+          label: "Izin",
+        },
+        SAKIT: {
+          bg: "bg-purple-100",
+          text: "text-purple-700",
+          dot: "bg-purple-500",
+          label: "Sakit",
+        },
+        ALPHA: {
+          bg: "bg-red-100",
+          text: "text-red-700",
+          dot: "bg-red-500",
+          label: "Alpha",
+        },
       };
       const s = map[walasStatus] || map.ALPHA;
       return (
         <div className="flex flex-col gap-1">
-          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${s.bg} ${s.text}`}>
+          <span
+            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${s.bg} ${s.text}`}
+          >
             <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`}></span>
             {s.label}
           </span>
@@ -119,7 +178,6 @@ export default function WalasAttendanceTable({ kelasId, kelasName }) {
       );
     }
 
-    // Fallback ke status tap in
     switch (item.status_tapin) {
       case "TEPAT_WAKTU":
         return (
@@ -145,7 +203,6 @@ export default function WalasAttendanceTable({ kelasId, kelasName }) {
     }
   };
 
-  // Export to Excel
   const handleExportExcel = async () => {
     if (filteredData.length === 0) return;
     setExporting("excel");
@@ -153,10 +210,21 @@ export default function WalasAttendanceTable({ kelasId, kelasName }) {
       const XLSX = await import("xlsx");
       const rows = buildExportRows(filteredData);
       const ws = XLSX.utils.json_to_sheet(rows);
-      ws["!cols"] = [{ wch: 5 }, { wch: 30 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 22 }, { wch: 25 }];
+      ws["!cols"] = [
+        { wch: 5 },
+        { wch: 30 },
+        { wch: 18 },
+        { wch: 18 },
+        { wch: 18 },
+        { wch: 22 },
+        { wch: 25 },
+      ];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Kehadiran");
-      XLSX.writeFile(wb, `Kehadiran_${kelasName || "Kelas"}_${formatFileDate(filterDate)}.xlsx`);
+      XLSX.writeFile(
+        wb,
+        `Kehadiran_${kelasName || "Kelas"}_${formatFileDate(filterDate)}.xlsx`
+      );
     } catch (err) {
       console.error("Excel export failed:", err);
     } finally {
@@ -164,7 +232,6 @@ export default function WalasAttendanceTable({ kelasId, kelasName }) {
     }
   };
 
-  // Export to PDF
   const handleExportPDF = async () => {
     if (filteredData.length === 0) return;
     setExporting("pdf");
@@ -173,15 +240,28 @@ export default function WalasAttendanceTable({ kelasId, kelasName }) {
       const { default: autoTable } = await import("jspdf-autotable");
       const doc = new jsPDF();
 
-      doc.setFontSize(16); doc.setFont("helvetica", "bold");
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
       doc.text(`Daftar Kehadiran ${kelasName || ""}`, 14, 20);
-      doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.setTextColor(100);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(100);
       doc.text(formatDateTitle(filterDate), 14, 28);
       doc.text(`Total: ${filteredData.length} siswa`, 14, 34);
 
       autoTable(doc, {
         startY: 40,
-        head: [["No", "Nama Siswa", "Waktu Masuk", "Waktu Keluar", "Status Tap", "Status Walas", "Keterangan"]],
+        head: [
+          [
+            "No",
+            "Nama Siswa",
+            "Waktu Masuk",
+            "Waktu Keluar",
+            "Status Tap",
+            "Status Walas",
+            "Keterangan",
+          ],
+        ],
         body: filteredData.map((item, i) => [
           i + 1,
           item.siswa?.nama || "-",
@@ -192,7 +272,12 @@ export default function WalasAttendanceTable({ kelasId, kelasName }) {
           item.walasKeterangan || "-",
         ]),
         theme: "grid",
-        headStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: "bold", fontSize: 8 },
+        headStyles: {
+          fillColor: [59, 130, 246],
+          textColor: 255,
+          fontStyle: "bold",
+          fontSize: 8,
+        },
         bodyStyles: { fontSize: 8 },
         alternateRowStyles: { fillColor: [245, 247, 250] },
         styles: { cellPadding: 3 },
@@ -200,13 +285,21 @@ export default function WalasAttendanceTable({ kelasId, kelasName }) {
       });
 
       const pageCount = doc.internal.getNumberOfPages();
-      for (let i = 1; i <= pageCount; i++) {
+      for (let i = 1; i <= pageCount; i += 1) {
         doc.setPage(i);
-        doc.setFontSize(8); doc.setTextColor(150);
-        doc.text(`Halaman ${i} dari ${pageCount}`, doc.internal.pageSize.getWidth() - 14, doc.internal.pageSize.getHeight() - 10, { align: "right" });
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text(
+          `Halaman ${i} dari ${pageCount}`,
+          doc.internal.pageSize.getWidth() - 14,
+          doc.internal.pageSize.getHeight() - 10,
+          { align: "right" }
+        );
       }
 
-      doc.save(`Kehadiran_${kelasName || "Kelas"}_${formatFileDate(filterDate)}.pdf`);
+      doc.save(
+        `Kehadiran_${kelasName || "Kelas"}_${formatFileDate(filterDate)}.pdf`
+      );
     } catch (err) {
       console.error("PDF export failed:", err);
     } finally {
@@ -214,10 +307,11 @@ export default function WalasAttendanceTable({ kelasId, kelasName }) {
     }
   };
 
-  // Print
   const handlePrint = () => {
     if (filteredData.length === 0) return;
-    const rows = filteredData.map((item, i) => `
+    const rows = filteredData
+      .map(
+        (item, i) => `
       <tr>
         <td style="text-align:center;padding:8px;border:1px solid #e5e7eb">${i + 1}</td>
         <td style="padding:8px;border:1px solid #e5e7eb">${item.siswa?.nama || "-"}</td>
@@ -226,7 +320,9 @@ export default function WalasAttendanceTable({ kelasId, kelasName }) {
         <td style="text-align:center;padding:8px;border:1px solid #e5e7eb">${getStatusText(item.status_tapin)}</td>
         <td style="text-align:center;padding:8px;border:1px solid #e5e7eb">${item.walasStatus || "-"}</td>
         <td style="padding:8px;border:1px solid #e5e7eb">${item.walasKeterangan || "-"}</td>
-      </tr>`).join("");
+      </tr>`
+      )
+      .join("");
 
     const html = `
       <html><head><title>Daftar Kehadiran ${kelasName || ""}</title>
@@ -243,7 +339,7 @@ export default function WalasAttendanceTable({ kelasId, kelasName }) {
       </style></head>
       <body>
         <h1>Daftar Kehadiran ${kelasName || ""}</h1>
-        <p class="subtitle">${formatDateTitle(filterDate)} — Total: ${filteredData.length} siswa</p>
+        <p class="subtitle">${formatDateTitle(filterDate)} - Total: ${filteredData.length} siswa</p>
         <table>
           <thead><tr>
             <th style="width:40px">No</th><th>Nama Siswa</th>
@@ -277,45 +373,66 @@ export default function WalasAttendanceTable({ kelasId, kelasName }) {
 
           <div className="flex items-center gap-2 flex-wrap">
             <div className="flex items-center gap-1 mr-1">
-              <button onClick={handleExportExcel} disabled={filteredData.length === 0 || exporting === "excel"}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-emerald-800 bg-emerald-100 border border-emerald-200 rounded-lg hover:bg-emerald-200 disabled:opacity-40 disabled:cursor-not-allowed transition">
+              <button
+                onClick={handleExportExcel}
+                disabled={filteredData.length === 0 || exporting === "excel"}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-emerald-800 bg-emerald-100 border border-emerald-200 rounded-lg hover:bg-emerald-200 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              >
                 <FileSpreadsheet className="w-3.5 h-3.5" /> Excel
               </button>
-              <button onClick={handleExportPDF} disabled={filteredData.length === 0 || exporting === "pdf"}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed transition">
+              <button
+                onClick={handleExportPDF}
+                disabled={filteredData.length === 0 || exporting === "pdf"}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              >
                 <FileText className="w-3.5 h-3.5" /> PDF
               </button>
-              <button onClick={handlePrint} disabled={filteredData.length === 0}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed transition">
+              <button
+                onClick={handlePrint}
+                disabled={filteredData.length === 0}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              >
                 <Printer className="w-3.5 h-3.5" /> Print
               </button>
             </div>
 
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input type="text" placeholder="Cari nama ..." value={searchQuery}
+              <input
+                type="text"
+                placeholder="Cari nama ..."
+                value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-48" />
+                className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-48"
+              />
             </div>
 
             <div className="flex items-center gap-2 bg-gray-50 rounded-xl border border-gray-200 px-3 py-2">
-              <input type="date" className="outline-none text-sm text-gray-700 bg-transparent"
-                value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
+              <input
+                type="date"
+                className="outline-none text-sm text-gray-700 bg-transparent"
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+              />
             </div>
           </div>
         </div>
       </div>
 
-      {/* table */}
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="bg-gray-50/80">
-              {["No", "Nama Siswa", "Waktu Masuk", "Waktu Keluar", "Status"].map((h) => (
-                <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  {h}
-                </th>
-              ))}
+              {["No", "Nama Siswa", "Waktu Masuk", "Waktu Keluar", "Status"].map(
+                (h) => (
+                  <th
+                    key={h}
+                    className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                  >
+                    {h}
+                  </th>
+                )
+              )}
               <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Keterangan Walas
               </th>
@@ -331,14 +448,25 @@ export default function WalasAttendanceTable({ kelasId, kelasName }) {
                 </tr>
               ))
             ) : filteredData.length > 0 ? (
-              filteredData.map((item, index) => (
-                <tr key={item.id} className="hover:bg-blue-50/30 transition-colors duration-150">
-                  <td className="px-6 py-4 text-sm text-gray-500 font-medium">{index + 1}</td>
-                  <td className="px-6 py-4">
-                    <p className="text-sm font-medium text-gray-900">{item.siswa?.nama || "-"}</p>
+              pagedData.map((item, index) => (
+                <tr
+                  key={item.id}
+                  className="hover:bg-blue-50/30 transition-colors duration-150"
+                >
+                  <td className="px-6 py-4 text-sm text-gray-500 font-medium">
+                    {(page - 1) * pageSize + index + 1}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{item.tap_in || "-"}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{item.tap_out || "-"}</td>
+                  <td className="px-6 py-4">
+                    <p className="text-sm font-medium text-gray-900">
+                      {item.siswa?.nama || "-"}
+                    </p>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-600">
+                    {item.tap_in || "-"}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-600">
+                    {item.tap_out || "-"}
+                  </td>
                   <td className="px-6 py-4">{getStatusBadge(item)}</td>
                   <td className="px-6 py-4 text-sm text-gray-500 italic">
                     {item.walasKeterangan || "-"}
@@ -350,7 +478,9 @@ export default function WalasAttendanceTable({ kelasId, kelasName }) {
                 <td colSpan="6" className="px-6 py-12 text-center">
                   <div className="flex flex-col items-center gap-2">
                     <ClipboardList className="w-10 h-10 text-gray-300" />
-                    <p className="text-gray-500 text-sm">Belum ada data kehadiran untuk tanggal ini.</p>
+                    <p className="text-gray-500 text-sm">
+                      Belum ada data kehadiran untuk tanggal ini.
+                    </p>
                   </div>
                 </td>
               </tr>
@@ -360,9 +490,16 @@ export default function WalasAttendanceTable({ kelasId, kelasName }) {
       </div>
 
       {filteredData.length > 0 && (
-        <div className="px-6 py-3 bg-gray-50/50 border-t border-gray-100 text-xs text-gray-500 text-center">
-          Menampilkan {filteredData.length} dari {attendanceData.length} data
-        </div>
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          summary={
+            searchQuery.trim()
+              ? `Halaman ${page} dari ${totalPages} (Menampilkan ${pagedData.length} hasil pencarian dari ${filteredData.length} data, total ${attendanceData.length} siswa)`
+              : `Halaman ${page} dari ${totalPages} (Menampilkan ${pagedData.length} dari ${attendanceData.length} siswa)`
+          }
+        />
       )}
     </div>
   );

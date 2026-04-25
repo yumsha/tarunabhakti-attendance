@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { CheckCircle, Clock, XCircle, Users } from "lucide-react";
-import { absensiSiswa } from "../../lib/backendApi";
+import { detailAbsensi } from "../../lib/backendApi";
+import { buildWalasAttendanceSummary } from "../../lib/walasAttendanceSummary";
 import InfoStatCard from "../layout/InfoStatCard";
 
 function getTodayWIB() {
@@ -12,6 +13,7 @@ export default function WalasStudentStats({ kelasId, totalSiswa = 0 }) {
   const [stats, setStats] = useState({
     tepat_waktu: 0,
     terlambat: 0,
+    manual_hadir: 0,
     belum_hadir: 0,
     totalStudents: 0,
   });
@@ -23,27 +25,25 @@ export default function WalasStudentStats({ kelasId, totalSiswa = 0 }) {
       setLoading(true);
       try {
         const today = getTodayWIB();
-        const res = await absensiSiswa.laporanHarian(
+        const res = await detailAbsensi.pratinjauWalas(
           `tanggal=${today}&kelas_id=${kelasId}`
         );
 
-        if (res.success && res.summary) {
-          const tepatWaktu = res.summary.tepat_waktu || 0;
-          const terlambat = res.summary.TERLAMBAT || 0;
-          const hadirTotal = tepatWaktu + terlambat;
-          const total = totalSiswa > 0 ? totalSiswa : res.summary.total || 0;
-          const belumHadir = Math.max(0, total - hadirTotal);
+        if (res?.success && res?.data) {
+          const summary = buildWalasAttendanceSummary(res.data, totalSiswa);
 
           setStats({
-            tepat_waktu: tepatWaktu,
-            terlambat: terlambat,
-            belum_hadir: belumHadir,
-            totalStudents: total,
+            tepat_waktu: summary.tepat_waktu,
+            terlambat: summary.terlambat,
+            manual_hadir: summary.manual_hadir,
+            belum_hadir: summary.belum_hadir,
+            totalStudents: summary.total,
           });
         } else {
           setStats({
             tepat_waktu: 0,
             terlambat: 0,
+            manual_hadir: 0,
             belum_hadir: totalSiswa,
             totalStudents: totalSiswa,
           });
@@ -53,6 +53,7 @@ export default function WalasStudentStats({ kelasId, totalSiswa = 0 }) {
         setStats({
           tepat_waktu: 0,
           terlambat: 0,
+          manual_hadir: 0,
           belum_hadir: totalSiswa,
           totalStudents: totalSiswa,
         });
@@ -66,7 +67,7 @@ export default function WalasStudentStats({ kelasId, totalSiswa = 0 }) {
 
   const cards = [
     {
-      label: "Hadir Tepat Waktu",
+      label: "Tepat Waktu",
       value: stats.tepat_waktu,
       helper: "Siswa hadir sesuai jadwal hari ini",
       tone: "emerald",
@@ -80,9 +81,16 @@ export default function WalasStudentStats({ kelasId, totalSiswa = 0 }) {
       icon: <Clock className="w-6 h-6" />,
     },
     {
+      label: "Hadir Manual",
+      value: stats.manual_hadir,
+      helper: "Dicatat hadir oleh walas tanpa tap in",
+      tone: "violet",
+      icon: <CheckCircle className="w-6 h-6" />,
+    },
+    {
       label: "Belum Hadir",
       value: stats.belum_hadir,
-      helper: "Belum ada catatan kehadiran masuk",
+      helper: "Belum tercatat hadir, termasuk non-hadir",
       tone: "red",
       icon: <XCircle className="w-6 h-6" />,
     },
@@ -97,8 +105,8 @@ export default function WalasStudentStats({ kelasId, totalSiswa = 0 }) {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {[...Array(4)].map((_, i) => (
+      <div className="grid grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
+        {[...Array(5)].map((_, i) => (
           <InfoStatCard
             key={i}
             label="Memuat"
@@ -114,7 +122,7 @@ export default function WalasStudentStats({ kelasId, totalSiswa = 0 }) {
   }
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div className="grid grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
       {cards.map((card, index) => (
         <InfoStatCard
           key={index}

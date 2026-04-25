@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import PageHeader from "../layout/PageHeader.jsx";
 import InfoStatCard from "../layout/InfoStatCard";
+import Pagination from "../layout/Pagination.jsx";
 import { kelas, detailAbsensi } from "../../lib/backendApi";
 
 const inputClass =
@@ -33,10 +34,6 @@ function normalizeStatus(s) {
   return STATUS_OPTIONS.some((o) => o.value === v) ? v : "ALPHA";
 }
 
-// Tentukan status awal: 
-// - Sudah diabsen sebelumnya → pakai status yang ada
-// - Sudah tap in → HADIR
-// - Belum tap in → ALPHA (walas bisa ubah manual)
 function resolveDefaultStatus(siswa) {
   if (siswa.status_saat_ini) return normalizeStatus(siswa.status_saat_ini);
   if (siswa.tap_in) return "HADIR";
@@ -44,10 +41,12 @@ function resolveDefaultStatus(siswa) {
 }
 
 export default function WalasDetailAbsensi() {
+  const pageSize = 10;
   const [loadingKelas, setLoadingKelas] = useState(true);
   const [kelasList, setKelasList] = useState([]);
   const [kelasId, setKelasId] = useState("");
   const [tanggal, setTanggal] = useState(getToday());
+  const [page, setPage] = useState(1);
 
   const [loadingData, setLoadingData] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -66,7 +65,6 @@ export default function WalasDetailAbsensi() {
     }
   }, []);
 
-  // Fetch kelas milik walas
   useEffect(() => {
     const fetchKelas = async () => {
       setLoadingKelas(true);
@@ -95,6 +93,7 @@ export default function WalasDetailAbsensi() {
         setLoadingKelas(false);
       }
     };
+
     fetchKelas();
   }, [walasId]);
 
@@ -110,10 +109,13 @@ export default function WalasDetailAbsensi() {
     setLoadingData(true);
     setError("");
     setSuccess("");
+
     try {
       const params = new URLSearchParams({ kelas_id: String(kelasId), tanggal });
       const res = await detailAbsensi.pratinjauWalas(params.toString());
-      if (!res?.success) throw new Error(res?.message || "Gagal memuat detail absensi");
+      if (!res?.success) {
+        throw new Error(res?.message || "Gagal memuat detail absensi");
+      }
 
       const payload = res.data;
       setData(payload);
@@ -132,7 +134,6 @@ export default function WalasDetailAbsensi() {
             sudah_tap: !!s.tap_in,
             sudah_diabsen: !!s.sudah_diabsen,
             detail_id: s.detail_id,
-            // status awal dari DB (null jika belum pernah diabsen walas)
             status_awal: defaultStatus,
             status: defaultStatus,
             keterangan: s.keterangan || "",
@@ -155,17 +156,29 @@ export default function WalasDetailAbsensi() {
 
   const summary = data?.summary || null;
   const dirtyCount = useMemo(() => rows.filter((r) => r.dirty).length, [rows]);
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const pagedRows = useMemo(
+    () => rows.slice((page - 1) * pageSize, page * pageSize),
+    [rows, page]
+  );
 
-  // Hitung siswa belum tap tapi diberi Hadir oleh walas
+  useEffect(() => {
+    setPage(1);
+  }, [kelasId, tanggal, rows.length]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
   const manualHadirCount = useMemo(
     () => rows.filter((r) => !r.sudah_tap && r.status === "HADIR").length,
     [rows]
   );
 
-  const handleChangeRow = (siswa_id, patch) => {
+  const handleChangeRow = (siswaId, patch) => {
     setRows((prev) =>
       prev.map((r) => {
-        if (r.siswa_id !== siswa_id) return r;
+        if (r.siswa_id !== siswaId) return r;
         const next = { ...r, ...patch };
         next.dirty =
           next.status !== next.status_awal ||
@@ -178,9 +191,18 @@ export default function WalasDetailAbsensi() {
   const handleSave = async () => {
     setError("");
     setSuccess("");
-    if (!walasId) { setError("Walas ID tidak ditemukan (user.guru.id)"); return; }
-    if (!kelasId) { setError("Kelas belum dipilih"); return; }
-    if (!tanggal) { setError("Tanggal belum dipilih"); return; }
+    if (!walasId) {
+      setError("Walas ID tidak ditemukan (user.guru.id)");
+      return;
+    }
+    if (!kelasId) {
+      setError("Kelas belum dipilih");
+      return;
+    }
+    if (!tanggal) {
+      setError("Tanggal belum dipilih");
+      return;
+    }
 
     const payloadRows = rows
       .filter((r) => r.dirty)
@@ -188,7 +210,7 @@ export default function WalasDetailAbsensi() {
         siswa_id: r.siswa_id,
         status: normalizeStatus(r.status),
         keterangan: r.keterangan?.trim() ? r.keterangan.trim() : null,
-    }));
+      }));
 
     setSaving(true);
     try {
@@ -199,7 +221,14 @@ export default function WalasDetailAbsensi() {
         data_absensi: payloadRows,
       });
       if (!res?.success) throw new Error(res?.message || "Gagal menyimpan absensi");
-      setSuccess(`Absensi berhasil disimpan${manualHadirCount > 0 ? ` (${manualHadirCount} siswa dihadirkan manual oleh walas)` : ""}`);
+
+      setSuccess(
+        `Absensi berhasil disimpan${
+          manualHadirCount > 0
+            ? ` (${manualHadirCount} siswa dihadirkan manual oleh walas)`
+            : ""
+        }`
+      );
       await fetchDetail();
     } catch (e) {
       setError(e?.message || "Gagal menyimpan absensi");
@@ -208,7 +237,6 @@ export default function WalasDetailAbsensi() {
     }
   };
 
-  // Badge status tap in
   const getTapBadge = (row) => {
     if (row.sudah_tap) {
       return (
@@ -217,50 +245,49 @@ export default function WalasDetailAbsensi() {
         </span>
       );
     }
+
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
-        —
+        -
       </span>
     );
   };
 
   return (
     <main className="flex-1 flex flex-col overflow-hidden bg-gray-50">
-      <PageHeader 
+      <PageHeader
         title="Detail Absensi"
-        subtitle="Detail absensi seluruh siswa wali kelas"  
+        subtitle="Detail absensi seluruh siswa wali kelas"
       />
 
       <div className="flex-1 overflow-auto p-8 space-y-6">
-
-        {/* Alert banner */}
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 rounded-2xl p-4 text-sm">
             {error}
           </div>
         )}
+
         {success && (
           <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-2xl p-4 text-sm">
             {success}
           </div>
         )}
 
-        {/* Info banner: ada siswa belum tap yang diberi Hadir */}
         {manualHadirCount > 0 && (
           <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl p-4 text-sm flex items-start gap-2">
             <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-amber-500" />
             <span>
-              <strong>{manualHadirCount} siswa</strong> belum tap in tetapi akan dicatat{" "}
-              <strong>Hadir</strong> oleh walas. Pastikan sudah sesuai sebelum menyimpan.
+              <strong>{manualHadirCount} siswa</strong> belum tap in tetapi akan
+              dicatat <strong>Hadir</strong> oleh walas. Pastikan sudah sesuai
+              sebelum menyimpan.
             </span>
           </div>
         )}
 
-        {/* Summary cards walas */}
         <div className="w-full grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
           <InfoStatCard
             label="Kelas"
-            value={selectedKelasName || "—"}
+            value={selectedKelasName || "-"}
             helper="Kelas yang sedang dikelola walas"
             icon={<School className="h-5 w-5" />}
             tone="blue"
@@ -276,7 +303,7 @@ export default function WalasDetailAbsensi() {
           />
           <InfoStatCard
             label="Sudah Tap"
-            value={summary?.sudah_tap ?? "—"}
+            value={summary?.sudah_tap ?? "-"}
             helper="Siswa yang sudah tercatat tap masuk"
             icon={<ScanLine className="h-5 w-5" />}
             tone="emerald"
@@ -284,7 +311,7 @@ export default function WalasDetailAbsensi() {
           />
           <InfoStatCard
             label="Belum Tap"
-            value={summary?.belum_tap ?? "—"}
+            value={summary?.belum_tap ?? "-"}
             helper="Masih perlu ditindaklanjuti walas"
             icon={<UserX className="h-5 w-5" />}
             tone="amber"
@@ -292,44 +319,21 @@ export default function WalasDetailAbsensi() {
           />
           <InfoStatCard
             label="Tanpa RFID"
-            value={summary?.tanpa_rfid ?? "—"}
+            value={summary?.tanpa_rfid ?? "-"}
             helper="Perlu perhatian pada perangkat kartu"
             icon={<IdCard className="h-5 w-5" />}
             tone="violet"
             loading={loadingData}
           />
         </div>
-        <div className="hidden w-full grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
-          <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
-            <p className="text-xs text-gray-500">Kelas</p>
-            <p className="mt-1 text-sm font-semibold text-gray-900">{selectedKelasName || "—"}</p>
-          </div>
-          <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
-            <p className="text-xs text-gray-500">Total Siswa</p>
-            <p className="mt-1 text-sm font-semibold text-gray-900">{summary?.total ?? rows.length}</p>
-          </div>
-          <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
-            <p className="text-xs text-gray-500">Sudah Tap</p>
-            <p className="mt-1 text-sm font-semibold text-emerald-600">{summary?.sudah_tap ?? "—"}</p>
-          </div>
-          <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
-            <p className="text-xs text-gray-500">Belum Tap</p>
-            <p className="mt-1 text-sm font-semibold text-gray-900">{summary?.belum_tap ?? "—"}</p>
-          </div>
-          <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
-            <p className="text-xs text-gray-500">Tanpa RFID</p>
-            <p className="mt-1 text-sm font-semibold text-gray-900">{summary?.tanpa_rfid ?? "—"}</p>
-          </div>
-        </div>
 
-        {/* Table */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-
-          {/* Table header */}
           <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center gap-2 flex-wrap">
             <div className="flex items-center gap-2">
               <ClipboardList className="w-4 h-4 text-gray-400" />
-              <p className="text-sm font-semibold text-gray-900">Detail Absensi Harian</p>
+              <p className="text-sm font-semibold text-gray-900">
+                Detail Absensi Harian
+              </p>
               <p className="text-sm text-gray-500 ml-2">
                 {rows.length} siswa
                 {dirtyCount > 0 ? ` • ${dirtyCount} perubahan` : ""}
@@ -343,9 +347,9 @@ export default function WalasDetailAbsensi() {
                   className={`${inputClass} w-44`}
                   value={tanggal}
                   onChange={(e) => setTanggal(e.target.value)}
-                />
+                />                
               </div>
-              
+
               <div>
                 <button
                   onClick={handleSave}
@@ -363,21 +367,27 @@ export default function WalasDetailAbsensi() {
             </div>
           </div>
 
-          {/* Table body */}
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50/80">
-                  {["No", "Nama", "Tap In", "Tap Out", "RFID", "Status Tap", "Status Absensi", "Keterangan"].map(
-                    (h) => (
-                      <th
-                        key={h}
-                        className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap"
-                      >
-                        {h}
-                      </th>
-                    )
-                  )}
+                  {[
+                    "No",
+                    "Nama",
+                    "Tap In",
+                    "Tap Out",
+                    "RFID",
+                    "Status Tap",
+                    "Status Absensi",
+                    "Keterangan",
+                  ].map((h) => (
+                    <th
+                      key={h}
+                      className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap"
+                    >
+                      {h}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -390,31 +400,32 @@ export default function WalasDetailAbsensi() {
                     </tr>
                   ))
                 ) : rows.length > 0 ? (
-                  rows.map((r, idx) => {
-                    // Highlight baris: belum tap tapi status Hadir → kuning
+                  pagedRows.map((r, idx) => {
                     const isManualHadir = !r.sudah_tap && r.status === "HADIR";
                     const rowClass = isManualHadir
                       ? "bg-amber-50/60"
                       : r.dirty
-                      ? "bg-blue-50/30"
-                      : "hover:bg-gray-50/60";
+                        ? "bg-blue-50/30"
+                        : "hover:bg-gray-50/60";
 
                     return (
                       <tr key={r.siswa_id} className={`transition-colors ${rowClass}`}>
-                        <td className="px-6 py-4 text-sm text-gray-500 font-medium ">{idx + 1}</td>
-
-                        {/* Nama */}
+                        <td className="px-6 py-4 text-sm text-gray-500 font-medium">
+                          {(page - 1) * pageSize + idx + 1}
+                        </td>
                         <td className="px-6 py-4">
-                          <p className="text-sm font-medium text-gray-900">{r.nama}</p>
+                          <p className="text-sm font-medium text-gray-900">
+                            {r.nama}
+                          </p>
                           <div className="flex items-center gap-1.5 mt-0.5">
-                            {/* Tag belum tap */}
                             {!r.sudah_tap && (
                               <span className="text-xs text-gray-400">Belum tap</span>
                             )}
                             {!r.punya_rfid && (
-                              <span className="text-xs text-orange-400">• Tanpa RFID</span>
+                              <span className="text-xs text-orange-400">
+                                • Tanpa RFID
+                              </span>
                             )}
-                            {/* Tag manual hadir (peringatan) */}
                             {isManualHadir && (
                               <span className="inline-flex items-center gap-0.5 text-xs font-medium text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-full">
                                 <AlertCircle className="w-3 h-3" />
@@ -423,13 +434,16 @@ export default function WalasDetailAbsensi() {
                             )}
                           </div>
                         </td>
-
-                        <td className="px-6 py-4 text-sm text-gray-600">{r.tap_in || "—"}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{r.tap_out || "—"}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{r.punya_rfid ? "Ada" : "Tidak"}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600">
+                          {r.tap_in || "-"}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-600">
+                          {r.tap_out || "-"}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-600">
+                          {r.punya_rfid ? "Ada" : "Tidak"}
+                        </td>
                         <td className="px-6 py-4">{getTapBadge(r)}</td>
-
-                        {/* Status Absensi dropdown */}
                         <td className="px-6 py-4">
                           <select
                             className={`${inputClass} w-36 ${
@@ -449,8 +463,6 @@ export default function WalasDetailAbsensi() {
                             ))}
                           </select>
                         </td>
-
-                        {/* Keterangan */}
                         <td className="px-6 py-4">
                           <input
                             className={`${inputClass} w-56 ${
@@ -460,9 +472,13 @@ export default function WalasDetailAbsensi() {
                             }`}
                             value={r.keterangan}
                             onChange={(e) =>
-                              handleChangeRow(r.siswa_id, { keterangan: e.target.value })
+                              handleChangeRow(r.siswa_id, {
+                                keterangan: e.target.value,
+                              })
                             }
-                            placeholder={isManualHadir ? "Alasan hadir manual..." : "Opsional"}
+                            placeholder={
+                              isManualHadir ? "Alasan hadir manual..." : "Opsional"
+                            }
                           />
                         </td>
                       </tr>
@@ -481,6 +497,15 @@ export default function WalasDetailAbsensi() {
               </tbody>
             </table>
           </div>
+
+          {!loadingData && rows.length > 0 && (
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              summary={`Halaman ${page} dari ${totalPages} (Menampilkan ${pagedRows.length} dari ${rows.length} siswa)`}
+            />
+          )}
         </div>
       </div>
     </main>

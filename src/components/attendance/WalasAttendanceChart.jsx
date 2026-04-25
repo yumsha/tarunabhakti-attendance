@@ -1,53 +1,18 @@
 import { useState, useEffect, useRef } from "react";
 import Chart from "chart.js/auto";
-import { absensiSiswa } from "../../lib/backendApi";
-
-function getTodayWIB() {
-  // YYYY-MM-DD in Asia/Jakarta timezone
-  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
-}
+import { detailAbsensi } from "../../lib/backendApi";
+import { buildWalasAttendanceSummary } from "../../lib/walasAttendanceSummary";
 
 function getDateWIB(date) {
   return date.toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
 }
 
 export default function WalasAttendanceChart({ kelasId, totalSiswa = 0 }) {
-  const doughnutRef = useRef(null);
   const barRef = useRef(null);
-  const doughnutChart = useRef(null);
   const barChart = useRef(null);
 
-  const [todayData, setTodayData] = useState({ tepat_waktu: 0, terlambat: 0, belum: 0 });
   const [weeklyData, setWeeklyData] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  // Fetch today's data for doughnut
-  useEffect(() => {
-    const fetchToday = async () => {
-      if (!kelasId) return;
-      try {
-        const today = getTodayWIB();
-        const res = await absensiSiswa.laporanHarian(`tanggal=${today}&kelas_id=${kelasId}`);
-        if (res.success && res.summary) {
-          const tepatWaktu = res.summary.tepat_waktu || 0;
-          const terlambat = res.summary.TERLAMBAT || 0;
-          const hadirTotal = tepatWaktu + terlambat;
-          const total = totalSiswa > 0 ? totalSiswa : res.summary.total || 0;
-          const belum = Math.max(0, total - hadirTotal);
-          setTodayData({
-            tepat_waktu: tepatWaktu,
-            terlambat: terlambat,
-            belum: belum,
-          });
-        } else {
-          setTodayData({ tepat_waktu: 0, terlambat: 0, belum: totalSiswa });
-        }
-      } catch (err) {
-        console.error("Failed to fetch today attendance for chart:", err);
-      }
-    };
-    fetchToday();
-  }, [kelasId, totalSiswa]);
 
   // Fetch last 7 days for bar chart
   useEffect(() => {
@@ -65,18 +30,29 @@ export default function WalasAttendanceChart({ kelasId, totalSiswa = 0 }) {
         const results = await Promise.all(
           days.map(async (date) => {
             try {
-              const res = await absensiSiswa.laporanHarian(`tanggal=${date}&kelas_id=${kelasId}`);
-              if (res.success && res.summary) {
+              const res = await detailAbsensi.pratinjauWalas(
+                `tanggal=${date}&kelas_id=${kelasId}`
+              );
+              if (res?.success && res?.data) {
+                const summary = buildWalasAttendanceSummary(res.data, totalSiswa);
                 return {
                   date,
-                  hadir: (res.summary.tepat_waktu || 0) + (res.summary.TERLAMBAT || 0),
-                  belum: res.summary.belum_tap_in || 0,
+                  tepat_waktu: summary.tepat_waktu,
+                  terlambat: summary.terlambat,
+                  manual_hadir: summary.manual_hadir,
+                  belum: summary.belum_hadir,
                 };
               }
             } catch {
               // ignore individual day errors
             }
-            return { date, hadir: 0, belum: 0 };
+            return {
+              date,
+              tepat_waktu: 0,
+              terlambat: 0,
+              manual_hadir: 0,
+              belum: totalSiswa,
+            };
           })
         );
 
@@ -88,61 +64,7 @@ export default function WalasAttendanceChart({ kelasId, totalSiswa = 0 }) {
       }
     };
     fetchWeekly();
-  }, [kelasId]);
-
-  // Render doughnut chart
-  useEffect(() => {
-    if (!doughnutRef.current) return;
-    const ctx = doughnutRef.current.getContext("2d");
-
-    if (doughnutChart.current) doughnutChart.current.destroy();
-
-    const total = todayData.tepat_waktu + todayData.terlambat + todayData.belum;
-
-    doughnutChart.current = new Chart(ctx, {
-      type: "doughnut",
-      data: {
-        labels: ["Tepat Waktu", "Terlambat", "Belum Hadir"],
-        datasets: [
-          {
-            data: [todayData.tepat_waktu, todayData.terlambat, todayData.belum],
-            backgroundColor: ["#10b981", "#f59e0b", "#ef4444"],
-            borderColor: ["#ffffff", "#ffffff", "#ffffff"],
-            borderWidth: 3,
-            hoverOffset: 6,
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        cutout: "65%",
-        plugins: {
-          legend: {
-            position: "bottom",
-            labels: {
-              usePointStyle: true,
-              pointStyle: "circle",
-              padding: 16,
-              font: { size: 12 },
-            },
-          },
-          tooltip: {
-            callbacks: {
-              label: function (context) {
-                const val = context.parsed;
-                const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
-                return ` ${context.label}: ${val} (${pct}%)`;
-              },
-            },
-          },
-        },
-      },
-    });
-
-    return () => {
-      if (doughnutChart.current) doughnutChart.current.destroy();
-    };
-  }, [todayData]);
+  }, [kelasId, totalSiswa]);
 
   // Render bar chart
   useEffect(() => {
@@ -165,17 +87,48 @@ export default function WalasAttendanceChart({ kelasId, totalSiswa = 0 }) {
     gradientRed.addColorStop(0, "rgba(239, 68, 68, 0.9)");
     gradientRed.addColorStop(1, "rgba(239, 68, 68, 0.4)");
 
+    const gradientViolet = ctx.createLinearGradient(0, 0, 0, 300);
+    gradientViolet.addColorStop(0, "rgba(139, 92, 246, 0.9)");
+    gradientViolet.addColorStop(1, "rgba(139, 92, 246, 0.4)");
+
+    const gradientAmber = ctx.createLinearGradient(0, 0, 0, 300);
+    gradientAmber.addColorStop(0, "rgba(245, 158, 11, 0.9)");
+    gradientAmber.addColorStop(1, "rgba(245, 158, 11, 0.4)");
+
     barChart.current = new Chart(ctx, {
       type: "bar",
       data: {
         labels,
         datasets: [
           {
-            label: "Hadir",
-            data: weeklyData.map((d) => d.hadir),
+            label: "Tepat Waktu",
+            data: weeklyData.map((d) => d.tepat_waktu),
             backgroundColor: gradientGreen,
             borderRadius: 6,
             borderSkipped: false,
+            categoryPercentage: 0.72,
+            barPercentage: 0.82,
+            maxBarThickness: 20,
+          },
+          {
+            label: "Terlambat",
+            data: weeklyData.map((d) => d.terlambat),
+            backgroundColor: gradientAmber,
+            borderRadius: 6,
+            borderSkipped: false,
+            categoryPercentage: 0.72,
+            barPercentage: 0.82,
+            maxBarThickness: 20,
+          },
+          {
+            label: "Hadir Manual",
+            data: weeklyData.map((d) => d.manual_hadir),
+            backgroundColor: gradientViolet,
+            borderRadius: 6,
+            borderSkipped: false,
+            categoryPercentage: 0.72,
+            barPercentage: 0.82,
+            maxBarThickness: 20,
           },
           {
             label: "Belum Hadir",
@@ -183,31 +136,45 @@ export default function WalasAttendanceChart({ kelasId, totalSiswa = 0 }) {
             backgroundColor: gradientRed,
             borderRadius: 6,
             borderSkipped: false,
+            categoryPercentage: 0.72,
+            barPercentage: 0.82,
+            maxBarThickness: 20,
           },
         ],
       },
       options: {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: {
           legend: {
             position: "top",
             labels: {
               usePointStyle: true,
               pointStyle: "circle",
-              padding: 16,
-              font: { size: 12 },
+              boxWidth: 8,
+              boxHeight: 8,
+              padding: 12,
+              font: { size: 11 },
             },
           },
         },
         scales: {
           x: {
             grid: { display: false },
+            offset: true,
+            ticks: {
+              color: "#4b5563",
+              font: { size: 11, weight: "600" },
+              maxRotation: 0,
+            },
           },
           y: {
             beginAtZero: true,
             grid: { color: "rgba(0,0,0,0.05)" },
             ticks: {
               stepSize: 5,
+              color: "#6b7280",
+              font: { size: 11 },
             },
           },
         },
@@ -237,12 +204,14 @@ export default function WalasAttendanceChart({ kelasId, totalSiswa = 0 }) {
             Tren Kehadiran Mingguan
           </h3>
           <p className="text-sm text-gray-500">
-            7 hari terakhir
+            7 hari terakhir, termasuk hadir manual oleh walas
           </p>
         </div>
 
-        <div className="relative w-full h-100 md:h-125 pl-15 pb-2">
-          <canvas ref={barRef} className="w-full h-full"></canvas>
+        <div className="px-4 pb-5 sm:px-6">
+          <div className="relative h-[22rem] sm:h-[24rem] lg:h-[26rem]">
+            <canvas ref={barRef} className="h-full w-full"></canvas>
+          </div>
         </div>
 
       </div>
