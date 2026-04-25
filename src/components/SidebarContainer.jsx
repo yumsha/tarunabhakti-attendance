@@ -238,7 +238,7 @@ export default function SidebarContainer() {
         </a>
       )}
 
-      {isWalas && (
+      {/* {isWalas && (
         <a
           href="/dashboard/walas-kelas"
           data-astro-prefetch
@@ -247,7 +247,7 @@ export default function SidebarContainer() {
           <School width={20} height={20} />
           Informasi Kelas
         </a>
-      )}
+      )} */}
 
 
       {/* daftar siswa  */}
