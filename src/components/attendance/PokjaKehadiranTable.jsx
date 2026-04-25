@@ -335,20 +335,6 @@ export default function PokjaKehadiranTable({ kelasId: propKelasId }) {
               </button>
           </div>
 
-          {/* Progress bar */}
-          {rows.length > 0 && (
-            <div className="flex items-center gap-2 ml-auto">
-              <div className="w-28 h-2 bg-gray-200 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                  style={{ width: `${(doneCount / rows.length) * 100}%` }}
-                />
-              </div>
-              <span className="text-xs text-gray-500 whitespace-nowrap">
-                {doneCount}/{rows.length} dikonfirmasi
-              </span>
-            </div>
-          )}
         </div>
 
         {/* Table */}
@@ -528,8 +514,23 @@ export default function PokjaKehadiranTable({ kelasId: propKelasId }) {
               {rows.length} siswa • {doneCount} dikonfirmasi • {rows.length - doneCount} menunggu
             </div>
           )}
+
         </div>
-      </div>
+        {/* Progress bar */}
+          {/* {rows.length > 0 && (
+            <div className="flex items-center gap-2 ml-auto">
+              <div className="w-28 h-2 bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                  style={{ width: `${(doneCount / rows.length) * 100}%` }}
+                />
+              </div>
+              <span className="text-xs text-gray-500 whitespace-nowrap">
+                {doneCount}/{rows.length} dikonfirmasi
+              </span>
+            </div>
+          )} */}
+      </div>  
     </main>
   );
 }
