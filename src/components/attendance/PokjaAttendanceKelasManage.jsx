@@ -26,7 +26,7 @@ export default function PokjaAttendanceKelasManage() {
   }, []);
 
   if (kelasId) {
-    return <PokjaKehadiranTable />;
+    return <PokjaKehadiranTable kelasId={kelasId} />;
   }
 
   return <DaftarKehadiranKelas />;

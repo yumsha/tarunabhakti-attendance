@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { kelas, detailAbsensi } from "../../lib/backendApi.js";
+import { kelas, detailAbsensi, absensiSiswa } from "../../lib/backendApi.js";
 import PageHeader from "../layout/PageHeader.jsx";
 
 function getTodayWIB() {
@@ -61,12 +61,18 @@ function SkeletonRow() {
   );
 }
 
-export default function PokjaKehadiranTable() {
+export default function PokjaKehadiranTable({ kelasId: propKelasId }) {
   const user    = getUserFromStorage();
+  const role    = (user?.userRole?.[0]?.role?.name || user?.role?.name || user?.role || "").toUpperCase();
   const walasId = user?.guru?.id ?? null;
+  const isAdmin = role === "ADMIN" || role === "KESISWAAN";
 
   const [classList, setClassList] = useState([]);
-  const [kelasId, setKelasId]     = useState("");
+  const [kelasId, setKelasId]     = useState(() => {
+    if (propKelasId) return propKelasId;
+    const params = new URLSearchParams(window.location.search);
+    return params.get("kelasId") || "";
+  });
   const [tanggal, setTanggal]     = useState(getTodayWIB());
   const [tanggalMulai, setTanggalMulai] = useState("");
   const [tanggalAkhir, setTanggalAkhir] = useState("");
@@ -85,65 +91,93 @@ export default function PokjaKehadiranTable() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await kelas.list("limit=200");
+        const res = await kelas.list("limit=500");
         if (!res?.success) return;
         let list = res.data ?? [];
-        if (walasId) {
+        if (!isAdmin && walasId) {
           list = list.filter(
             (c) => c.walas_id === walasId || c.walas?.id === walasId
           );
         }
         setClassList(list);
-        // set ke kelas pertama sebagai default
-        const firstId = String(list[0]?.id ?? "");
-        if (firstId) setKelasId(firstId);
+        // set ke kelas pertama sebagai default jika belum ada kelasId dan tidak ada di URL
+        if (!kelasId && !propKelasId) {
+          const params = new URLSearchParams(window.location.search);
+          if (!params.get("kelasId")) {
+             const firstId = String(list[0]?.id ?? "");
+             if (firstId) setKelasId(firstId);
+          }
+        }
       } catch (e) {
         console.error("Failed to load kelas", e);
       }
     };
     load();
-  }, [walasId]);
+  }, [walasId, isAdmin]);
 
   const fetchRows = useCallback(async () => {
-    if (!kelasId || !tanggal) return;
+    if (!kelasId) return;
     setLoading(true);
     try {
-      const params = new URLSearchParams({ kelas_id: kelasId, tanggal });
-      const res = await detailAbsensi.pratinjauWalas(params.toString());
-      setRows(res.data?.daftar_siswa ?? []);
-      // hapus state yang bukan "loading" agar tidak stale
-      setKState((prev) => {
-        const next = {};
-        for (const [id, s] of Object.entries(prev)) {
-          if (s === "loading") next[id] = s;
-        }
-        return next;
-      });
+      let data = [];
+      if (tanggalMulai && tanggalAkhir) {
+        // Range mode
+        const params = new URLSearchParams({
+          kelas_id: kelasId,
+          tanggal_mulai: tanggalMulai,
+          tanggal_akhir: tanggalAkhir,
+          limit: 1000
+        });
+        const res = await absensiSiswa.list(params.toString());
+        // Map ke format yang sama dengan pratinjau
+        data = (res.data || []).map(a => ({
+          siswa_id: a.siswa?.id,
+          nama: a.siswa?.nama,
+          NISN: a.siswa?.NISN,
+          tap_in: a.tap_in,
+          status_tapin: a.status_tapin,
+          status_saat_ini: a.status_saat_ini || "HADIR", // fallback
+          sudah_diabsen: true,
+          tanggal: a.tanggal
+        }));
+      } else {
+        // Daily mode
+        const params = new URLSearchParams({ kelas_id: kelasId, tanggal });
+        const res = await detailAbsensi.pratinjauWalas(params.toString());
+        data = res.data?.daftar_siswa ?? [];
+      }
+
+      setRows(data);
+      setKState({});
     } catch (e) {
       console.error("Failed to load kehadiran", e);
       setRows([]);
     } finally {
       setLoading(false);
     }
-  }, [kelasId, tanggal]);
+  }, [kelasId, tanggal, tanggalMulai, tanggalAkhir]);
+
+  // Hapus automatic trigger di sini agar user harus tekan "Muat Data"
+  // Kecuali saat pertama kali kelasId diset
+  const selectedKelas = classList.find((c) => String(c.id) === String(kelasId));
 
   useEffect(() => {
-    setKState({});
-    fetchRows();
-  }, [kelasId, tanggal]);
+    if (kelasId) fetchRows();
+  }, [kelasId]);
 
   const handleKonfirmasi = async (row) => {
-    if (!walasId) {
-      alert("User tidak punya informasi guru. Pastikan akun terhubung ke data guru.");
+    const effectiveWalasId = walasId || selectedKelas?.walas_id || selectedKelas?.walas?.id;
+    if (!effectiveWalasId) {
+      alert("Tidak dapat menemukan ID Wali Kelas untuk konfirmasi ini.");
       return;
     }
     const sid = row.siswa_id;
     setKState((prev) => ({ ...prev, [sid]: "loading" }));
     try {
       const res = await detailAbsensi.absensiWalas({
-        walas_id:     walasId,
+        walas_id:     parseInt(effectiveWalasId),
         kelas_id:     parseInt(kelasId),
-        tanggal,
+        tanggal:      row.tanggal || tanggal,
         data_absensi: [{ siswa_id: sid, status: "HADIR" }],
       });
       if (!res?.success) throw new Error(res?.message || "Gagal konfirmasi");
@@ -164,7 +198,8 @@ export default function PokjaKehadiranTable() {
   };
 
   const handleKonfirmasiSemua = async () => {
-    if (!walasId) { alert("User tidak punya informasi guru."); return; }
+    const effectiveWalasId = walasId || selectedKelas?.walas_id || selectedKelas?.walas?.id;
+    if (!effectiveWalasId) { alert("Tidak dapat menemukan ID Wali Kelas."); return; }
     const pending = rows.filter(
       (r) => r.tap_in && !r.sudah_diabsen && kState[r.siswa_id] !== "done"
     );
@@ -175,7 +210,7 @@ export default function PokjaKehadiranTable() {
 
     try {
       const res = await detailAbsensi.absensiWalas({
-        walas_id:     walasId,
+        walas_id:     parseInt(effectiveWalasId),
         kelas_id:     parseInt(kelasId),
         tanggal,
         data_absensi: pending.map((r) => ({ siswa_id: r.siswa_id, status: "HADIR" })),
@@ -199,8 +234,6 @@ export default function PokjaKehadiranTable() {
       setKState((prev) => ({ ...prev, ...errPatch }));
     }
   };
-
-  const selectedKelas = classList.find((c) => String(c.id) === String(kelasId));
 
   const doneCount = rows.filter(
     (r) => r.sudah_diabsen || kState[r.siswa_id] === "done"
@@ -237,26 +270,6 @@ export default function PokjaKehadiranTable() {
 
         <div className="flex flex-wrap items-center gap-3">
 
-          {/* FIX: Selector kelas — tampil jika walas pegang lebih dari 1 kelas */}
-          {classList.length > 1 && (
-            <div className="flex items-center gap-2 bg-white rounded-xl border border-gray-200 px-3 py-2 shadow-sm">
-              <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-              <select
-                value={kelasId}
-                onChange={(e) => setKelasId(e.target.value)}
-                className="outline-none text-sm text-gray-700 bg-transparent cursor-pointer"
-              >
-                {classList.map((cls) => (
-                  <option key={cls.id} value={String(cls.id)}>
-                    {formatClassName(cls)}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
           {/* Tanggal */}
           <div className="flex items-center gap-2 bg-white rounded-xl border border-gray-200 px-3 py-2 shadow-sm">
             <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -290,6 +303,12 @@ export default function PokjaKehadiranTable() {
               onChange={(e) => setTanggalAkhir(e.target.value)}
               className="outline-none text-sm text-gray-700 bg-transparent cursor-pointer"
             />
+            <button
+                onClick={() => fetchRows()}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 ml-5 text-blue-600 hover:bg-blue-50 rounded-lg transition-all border border-blue-100 font-medium text-[11px]"
+            >
+                Muat Data
+            </button>
           </div>
 
           {/* Export */}
@@ -354,7 +373,11 @@ export default function PokjaKehadiranTable() {
             <table className="w-full">
               <thead className="bg-gray-50/80">
                 <tr>
-                  {["No", "Nama", "NISN", "No Telp", "Waktu Tap In", "Status Tap", "Status Absensi", "Aksi"].map((h) => (
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">No</th>
+                  {tanggalMulai && tanggalAkhir && (
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Tanggal</th>
+                  )}
+                  {["Nama", "NISN", "No Telp", "Waktu Tap In", "Status Tap", "Status Absensi", "Aksi"].map((h) => (
                     <th
                       key={h}
                       className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap"
@@ -398,6 +421,12 @@ export default function PokjaKehadiranTable() {
                         }`}
                       >
                         <td className="px-4 py-4 text-sm text-gray-400 font-medium">{idx + 1}</td>
+
+                        {tanggalMulai && tanggalAkhir && (
+                          <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">
+                            {row.tanggal ? new Date(row.tanggal).toLocaleDateString("id-ID") : "—"}
+                          </td>
+                        )}
 
                         <td className="px-4 py-4">
                           <p className="text-sm font-semibold text-gray-900">{row.nama || "—"}</p>
