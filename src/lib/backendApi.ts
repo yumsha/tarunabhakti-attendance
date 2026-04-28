@@ -94,7 +94,7 @@ export const kelas = {
   update: (id: string | number, data: any) => request(`/api/v1/kelas/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string | number) => request(`/api/v1/kelas/${id}`, { method: 'DELETE' }),
   assignWalas: (id: string | number, walas_id: number | null) =>
-    request(`/api/v1/kelas/${id}/assign/walas`, { method: 'PATCH', body: JSON.stringify({ walas_id }) }),
+    request(`/api/v1/kelas/${id}/assign-walas`, { method: 'PATCH', body: JSON.stringify({ walas_id }) }),
 };
 
 export const jadwal = {
