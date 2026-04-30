@@ -504,6 +504,83 @@ function UpdateModal({ onClose, onUpdateDone }) {
   );
 }
 
+// Modal Delete Konfirmasi Siswa
+
+function DeleteConfirmModal({ student, onClose, onDeleted }) {
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError]       = useState("");
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    setError("");
+    try {
+      const result = await siswa.delete(student.id);
+      if (result?.success) {
+        onDeleted();
+      } else {
+        setError(result?.message || "Gagal menghapus siswa");
+      }
+    } catch (err) {
+      setError(err.message || "Terjadi kesalahan");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+        <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-white font-semibold text-lg">Hapus Data Siswa</h2>
+            <p className="text-red-200 text-xs mt-0.5">Tindakan ini tidak dapat dibatalkan</p>
+          </div>
+          <button onClick={onClose} className="text-red-200 hover:text-white transition-colors"><XCircle /></button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-100 rounded-xl">
+            <span className="text-red-500 mt-0.5 shrink-0"><AlertCircle /></span>
+            <div>
+              <p className="text-sm font-semibold text-gray-800">Yakin ingin menghapus siswa ini?</p>
+              <p className="text-sm text-gray-600 mt-1">
+                <span className="font-medium">{student.nama}</span>
+                {student.NISN && <span className="text-gray-400"> · NISN: {student.NISN}</span>}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">Data akan dinonaktifkan (soft delete) dan tidak muncul di daftar.</p>
+            </div>
+          </div>
+
+          {error && (
+            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+              <AlertCircle /> {error}
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-1">
+            <button
+              onClick={onClose}
+              disabled={deleting}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition disabled:opacity-50"
+            >
+              Batal
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-2"
+            >
+              {deleting ? (
+                <><svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>Menghapus...</>
+              ) : (<>Hapus Siswa</>)}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Main Component
 
 export default function ImportSiswa() {
@@ -520,6 +597,7 @@ export default function ImportSiswa() {
   const [showTemplateMenu, setShowTemplateMenu] = useState(false);
   const [showExportMenu, setShowExportMenu]     = useState(false);
   const [showImportMenu, setShowImportMenu]     = useState(false);
+  const [deleteTarget, setDeleteTarget]         = useState(null);
   const itemsPerPage = 10;
 
   const templateRef   = useRef();
@@ -765,7 +843,7 @@ export default function ImportSiswa() {
             <table className="w-full">
               <thead className="bg-gray-50/80">
                 <tr>
-                  {["Nama", "Kelas", "No Telp", "NIPD", "NISN", "Nama Orang Tua"].map((h) => (
+                  {["Nama", "Kelas", "No Telp", "NIPD", "NISN", "Nama Orang Tua", "Aksi"].map((h) => (
                     <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -774,7 +852,7 @@ export default function ImportSiswa() {
                 {loading ? (
                   [...Array(8)].map((_, i) => (
                     <tr key={i}>
-                      <td colSpan={6} className="px-6 py-4">
+                      <td colSpan={7} className="px-6 py-4">
                         <div className="h-4 bg-gray-100 rounded animate-pulse" />
                       </td>
                     </tr>
@@ -788,11 +866,20 @@ export default function ImportSiswa() {
                       <td className="px-6 py-4 text-sm text-gray-600 font-mono">{s.NIPD}</td>
                       <td className="px-6 py-4 text-sm text-gray-600 font-mono">{s.NISN}</td>
                       <td className="px-6 py-4 text-sm text-gray-600">{s.orang_tua?.nama_orangtua || "-"}</td>
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => setDeleteTarget(s)}
+                          title="Hapus siswa"
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors duration-150"
+                        >
+                           Hapus
+                        </button>
+                      </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center">
+                    <td colSpan={7} className="px-6 py-12 text-center">
                       <p className="text-gray-500 text-sm">
                         {searchQuery || selectedKelas ? "Tidak ada data yang sesuai dengan filter." : "Tidak ada data siswa."}
                       </p>
@@ -817,6 +904,13 @@ export default function ImportSiswa() {
       )}
       {showUpdateModal && (
         <UpdateModal onClose={() => setShowUpdateModal(false)} onUpdateDone={refreshData} />
+      )}
+      {deleteTarget && (
+        <DeleteConfirmModal
+          student={deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onDeleted={() => { setDeleteTarget(null); refreshData(); }}
+        />
       )}
     </div>
   );
