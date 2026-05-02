@@ -103,6 +103,22 @@ export const jadwal = {
   create: (data: any) => request('/api/v1/jadwal', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string | number, data: any) => request(`/api/v1/jadwal/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string | number) => request(`/api/v1/jadwal/${id}`, { method: 'DELETE' }),
+  importXlsx: async (file: File) => {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(`${BASE_URL}/api/v1/jadwal/import`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      },
+      credentials: 'include',
+      body: formData,
+    });
+    if (res.status === 401) { redirectToLogin(); return { success: false, message: 'Sesi habis' }; }
+    const text = await res.text();
+    try { return text ? JSON.parse(text) : null; } catch { return text; }
+  },
 };
 
 export const rfid = {
