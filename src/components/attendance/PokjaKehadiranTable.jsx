@@ -64,7 +64,6 @@ function SkeletonRow() {
 export default function PokjaKehadiranTable({ kelasId: propKelasId }) {
   const user    = getUserFromStorage();
   const role    = (user?.userRole?.[0]?.role?.name || user?.role?.name || user?.role || "").toUpperCase();
-  const walasId = user?.guru?.id ?? null;
   const isAdmin = role === "ADMIN" || role === "KESISWAAN";
 
   const [classList, setClassList] = useState([]);
@@ -87,20 +86,18 @@ export default function PokjaKehadiranTable({ kelasId: propKelasId }) {
     }
   }, [tanggalMulai, tanggalAkhir]);
 
-  // FIX: load semua kelas yang diampu walas, expose selector jika >1
   useEffect(() => {
     const load = async () => {
       try {
         const res = await kelas.list("limit=500");
         if (!res?.success) return;
         let list = res.data ?? [];
-        if (!isAdmin && walasId) {
+        if (!isAdmin) {
           list = list.filter(
             (c) => c.walas_id === walasId || c.walas?.id === walasId
           );
         }
         setClassList(list);
-        // set ke kelas pertama sebagai default jika belum ada kelasId dan tidak ada di URL
         if (!kelasId && !propKelasId) {
           const params = new URLSearchParams(window.location.search);
           if (!params.get("kelasId")) {
@@ -113,7 +110,7 @@ export default function PokjaKehadiranTable({ kelasId: propKelasId }) {
       }
     };
     load();
-  }, [walasId, isAdmin]);
+  }, [isAdmin]);
 
   const fetchRows = useCallback(async () => {
     if (!kelasId) return;
@@ -129,7 +126,6 @@ export default function PokjaKehadiranTable({ kelasId: propKelasId }) {
           limit: 1000
         });
         const res = await absensiSiswa.list(params.toString());
-        // Map ke format yang sama dengan pratinjau
         data = (res.data || []).map(a => ({
           siswa_id: a.siswa?.id,
           nama: a.siswa?.nama,
@@ -164,76 +160,6 @@ export default function PokjaKehadiranTable({ kelasId: propKelasId }) {
   useEffect(() => {
     if (kelasId) fetchRows();
   }, [kelasId]);
-
-  const handleKonfirmasi = async (row) => {
-    const effectiveWalasId = walasId || selectedKelas?.walas_id || selectedKelas?.walas?.id;
-    if (!effectiveWalasId) {
-      alert("Tidak dapat menemukan ID Wali Kelas untuk konfirmasi ini.");
-      return;
-    }
-    const sid = row.siswa_id;
-    setKState((prev) => ({ ...prev, [sid]: "loading" }));
-    try {
-      const res = await detailAbsensi.absensiWalas({
-        walas_id:     parseInt(effectiveWalasId),
-        kelas_id:     parseInt(kelasId),
-        tanggal:      row.tanggal || tanggal,
-        data_absensi: [{ siswa_id: sid, status: "HADIR" }],
-      });
-      if (!res?.success) throw new Error(res?.message || "Gagal konfirmasi");
-
-      setRows((prev) =>
-        prev.map((r) =>
-          r.siswa_id === sid
-            ? { ...r, sudah_diabsen: true, status_saat_ini: "HADIR" }
-            : r
-        )
-      );
-      setKState((prev) => ({ ...prev, [sid]: "done" }));
-      setTimeout(fetchRows, 800);
-    } catch (err) {
-      console.error("Konfirmasi error:", err);
-      setKState((prev) => ({ ...prev, [sid]: "error" }));
-    }
-  };
-
-  const handleKonfirmasiSemua = async () => {
-    const effectiveWalasId = walasId || selectedKelas?.walas_id || selectedKelas?.walas?.id;
-    if (!effectiveWalasId) { alert("Tidak dapat menemukan ID Wali Kelas."); return; }
-    const pending = rows.filter(
-      (r) => r.tap_in && !r.sudah_diabsen && kState[r.siswa_id] !== "done"
-    );
-    if (!pending.length) return;
-
-    const loadingPatch = Object.fromEntries(pending.map((r) => [r.siswa_id, "loading"]));
-    setKState((prev) => ({ ...prev, ...loadingPatch }));
-
-    try {
-      const res = await detailAbsensi.absensiWalas({
-        walas_id:     parseInt(effectiveWalasId),
-        kelas_id:     parseInt(kelasId),
-        tanggal,
-        data_absensi: pending.map((r) => ({ siswa_id: r.siswa_id, status: "HADIR" })),
-      });
-      if (!res?.success) throw new Error(res?.message || "Gagal konfirmasi semua");
-
-      const pendingIds = new Set(pending.map((r) => r.siswa_id));
-      setRows((prev) =>
-        prev.map((r) =>
-          pendingIds.has(r.siswa_id)
-            ? { ...r, sudah_diabsen: true, status_saat_ini: "HADIR" }
-            : r
-        )
-      );
-      const donePatch = Object.fromEntries(pending.map((r) => [r.siswa_id, "done"]));
-      setKState((prev) => ({ ...prev, ...donePatch }));
-      setTimeout(fetchRows, 800);
-    } catch (err) {
-      console.error("Konfirmasi semua error:", err);
-      const errPatch = Object.fromEntries(pending.map((r) => [r.siswa_id, "error"]));
-      setKState((prev) => ({ ...prev, ...errPatch }));
-    }
-  };
 
   const doneCount = rows.filter(
     (r) => r.sudah_diabsen || kState[r.siswa_id] === "done"
@@ -328,7 +254,7 @@ export default function PokjaKehadiranTable({ kelasId: propKelasId }) {
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-all border border-green-100 font-medium text-[11px]"
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                  <path strokeLinecap="round" strokeLinejfoin="round" strokeWidth="2"
                         d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                   Unduh Excel
@@ -363,7 +289,7 @@ export default function PokjaKehadiranTable({ kelasId: propKelasId }) {
                   {tanggalMulai && tanggalAkhir && (
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Tanggal</th>
                   )}
-                  {["Nama", "NISN", "No Telp", "Waktu Tap In", "Status Tap", "Status Absensi", "Aksi"].map((h) => (
+                  {["Nama", "NISN", "No Telp", "Waktu Tap In", "Status Tap", "Status Absensi", "Tanggal"].map((h) => (
                     <th
                       key={h}
                       className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap"
@@ -449,57 +375,8 @@ export default function PokjaKehadiranTable({ kelasId: propKelasId }) {
                           )}
                         </td>
 
-                        <td className="px-4 py-4">
-                          {isDone ? (
-                            <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600">
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                              </svg>
-                              Terkonfirmasi
-                            </span>
-                          ) : isError ? (
-                            <button
-                              onClick={() => handleKonfirmasi(row)}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-medium hover:bg-red-100 transition"
-                            >
-                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                              </svg>
-                              Coba Lagi
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => handleKonfirmasi(row)}
-                              disabled={isLoading || !canConfirm}
-                              title={
-                                !row.tap_in
-                                  ? "Siswa belum tap in"
-                                  : isLoading
-                                  ? "Memproses…"
-                                  : "Konfirmasi kehadiran"
-                              }
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg text-xs font-medium hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
-                            >
-                              {isLoading ? (
-                                <>
-                                  <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-                                  </svg>
-                                  Memproses…
-                                </>
-                              ) : !row.tap_in ? (
-                                <span className="text-gray-400">Belum Tap</span>
-                              ) : (
-                                <>
-                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                  </svg>
-                                  Konfirmasi
-                                </>
-                              )}
-                            </button>
-                          )}
+                        <td className="px-4 py-4 text-sm text-gray-600">
+                          {row.nomor_telepon || "—"}
                         </td>
                       </tr>
                     );
