@@ -153,8 +153,6 @@ export default function PokjaKehadiranTable({ kelasId: propKelasId }) {
     }
   }, [kelasId, tanggal, tanggalMulai, tanggalAkhir]);
 
-  // Hapus automatic trigger di sini agar user harus tekan "Muat Data"
-  // Kecuali saat pertama kali kelasId diset
   const selectedKelas = classList.find((c) => String(c.id) === String(kelasId));
 
   useEffect(() => {
@@ -176,19 +174,6 @@ export default function PokjaKehadiranTable({ kelasId: propKelasId }) {
           selectedKelas
             ? `Kehadiran ${formatClassName(selectedKelas)}`
             : "Daftar Kehadiran"
-        }
-        right={
-          pendingTapIn > 0 ? (
-            <button
-              onClick={handleKonfirmasiSemua}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-xl transition shadow-sm"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-              </svg>
-              Konfirmasi Semua ({pendingTapIn})
-            </button>
-          ) : null
         }
       />
 
@@ -271,14 +256,9 @@ export default function PokjaKehadiranTable({ kelasId: propKelasId }) {
               {loading ? (
                 <span className="text-gray-400">Memuat data…</span>
               ) : (
-                <><span className="font-semibold text-gray-800">{rows.length}</span> siswa</>
+                <span className="font-medium text-gray-800">Berhasil memuat {rows.length} data siswa</span>
               )}
             </p>
-            {!loading && rows.length > 0 && (
-              <p className="text-xs text-gray-400">
-                {doneCount} sudah dikonfirmasi
-              </p>
-            )}
           </div>
 
           <div className="overflow-x-auto">
@@ -369,14 +349,14 @@ export default function PokjaKehadiranTable({ kelasId: propKelasId }) {
 
                         <td className="px-4 py-4">
                           {isDone ? (
-                            <StatusAbsensiBadge status={row.status_saat_ini || "HADIR"} />
+                            <StatusAbsensiBadge status={row.status_saat_ini || row.status_rekomendasi} />
                           ) : (
-                            <StatusAbsensiBadge status={null} />
+                            <StatusAbsensiBadge status={row.status_rekomendasi} />
                           )}
                         </td>
 
                         <td className="px-4 py-4 text-sm text-gray-600">
-                          {row.nomor_telepon || "—"}
+                          {tanggal}
                         </td>
                       </tr>
                     );
