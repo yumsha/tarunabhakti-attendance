@@ -74,7 +74,8 @@ export default function SidebarContainer() {
       isWalas: walas,
       isGuru: guru,
       isKesiswaan: roles.includes("KESISWAAN"),
-      canAccessAttendance: guru && walas,
+      // hanya role guru & walas yang bisa akses, tapi role GURU juga bisa akses walaupun gak ada role WALAS (untuk guru mapel yang bukan walas)
+      canAccessAttendance: walas || guru,
     };
   }, [roles]);
 
@@ -383,7 +384,7 @@ export default function SidebarContainer() {
       )}
 
       {canAccessAttendance && 
-        <div className="flex items-center">
+        <div className="flex items-center my-4">
           <div className="flex-grow border-t border-gray-500"></div>
           <p className="mx-2 text-sm text-gray-500 whitespace-nowrap">
             Manajemen Guru Mapel
