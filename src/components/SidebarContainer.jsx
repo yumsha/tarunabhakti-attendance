@@ -74,7 +74,7 @@ export default function SidebarContainer() {
       isWalas: walas,
       isGuru: guru,
       isKesiswaan: roles.includes("KESISWAAN"),
-      canAccessAttendance: guru && !walas,
+      canAccessAttendance: guru && walas,
     };
   }, [roles]);
 
@@ -381,6 +381,16 @@ export default function SidebarContainer() {
           Manajemen Role
         </a>
       )}
+
+      {canAccessAttendance && 
+        <div className="flex items-center">
+          <div className="flex-grow border-t border-gray-500"></div>
+          <p className="mx-2 text-sm text-gray-500 whitespace-nowrap">
+            Manajemen Guru Mapel
+          </p>
+          <div className="flex-grow border-t border-gray-500"></div>
+        </div>
+      }
 
       {/* ---- WALAS & GURU: Dropdown kehadiran per kelas ---- */}
 
