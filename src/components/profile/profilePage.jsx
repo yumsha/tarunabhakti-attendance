@@ -270,7 +270,7 @@ export default function ProfilePage() {
                                 <div>
                                     <h4 className="font-semibold text-blue-900 mb-1">Tips Keamanan</h4>
                                     <p className="text-sm text-blue-700 leading-relaxed">
-                                        Jaga kerahasiaan password dan jangan pernah membagikan kode verifikasi kepada siapapun, termasuk yang mengaku sebagai admin.
+                                        Jaga kerahasiaan password dan jangan pernah membagikan password anda kepada siapapun, termasuk yang mengaku sebagai admin.
                                     </p>
                                 </div>
                             </div>
