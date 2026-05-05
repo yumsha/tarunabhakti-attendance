@@ -117,7 +117,7 @@ export default function KehadiranTable() {
   const roles = resolveRoles(user);
   const isGuru = roles.includes("GURU");
   const isWalas = roles.includes("WALAS");
-  const canViewAttendance = isGuru && !isWalas;
+  const canViewAttendance = isGuru && isWalas;
 
   const [classList, setClassList] = useState([]);
   const [kelasId, setKelasId] = useState(() => {

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
   BookOpen, Plus, Pencil, Trash2, Loader2, AlertTriangle,
-  Search, X, RefreshCw, BookMarked, BookX, Calendar,
+  Search, X, BookX,
 } from "lucide-react";
 import PageHeader from "../layout/PageHeader";
 import Pagination from "../layout/Pagination";
@@ -392,20 +392,6 @@ export default function MapelManagement() {
                   </button>
                 )}
               </div>
-
-              {/* Refresh */}
-              <Tooltip text="Refresh data">
-                <button
-                  id="refresh-mapel-btn"
-                  type="button"
-                  onClick={fetchAll}
-                  disabled={fetchLoading}
-                  className="p-2 rounded-xl border border-gray-200 text-gray-500
-                    hover:bg-gray-50 disabled:opacity-40 transition"
-                >
-                  <RefreshCw className={`w-4 h-4 ${fetchLoading ? "animate-spin" : ""}`} />
-                </button>
-              </Tooltip>
 
               {/* Add */}
               <button

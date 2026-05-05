@@ -7,7 +7,6 @@ import {
   Loader2,
   Pencil,
   Plus,
-  RefreshCw,
   School,
   Search,
   Trash2,
@@ -337,7 +336,6 @@ export default function DaftarSemuaKelas() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
-  const [refreshing, setRefreshing] = useState(false);
   const [fetchError, setFetchError] = useState("");
   const [toast, setToast] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -345,17 +343,14 @@ export default function DaftarSemuaKelas() {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [filterTahunId, setFilterTahunId] = useState("");
+
   const pageSize = 10;
 
   const showToast = (message, type = "success") => setToast({ message, type });
 
-  const loadData = useCallback(async ({ silent = false } = {}) => {
-    if (silent) {
-      setRefreshing(true);
-    } else {
-      setLoading(true);
-    }
-
+  const loadData = useCallback(async () => {
+    setLoading(true);
     setFetchError("");
 
     try {
@@ -371,7 +366,6 @@ export default function DaftarSemuaKelas() {
       setFetchError(e?.message || "Gagal memuat data kelas");
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   }, []);
 
@@ -404,6 +398,8 @@ export default function DaftarSemuaKelas() {
     };
   }, [classList, tahunList]);
 
+  const hasActiveFilter = filterTahunId || searchTerm;
+
   const filteredClasses = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
     const sorted = [...classList].sort((a, b) => {
@@ -412,25 +408,26 @@ export default function DaftarSemuaKelas() {
       return left.localeCompare(right, "id");
     });
 
-    if (!keyword) return sorted;
+    return sorted.filter((cls) => {
+      if (keyword) {
+        const haystack = [cls.kelas, cls.jurusan, cls.id?.toString(), cls.tahun?.tahun_ajaran]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        if (!haystack.includes(keyword)) return false;
+      }
 
-    return sorted.filter((cls) =>
-      [
-        cls.kelas,
-        cls.jurusan,
-        cls.id?.toString(),
-        cls.tahun?.tahun_ajaran,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase()
-        .includes(keyword)
-    );
-  }, [classList, searchTerm]);
+      if (filterTahunId) {
+        if (String(cls.tahun_ajaran_id) !== String(filterTahunId)) return false;
+      }
+
+      return true;
+    });
+  }, [classList, searchTerm, filterTahunId]);
 
   useEffect(() => {
     setPage(1);
-  }, [searchTerm]);
+  }, [searchTerm, filterTahunId]);
 
   const totalPages = Math.max(1, Math.ceil(filteredClasses.length / pageSize));
   const pagedClasses = filteredClasses.slice((page - 1) * pageSize, page * pageSize);
@@ -452,7 +449,7 @@ export default function DaftarSemuaKelas() {
 
       showToast(editingItem ? "Data kelas berhasil diperbarui" : "Kelas berhasil ditambahkan");
       setEditingItem(null);
-      await loadData({ silent: true });
+      await loadData();
     } finally {
       setSubmitLoading(false);
     }
@@ -470,7 +467,7 @@ export default function DaftarSemuaKelas() {
 
       showToast("Data kelas berhasil dihapus");
       setDeleteTarget(null);
-      await loadData({ silent: true });
+      await loadData();
     } catch (err) {
       showToast(err?.message || "Gagal menghapus data kelas", "error");
     } finally {
@@ -480,23 +477,13 @@ export default function DaftarSemuaKelas() {
 
   return (
     <main className="flex-1 flex flex-col overflow-hidden bg-gray-50/60">
-      <PageHeader 
+      <PageHeader
         title="Manajemen Kelas"
         subtitle="Kelola data kelas dan jurusan dari satu halaman."
-        right={
-          <button
-            type="button"
-            onClick={() => loadData({ silent: true })}
-            disabled={refreshing}
-            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-50 disabled:opacity-60"
-          >
-            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-            Refresh
-          </button>
-        }
       />
-      
+
       <div className="flex-1 overflow-auto p-8">
+        {/* Stat Cards */}
         <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
           <InfoStatCard
             label="Total Kelas"
@@ -534,6 +521,7 @@ export default function DaftarSemuaKelas() {
         ) : null}
 
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+          {/* Table header */}
           <div className="px-6 py-5 border-b border-gray-100 bg-white">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div>
@@ -542,9 +530,24 @@ export default function DaftarSemuaKelas() {
                   Fokus hanya ke kelas, jurusan, tahun ajaran, dan aksi manajemen.
                 </p>
               </div>
-              
+
               <div className="flex flex-col sm:flex-row gap-3">
-                <div className="relative w-full sm:w-80">
+                {/* Filter Tahun Ajaran */}
+                <select
+                  className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-700 outline-none transition focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                  value={filterTahunId}
+                  onChange={(e) => setFilterTahunId(e.target.value)}
+                >
+                  <option value="">Semua tahun</option>
+                  {tahunList.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.tahun_ajaran}{item.is_active ? " (Aktif)" : ""}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Search */}
+                <div className="relative w-full sm:w-72">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                   <input
                     type="text"
@@ -555,6 +558,7 @@ export default function DaftarSemuaKelas() {
                   />
                 </div>
 
+                {/* Add button */}
                 <button
                   type="button"
                   onClick={() => {
@@ -569,7 +573,8 @@ export default function DaftarSemuaKelas() {
               </div>
             </div>
           </div>
-          
+
+          {/* Table */}
           <div className="overflow-x-auto">
             <table className="w-full min-w-190">
               <thead className="bg-gray-50 border-b border-gray-100">
@@ -643,7 +648,9 @@ export default function DaftarSemuaKelas() {
                 ) : (
                   <tr>
                     <td colSpan="6" className="px-6 py-12 text-center text-gray-500 italic">
-                      Tidak ada kelas yang ditemukan.
+                      {hasActiveFilter
+                        ? "Tidak ada kelas yang cocok dengan filter."
+                        : "Tidak ada kelas yang ditemukan."}
                     </td>
                   </tr>
                 )}
@@ -657,8 +664,8 @@ export default function DaftarSemuaKelas() {
               totalPages={totalPages}
               onPageChange={setPage}
               summary={
-                searchTerm
-                  ? `Menampilkan ${pagedClasses.length} hasil pencarian dari ${filteredClasses.length} data, total kelas ${classList.length}`
+                hasActiveFilter
+                  ? `Menampilkan ${pagedClasses.length} hasil dari ${filteredClasses.length} data terfilter, total kelas ${classList.length}`
                   : `Menampilkan ${pagedClasses.length} data dari total ${classList.length} kelas`
               }
               className="border-gray-100 bg-gray-50/50"
