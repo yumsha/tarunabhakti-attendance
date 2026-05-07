@@ -472,18 +472,6 @@ export default function RoleManagement() {
                 )}
               </div>
 
-              {/* Refresh */}
-              <button
-                type="button"
-                onClick={fetchAll}
-                disabled={fetchLoading}
-                title="Refresh data"
-                className="p-2 rounded-xl border border-gray-200 text-gray-500
-                  hover:bg-gray-50 disabled:opacity-40 transition"
-              >
-                <RefreshCw className={`w-4 h-4 ${fetchLoading ? "animate-spin" : ""}`} />
-              </button>
-
               {/* Add */}
               <button
                 type="button"

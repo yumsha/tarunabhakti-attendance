@@ -7,6 +7,11 @@ function getDateWIB(date) {
   return date.toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
 }
 
+function getDayOfWeekWIB(dateStr) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d).getDay(); // 0 = Minggu
+}
+
 export default function WalasAttendanceChart({ kelasId, totalSiswa = 0 }) {
   const barRef = useRef(null);
   const barChart = useRef(null);
@@ -14,7 +19,6 @@ export default function WalasAttendanceChart({ kelasId, totalSiswa = 0 }) {
   const [weeklyData, setWeeklyData] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch last 7 days for bar chart
   useEffect(() => {
     const fetchWeekly = async () => {
       if (!kelasId) return;
@@ -29,6 +33,13 @@ export default function WalasAttendanceChart({ kelasId, totalSiswa = 0 }) {
 
         const results = await Promise.all(
           days.map(async (date) => {
+            const isSunday = getDayOfWeekWIB(date) === 0;
+
+            // skip fetch hari Minggu
+            if (isSunday) {
+              return { date, isSunday: true };
+            }
+
             try {
               const res = await detailAbsensi.pratinjauWalas(
                 `tanggal=${date}&kelas_id=${kelasId}`
@@ -37,6 +48,7 @@ export default function WalasAttendanceChart({ kelasId, totalSiswa = 0 }) {
                 const summary = buildWalasAttendanceSummary(res.data, totalSiswa);
                 return {
                   date,
+                  isSunday: false,
                   tepat_waktu: summary.tepat_waktu,
                   terlambat: summary.terlambat,
                   manual_hadir: summary.manual_hadir,
@@ -48,6 +60,7 @@ export default function WalasAttendanceChart({ kelasId, totalSiswa = 0 }) {
             }
             return {
               date,
+              isSunday: false,
               tepat_waktu: 0,
               terlambat: 0,
               manual_hadir: 0,
@@ -66,7 +79,6 @@ export default function WalasAttendanceChart({ kelasId, totalSiswa = 0 }) {
     fetchWeekly();
   }, [kelasId, totalSiswa]);
 
-  // Render bar chart
   useEffect(() => {
     if (!barRef.current || weeklyData.length === 0) return;
     const ctx = barRef.current.getContext("2d");
@@ -74,11 +86,11 @@ export default function WalasAttendanceChart({ kelasId, totalSiswa = 0 }) {
     if (barChart.current) barChart.current.destroy();
 
     const labels = weeklyData.map((d) => {
-      const date = new Date(d.date);
+      const [y, m, day] = d.date.split("-").map(Number);
+      const date = new Date(y, m - 1, day);
       return date.toLocaleDateString("id-ID", { weekday: "short", day: "numeric" });
     });
 
-    // Gradient for hadir bars
     const gradientGreen = ctx.createLinearGradient(0, 0, 0, 300);
     gradientGreen.addColorStop(0, "rgba(16, 185, 129, 0.9)");
     gradientGreen.addColorStop(1, "rgba(16, 185, 129, 0.4)");
@@ -102,7 +114,8 @@ export default function WalasAttendanceChart({ kelasId, totalSiswa = 0 }) {
         datasets: [
           {
             label: "Tepat Waktu",
-            data: weeklyData.map((d) => d.tepat_waktu),
+            // null/kolom kosong, Chart.js skip rendering bar-nya
+            data: weeklyData.map((d) => (d.isSunday ? null : d.tepat_waktu)),
             backgroundColor: gradientGreen,
             borderRadius: 6,
             borderSkipped: false,
@@ -112,7 +125,7 @@ export default function WalasAttendanceChart({ kelasId, totalSiswa = 0 }) {
           },
           {
             label: "Terlambat",
-            data: weeklyData.map((d) => d.terlambat),
+            data: weeklyData.map((d) => (d.isSunday ? null : d.terlambat)),
             backgroundColor: gradientAmber,
             borderRadius: 6,
             borderSkipped: false,
@@ -122,7 +135,7 @@ export default function WalasAttendanceChart({ kelasId, totalSiswa = 0 }) {
           },
           {
             label: "Hadir Manual",
-            data: weeklyData.map((d) => d.manual_hadir),
+            data: weeklyData.map((d) => (d.isSunday ? null : d.manual_hadir)),
             backgroundColor: gradientViolet,
             borderRadius: 6,
             borderSkipped: false,
@@ -132,7 +145,7 @@ export default function WalasAttendanceChart({ kelasId, totalSiswa = 0 }) {
           },
           {
             label: "Belum Hadir",
-            data: weeklyData.map((d) => d.belum),
+            data: weeklyData.map((d) => (d.isSunday ? null : d.belum)),
             backgroundColor: gradientRed,
             borderRadius: 6,
             borderSkipped: false,
@@ -157,14 +170,21 @@ export default function WalasAttendanceChart({ kelasId, totalSiswa = 0 }) {
               font: { size: 11 },
             },
           },
+          tooltip: {
+            filter: (item) => !weeklyData[item.dataIndex]?.isSunday,
+          },
         },
         scales: {
           x: {
             grid: { display: false },
             offset: true,
             ticks: {
-              color: "#4b5563",
-              font: { size: 11, weight: "600" },
+              color: (ctx) =>
+                weeklyData[ctx.index]?.isSunday ? "#d1d5db" : "#4b5563",
+              font: (ctx) => ({
+                size: 11,
+                weight: weeklyData[ctx.index]?.isSunday ? "400" : "600",
+              }),
               maxRotation: 0,
             },
           },
@@ -197,8 +217,6 @@ export default function WalasAttendanceChart({ kelasId, totalSiswa = 0 }) {
   return (
     <div className="w-full mb-6">
       <div className="w-full bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        
-        {/* Header */}
         <div className="px-6 pt-6 pb-2">
           <h3 className="text-lg font-semibold text-gray-900">
             Tren Kehadiran Mingguan
@@ -207,13 +225,11 @@ export default function WalasAttendanceChart({ kelasId, totalSiswa = 0 }) {
             7 hari terakhir, termasuk hadir manual oleh walas
           </p>
         </div>
-
         <div className="px-4 pb-5 sm:px-6">
           <div className="relative h-[22rem] sm:h-[24rem] lg:h-[26rem]">
             <canvas ref={barRef} className="h-full w-full"></canvas>
           </div>
         </div>
-
       </div>
     </div>
   );

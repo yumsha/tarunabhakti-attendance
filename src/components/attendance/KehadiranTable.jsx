@@ -114,6 +114,7 @@ function SkeletonRow() {
 
 export default function KehadiranTable() {
   const [isMounted, setIsMounted] = useState(false);
+
   const [classList, setClassList] = useState([]);
   const [kelasId, setKelasId] = useState("");
   const [tanggal, setTanggal] = useState(getTodayWIB());
