@@ -39,7 +39,7 @@ export default function AttendanceMain() {
 
       const user = getUserFromStorage();
       const roles = resolveRoles(user);
-      setCanViewAttendance(roles.includes("GURU") && !roles.includes("WALAS"));
+      setCanViewAttendance(roles.includes("GURU") || roles.includes("WALAS"));
     };
 
     updateState();
