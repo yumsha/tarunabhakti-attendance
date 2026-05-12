@@ -72,7 +72,7 @@ export const mapel = {
 
 export const guru = {
   list: (params?: string) => request(`/api/v1/guru${params ? `?${params}` : ''}`),
-  walas: () => request('/api/v1/guru/walas/${id'),
+  walas: () => request('/api/v1/guru/walas'),
   get: (id: string | number) => request(`/api/v1/guru/${id}`),
   create: (data: any) => request('/api/v1/guru', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string | number, data: any) => request(`/api/v1/guru/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
