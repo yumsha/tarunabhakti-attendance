@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { detailAbsensi, jadwal } from "../../lib/backendApi";
 import PageHeader from "../layout/PageHeader.jsx";
 import Pagination from "../layout/Pagination.jsx";
+import { UserRoundCheck, UserRoundMinus } from "lucide-react";
 
 function getTodayWIB() {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
@@ -450,7 +451,7 @@ export default function KehadiranTable() {
                     const statusAbsensi =
                       row.status_saat_ini ||
                       row.status_rekomendasi ||
-                      (row.tap_in ? "HADIR" : "ALPHA");
+                      (row.tap_in ? "HADIR BELUM KONFIRMASI" : "ALPHA");
 
                     return (
                       <tr key={row.siswa_id} className={`transition-colors duration-150 ${isDone ? "bg-emerald-50/40" : isError ? "bg-red-50/30" : "hover:bg-blue-50/20"}`}>
@@ -464,7 +465,7 @@ export default function KehadiranTable() {
                             <span className="text-xs text-orange-400">Tanpa RFID</span>
                           )}
                         </td>
-
+Status Absensi
                         <td className="px-4 py-4 text-sm text-gray-600 font-mono">{row.NISN || "-"}</td>
                         <td className="px-4 py-4 text-sm text-gray-600">{row.nomor_telepon || "-"}</td>
 
@@ -507,37 +508,45 @@ export default function KehadiranTable() {
                               Coba Lagi
                             </button>
                           ) : (
-                            <button
-                              onClick={() => handleKonfirmasi(row)}
-                              disabled={isLoading || !canConfirm}
-                              title={
-                                !row.tap_in
-                                  ? "Siswa belum tap in"
-                                  : isLoading
-                                  ? "Memproses…"
-                                  : "Konfirmasi kehadiran"
-                              }
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg text-xs font-medium hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
-                            >
-                              {isLoading ? (
-                                <>
-                                  <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-                                  </svg>
-                                  Memproses…
-                                </>
-                              ) : !row.tap_in ? (
-                                <span className="text-gray-400">Belum Tap</span>
-                              ) : (
-                                <>
-                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                  </svg>
-                                  Konfirmasi
-                                </>
-                              )}
-                            </button>
+                            <>
+                              <button
+                                onClick={() => handleKonfirmasi(row)}
+                                disabled={isLoading || !canConfirm}
+                                title={
+                                  !row.tap_in
+                                    ? "Siswa belum tap in"
+                                    : isLoading
+                                    ? "Memproses…"
+                                    : "Konfirmasi kehadiran"
+                                }
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg text-xs font-medium hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                              >
+                                {isLoading ? (
+                                  <>
+                                    <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                                    </svg>
+                                    Memproses…
+                                  </>
+                                ) : !row.tap_in ? (
+                                  <span className="text-gray-400">Belum Tap</span>
+                                ) : (
+                                  <>
+                                    <UserRoundCheck className="w-3.5 h-3.5" />
+                                  </>
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-medium hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed transition ml-2"
+                                title="Aksi UserRoundMinus"
+                                onClick={() => { /* TODO: Add action here */ }}
+                              >
+                                <UserRoundMinus className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                            
                           )}
                         </td>
                       </tr>

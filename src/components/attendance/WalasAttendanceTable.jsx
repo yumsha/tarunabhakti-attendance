@@ -1,12 +1,16 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   Search,
   ClipboardList,
   FileSpreadsheet,
   FileText,
   Printer,
+  Bell,
+  CheckCircle,
+  XCircle,
+  Clock,
 } from "lucide-react";
-import { detailAbsensi } from "../../lib/backendApi";
+import { detailAbsensi, statusRequest } from "../../lib/backendApi";
 import Pagination from "../layout/Pagination.jsx";
 
 function getTodayWIB() {
@@ -62,7 +66,7 @@ const buildExportRows = (data) =>
     Keterangan: item.walasKeterangan || "-",
   }));
 
-export default function WalasAttendanceTable({ kelasId, kelasName }) {
+export default function WalasAttendanceTable({ kelasId, kelasName, walasId }) {
   const pageSize = 10;
   const [attendanceData, setAttendanceData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -70,6 +74,55 @@ export default function WalasAttendanceTable({ kelasId, kelasName }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [exporting, setExporting] = useState("");
   const [page, setPage] = useState(1);
+
+  // ── Pending requests from GURU ──────────────────────────────────────────
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const [respondingId, setRespondingId] = useState(null);
+  const [now, setNow] = useState(() => new Date());
+  const pollRef = useRef(null);
+
+  const fetchPending = useCallback(async () => {
+    if (!walasId) return;
+    try {
+      const res = await statusRequest.getPending(`walas_id=${walasId}${kelasId ? `&kelas_id=${kelasId}` : ""}`);
+      if (res?.success) setPendingRequests(res.data ?? []);
+    } catch (_) {}
+  }, [walasId, kelasId]);
+
+  useEffect(() => {
+    fetchPending();
+    // Tick clock every second for countdown
+    const clockId = setInterval(() => setNow(new Date()), 1000);
+    // Poll pending every 30 s
+    pollRef.current = setInterval(fetchPending, 30_000);
+    return () => { clearInterval(clockId); clearInterval(pollRef.current); };
+  }, [fetchPending]);
+
+  const handleRespond = async (id, approved) => {
+    setRespondingId(id);
+    try {
+      const res = await statusRequest.respond(id, { approved });
+      if (res?.success) {
+        setPendingRequests((prev) => prev.filter((r) => r.id !== id));
+        // refresh attendance table so new status shows
+        setFilterDate((d) => d); // triggers useEffect below
+      }
+    } catch (err) {
+      console.error("Respond error:", err);
+    } finally {
+      setRespondingId(null);
+    }
+  };
+
+  const formatCountdown = (expiresAt) => {
+    const diff = Math.max(0, new Date(expiresAt) - now);
+    const m = Math.floor(diff / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    return diff === 0 ? "Kedaluwarsa" : `${m}:${String(s).padStart(2, "0")}`;
+  };
+
+  const STATUS_LABEL = { HADIR: "Hadir", IZIN: "Izin", SAKIT: "Sakit", ALPHA: "Alpha" };
+  const STATUS_CLS   = { HADIR: "bg-emerald-100 text-emerald-700", IZIN: "bg-blue-100 text-blue-700", SAKIT: "bg-purple-100 text-purple-700", ALPHA: "bg-red-100 text-red-700" };
 
   useEffect(() => {
     const fetchAttendance = async () => {
@@ -359,7 +412,76 @@ export default function WalasAttendanceTable({ kelasId, kelasName }) {
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <div className="space-y-4">
+      {/* ── Pending requests panel ────────────────────────────────────────── */}
+      {pendingRequests.length > 0 && (
+        <div className="bg-white rounded-2xl shadow-sm border border-amber-200 overflow-hidden">
+          <div className="px-6 py-4 bg-amber-50 border-b border-amber-100 flex items-center gap-2">
+            <Bell className="w-4 h-4 text-amber-600" />
+            <h4 className="text-sm font-semibold text-amber-800">
+              Permintaan Perubahan Status ({pendingRequests.length})
+            </h4>
+            <span className="ml-auto text-xs text-amber-600">
+              Auto-disetujui jika tidak direspons dalam 15 menit
+            </span>
+          </div>
+
+          <ul className="divide-y divide-gray-100">
+            {pendingRequests.map((req) => {
+              const countdown = formatCountdown(req.expires_at);
+              const isExpiring = new Date(req.expires_at) - now < 3 * 60 * 1000;
+              const isMe = respondingId === req.id;
+              return (
+                <li key={req.id} className="px-6 py-4 flex flex-wrap items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-800 truncate">{req.siswa?.nama}</p>
+                    <p className="text-xs text-gray-500">
+                      Diajukan oleh <span className="font-medium">{req.guru?.nama}</span>
+                      {" · "}{req.tanggal}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {req.status_lama && (
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_CLS[req.status_lama] ?? "bg-gray-100 text-gray-600"}  opacity-60`}>
+                        {STATUS_LABEL[req.status_lama] ?? req.status_lama}
+                      </span>
+                    )}
+                    <span className="text-gray-400 text-xs">→</span>
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_CLS[req.status_baru] ?? "bg-gray-100 text-gray-600"}` }>
+                      {STATUS_LABEL[req.status_baru] ?? req.status_baru}
+                    </span>
+                  </div>
+
+                  <div className={`flex items-center gap-1 text-xs ${ isExpiring ? "text-red-500 font-semibold" : "text-gray-400"}`}>
+                    <Clock className="w-3 h-3" />{countdown}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      disabled={!!respondingId}
+                      onClick={() => handleRespond(req.id, true)}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition disabled:opacity-40"
+                    >
+                      {isMe ? <span className="animate-pulse">...</span> : <><CheckCircle className="w-3.5 h-3.5" /> Setujui</>}
+                    </button>
+                    <button
+                      disabled={!!respondingId}
+                      onClick={() => handleRespond(req.id, false)}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-white border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold rounded-lg transition disabled:opacity-40"
+                    >
+                      <XCircle className="w-3.5 h-3.5" /> Tolak
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
+      {/* ── Main attendance table ─────────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
       <div className="px-6 py-5 border-b border-gray-100">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -501,6 +623,7 @@ export default function WalasAttendanceTable({ kelasId, kelasName }) {
           }
         />
       )}
+    </div>
     </div>
   );
 }
