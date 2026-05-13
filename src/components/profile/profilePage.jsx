@@ -85,7 +85,7 @@ export default function ProfilePage() {
 
     if(loading) {
         return (
-            <div className="min-h-screen bg-white flex items-center justify-center">
+            <div className="flex-1 bg-white flex items-center justify-center">
                 <div className="flex flex-col items-center gap-4">
                     <div className="w-12 h-12 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin"></div>
                     <p className="text-gray-500 font-medium">Memuat profile...</p>
@@ -96,7 +96,7 @@ export default function ProfilePage() {
 
     if(error) {
         return (
-            <div className="min-h-screen bg-white flex items-center justify-center">
+            <div className="flex-1 bg-white flex items-center justify-center">
                 <div className="text-center max-w-md mx-auto px-6">
                     <div className="w-20 h-20 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
                         <span className="text-4xl">⚠️</span>
@@ -115,7 +115,7 @@ export default function ProfilePage() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="flex-1 bg-gray-50">
             <header className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
                 <h1 className="text-2xl font-semibold text-gray-900">Profile</h1>
                 <div className="flex items-center gap-4">

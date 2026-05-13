@@ -255,7 +255,7 @@ function SearchableSelect({ value, onChange, students, disabled }) {
           <div className="border-b border-gray-100 px-3 py-2.5">
             <div className="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-1.5">
               <Search className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-              <input ref={searchInputRef} type="text" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari nama atau kelas..." className="w-full bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400" />
+              <input ref={searchInputRef} type="text" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari nama..." className="w-full bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400" />
               {query ? <button type="button" onClick={() => setQuery("")} className="text-gray-400 hover:text-gray-600"><X className="h-3 w-3" /></button> : null}
             </div>
           </div>

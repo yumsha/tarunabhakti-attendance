@@ -192,6 +192,20 @@ export default function SidebarContainer() {
 
   return (
     <nav className="space-y-1 text-sm">
+    <div class="flex items-center gap-3 mb-10">
+      <div class="w-12 h-12 flex items-center justify-center shadow-lg">
+        <img src="/src/assets/logotbvector-copy.png" alt=""/>
+      </div>
+
+      <div class="flex flex-col leading-tight">
+        <span class="text-lg font-bold text-gray-800 tracking-tight">
+          STARBHAK
+        </span>
+        <span class="text-sm text-gray-500 whitespace-nowrap">
+          Attendance Management
+        </span>
+      </div>
+    </div>
 
       {/* Dashboard utama — semua role */}
       <a href="/dashboard" data-astro-prefetch className={getLinkClass("/dashboard")}>
