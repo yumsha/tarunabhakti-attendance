@@ -1,0 +1,13 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Sidebar from "../../components/Sidebar.astro";
+import KehadiranTableV2 from "../../components/attendance/KehadiranTableV2";
+import AuthGate from "../../components/auth/AuthGate.jsx";
+---
+
+<BaseLayout title="Kehadiran">
+  <div class="flex h-screen bg-gray-50">
+    <Sidebar />
+    <KehadiranTableV2 client:load />
+  </div>
+</BaseLayout>

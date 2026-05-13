@@ -136,6 +136,7 @@ export default function WalasDashboard() {
             <WalasAttendanceTable
               kelasId={walasKelas.id}
               kelasName={kelasName}
+              walasId={user?.guru?.id}
             />
           </>
         )}

@@ -177,4 +177,13 @@ export const auth = {
   me: () => request('/api/v1/auth/me'),
 };
 
-export default { siswa, tahunAjaran, mapel, guru, orangTua, kelas, jadwal, rfid, absensiSiswa, detailAbsensi, users, role, auth };
+export const statusRequest = {
+  create: (data: any) =>
+    request('/api/v1/status-request', { method: 'POST', body: JSON.stringify(data) }),
+  getPending: (params?: string) =>
+    request(`/api/v1/status-request/pending${params ? `?${params}` : ''}`),
+  respond: (id: number, data: { approved: boolean; keterangan?: string }) =>
+    request(`/api/v1/status-request/${id}/respond`, { method: 'PATCH', body: JSON.stringify(data) }),
+};
+
+export default { siswa, tahunAjaran, mapel, guru, orangTua, kelas, jadwal, rfid, absensiSiswa, detailAbsensi, statusRequest, users, role, auth };
