@@ -64,7 +64,6 @@ function StatusTapBadge({ status }) {
   );
 }
 
-// ── Dropdown component ─────────────────────────────────────────────────────
 function StatusDropdown({ currentStatus, rowState, onSelect, disabled }) {
   const [open, setOpen] = useState(false);
   const current = getStatusConfig(currentStatus);
