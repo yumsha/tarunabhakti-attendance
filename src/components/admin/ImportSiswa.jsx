@@ -8,7 +8,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import InfoStatCard from "../layout/InfoStatCard";
 
-// Constants
+// ─── Constants ─────────────────────────────────────────────────────────────────
 
 const TEMPLATE_HEADERS = [
   "NISN",
@@ -20,7 +20,17 @@ const TEMPLATE_HEADERS = [
   "Nomor Telepon",
   "Nama Kelas",
   "Jurusan",
+  // ── Orang Tua ──
+  // Isi salah satu: ID Orang Tua (jika sudah ada di DB)
+  // ATAU isi kolom NIK s/d Alamat Orang Tua (jika ingin tambah baru).
+  // Jika ID ada dan cocok di DB → kolom lain diabaikan.
+  // Jika ID tidak ada/kosong → sistem coba buat orang tua baru dari kolom berikut.
   "ID Orang Tua",
+  "NIK Orang Tua",
+  "Nama Orang Tua",
+  "No Telp Orang Tua",
+  "Pekerjaan Orang Tua",
+  "Alamat Orang Tua",
 ];
 
 const UPDATE_HEADERS = [
@@ -35,7 +45,70 @@ const UPDATE_HEADERS = [
   "ID Orang Tua",
 ];
 
-// Template Downloaders
+// ─── Template example rows ──────────────────────────────────────────────────
+
+// Contoh 1: punya ID orang tua di DB → cukup isi ID, kolom detail kosong
+const EXAMPLE_ROW_WITH_ID = [
+  "3050626105", "2025001", "Sandi Permata", "Jl. Kenanga No. 46 Bogor",
+  "L", "2005-12-06", "08875094072", "XII", "Rekayasa Perangkat Lunak",
+  "1",           // ID Orang Tua (ada di DB)
+  "", "", "", "", "", // detail ortu dikosongkan
+];
+
+// Contoh 2: orang tua belum ada di DB → ID kosong, isi kolom detail
+const EXAMPLE_ROW_NEW_PARENT = [
+  "3050626106", "2025002", "Dewi Rahayu", "Jl. Melati No. 12 Bogor",
+  "P", "2006-03-15", "08761234567", "XI", "Teknik Komputer Jaringan",
+  "",            // ID Orang Tua dikosongkan
+  "3201234567890001", "Budi Santoso", "08123456789", "Wiraswasta", "Jl. Merdeka No. 1 Bogor",
+];
+
+// Template Downloaders 
+
+function downloadExcelTemplate() {
+  const ws = XLSX.utils.aoa_to_sheet([
+    TEMPLATE_HEADERS,
+    EXAMPLE_ROW_WITH_ID,
+    EXAMPLE_ROW_NEW_PARENT,
+  ]);
+  ws["!cols"] = TEMPLATE_HEADERS.map(() => ({ wch: 26 }));
+
+  // Tambah komentar di header "ID Orang Tua" supaya user paham
+  // (SheetJS tidak support rich comment, pakai catatan di baris kedua saja)
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Template Siswa");
+  XLSX.writeFile(wb, "template_siswa.xlsx");
+}
+
+function downloadPdfTemplate() {
+  const doc = new jsPDF({ orientation: "landscape" });
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  doc.text("Template Import Data Siswa", 14, 14);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.text(
+    "Aturan Orang Tua: Isi 'ID Orang Tua' jika sudah ada di DB (kolom detail diabaikan). " +
+    "Jika ID kosong/tidak ditemukan, isi kolom NIK s/d Alamat Orang Tua untuk membuat data baru.",
+    14, 21, { maxWidth: 270 }
+  );
+  autoTable(doc, {
+    startY: 28,
+    head: [TEMPLATE_HEADERS],
+    body: [EXAMPLE_ROW_WITH_ID, EXAMPLE_ROW_NEW_PARENT],
+    styles: { fontSize: 7 },
+    headStyles: { fillColor: [37, 99, 235] },
+    columnStyles: {
+      9:  { fillColor: [239, 246, 255] }, // ID Orang Tua
+      10: { fillColor: [240, 253, 244] }, // NIK
+      11: { fillColor: [240, 253, 244] },
+      12: { fillColor: [240, 253, 244] },
+      13: { fillColor: [240, 253, 244] },
+      14: { fillColor: [240, 253, 244] },
+    },
+  });
+  doc.save("template_siswa.pdf");
+}
 
 function downloadUpdateExcelTemplate() {
   const ws = XLSX.utils.aoa_to_sheet([
@@ -66,35 +139,6 @@ function downloadUpdatePdfTemplate() {
   doc.save("update_siswa.pdf");
 }
 
-function downloadExcelTemplate() {
-  const ws = XLSX.utils.aoa_to_sheet([
-    TEMPLATE_HEADERS,
-    ["3050626105", "2025001", "Sandi Permata", "Jl. Kenanga No. 46 Bogor", "L", "2005-12-06", "08875094072", "XII", "Rekayasa Perangkat Lunak", 1],
-  ]);
-  ws["!cols"] = TEMPLATE_HEADERS.map(() => ({ wch: 24 }));
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Template Siswa");
-  XLSX.writeFile(wb, "template_siswa.xlsx");
-}
-
-function downloadPdfTemplate() {
-  const doc = new jsPDF({ orientation: "landscape" });
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
-  doc.text("Template Import Data Siswa", 14, 16);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.text("Isi sesuai kolom di bawah. Tanggal lahir format YYYY-MM-DD. Gender: L / P.", 14, 23);
-  autoTable(doc, {
-    startY: 28,
-    head: [TEMPLATE_HEADERS],
-    body: [["3050626105", "2025001", "Sandi Permata", "Jl. Kenanga No. 46 Bogor", "L", "2005-12-06", "08875094072", "XII", "Rekayasa Perangkat Lunak", "1"]],
-    styles: { fontSize: 8 },
-    headStyles: { fillColor: [37, 99, 235] },
-  });
-  doc.save("template_siswa.pdf");
-}
-
 function exportTablePdf(students) {
   const doc = new jsPDF({ orientation: "landscape" });
   doc.setFont("helvetica", "bold");
@@ -104,15 +148,9 @@ function exportTablePdf(students) {
     startY: 22,
     head: [["NISN", "NIPD", "Nama", "Alamat", "Gender", "Tanggal Lahir", "Nomor Telepon", "Nama Kelas", "Jurusan"]],
     body: students.map((s) => [
-      s.NISN,
-      s.NIPD,
-      s.nama,
-      s.alamat,
-      s.gender,
-      s.tanggal_lahir?.slice(0, 10),
-      s.nomor_telepon,
-      s.kelas?.kelas || "-",
-      s.kelas?.jurusan || "-",
+      s.NISN, s.NIPD, s.nama, s.alamat, s.gender,
+      s.tanggal_lahir?.slice(0, 10), s.nomor_telepon,
+      s.kelas?.kelas || "-", s.kelas?.jurusan || "-",
     ]),
     styles: { fontSize: 8 },
     headStyles: { fillColor: [37, 99, 235] },
@@ -136,7 +174,7 @@ function exportTableExcel(students) {
   XLSX.writeFile(wb, "data_siswa.xlsx");
 }
 
-// Icons
+// ─── Icons ──────────────────────────────────────────────────────────────────
 
 const Icon = ({ d, size = 16 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -155,7 +193,7 @@ const SearchIcon    = () => <Icon d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z
 const XIcon         = () => <Icon d="M18 6L6 18M6 6l12 12" />;
 const ChevronDown   = () => <Icon d="M6 9l6 6 6-6" />;
 
-// Modal Import
+// Import Modal
 
 function ImportModal({ onClose, onImportDone }) {
   const [rows, setRows]           = useState([]);
@@ -184,32 +222,100 @@ function ImportModal({ onClose, onImportDone }) {
     if (!rows.length) return;
     setImporting(true);
 
-    let orangtuaMap = {};
+    // Fetch semua orang tua sekali di awal untuk lookup cepat
+    let orangtuaMap = {}; // id (string) → object orang tua
     try {
       const ortuRes = await orangTua.list("limit=9999");
       if (ortuRes?.success && Array.isArray(ortuRes.data)) {
-        ortuRes.data.forEach((o) => { orangtuaMap[String(o.id)] = o; });
+        ortuRes.data.forEach((o) => {
+          orangtuaMap[String(o.id)] = o;
+        });
       }
     } catch (_) {}
 
     const res = [];
+
     for (const row of rows) {
+      const nama = row["Nama"] || "?";
+
       try {
+        // Validasi wajib siswa
         if (!row["NISN"] || !row["NIPD"] || !row["Nama"]) {
-          res.push({ nama: row["Nama"] || "?", ok: false, msg: "Field wajib kosong" });
+          res.push({ nama, ok: false, msg: "Field wajib siswa kosong (NISN / NIPD / Nama)" });
           continue;
         }
 
-        const ortuId       = String(row["ID Orang Tua"] || "").trim();
-        const matchedOrtu  = ortuId ? orangtuaMap[ortuId] : null;
-        const orangtuaPayload = matchedOrtu
-          ? { NIK: matchedOrtu.NIK, nama_orangtua: matchedOrtu.nama_orangtua, nomor_telepon: matchedOrtu.nomor_telepon, pekerjaan: matchedOrtu.pekerjaan, alamat: matchedOrtu.alamat }
-          : undefined;
+        // Resolusi Orang Tua
+        //
+        // Prioritas:
+        //   1. Jika "ID Orang Tua" diisi dan ID ada di DB  → pakai data dari DB
+        //   2. Jika "ID Orang Tua" diisi tapi TIDAK ada di DB
+        //      → coba pakai kolom detail (NIK Orang Tua, dst) untuk buat baru
+        //      → jika kolom detail juga kosong → gagal dengan pesan jelas
+        //   3. Jika "ID Orang Tua" kosong
+        //      → cek apakah kolom detail diisi → buat baru
+        //      → jika semua kosong → import siswa tanpa orang tua
 
+        const idOrtu     = String(row["ID Orang Tua"] || "").trim();
+        const nikOrtu    = String(row["NIK Orang Tua"] || "").trim();
+        const namaOrtu   = String(row["Nama Orang Tua"] || "").trim();
+        const telpOrtu   = String(row["No Telp Orang Tua"] || "").trim();
+        const pekerjaanOrtu = String(row["Pekerjaan Orang Tua"] || "").trim();
+        const alamatOrtu = String(row["Alamat Orang Tua"] || "").trim();
+
+        const hasDetail  = nikOrtu && namaOrtu && telpOrtu && pekerjaanOrtu && alamatOrtu;
+
+        let orangtuaPayload = undefined;
+
+        if (idOrtu) {
+          const matched = orangtuaMap[idOrtu];
+          if (matched) {
+            // ✅ ID ada di DB → pakai data dari DB
+            orangtuaPayload = {
+              NIK:           matched.NIK,
+              nama_orangtua: matched.nama_orangtua,
+              nomor_telepon: matched.nomor_telepon,
+              pekerjaan:     matched.pekerjaan,
+              alamat:        matched.alamat,
+            };
+          } else {
+            // ❌ ID tidak ditemukan di DB
+            if (hasDetail) {
+              // Fallback: pakai kolom detail untuk buat baru
+              orangtuaPayload = {
+                NIK:           nikOrtu,
+                nama_orangtua: namaOrtu,
+                nomor_telepon: telpOrtu,
+                pekerjaan:     pekerjaanOrtu,
+                alamat:        alamatOrtu,
+              };
+            } else {
+              // Tidak ada fallback → gagal baris ini
+              res.push({
+                nama,
+                ok: false,
+                msg: `ID Orang Tua "${idOrtu}" tidak ditemukan di database dan kolom detail orang tua kosong`,
+              });
+              continue;
+            }
+          }
+        } else if (hasDetail) {
+          // ID kosong tapi detail ada → buat orang tua baru
+          orangtuaPayload = {
+            NIK:           nikOrtu,
+            nama_orangtua: namaOrtu,
+            nomor_telepon: telpOrtu,
+            pekerjaan:     pekerjaanOrtu,
+            alamat:        alamatOrtu,
+          };
+        }
+        // else: semua kosong → import siswa tanpa orang tua (orangtuaPayload tetap undefined)
+
+        // Buat siswa
         const payload = {
           NISN:          String(row["NISN"] || ""),
           NIPD:          String(row["NIPD"] || ""),
-          nama:          row["Nama"] || "",
+          nama,
           alamat:        row["Alamat"] || "",
           gender:        row["Gender"] || "",
           tanggal_lahir: row["Tanggal Lahir (YYYY-MM-DD)"] || "",
@@ -220,9 +326,10 @@ function ImportModal({ onClose, onImportDone }) {
         };
 
         const result = await siswa.create(payload);
-        res.push({ nama: payload.nama, ok: result?.success, msg: result?.message || "" });
+        res.push({ nama, ok: result?.success, msg: result?.message || "" });
+
       } catch (err) {
-        res.push({ nama: row["Nama"] || "?", ok: false, msg: err.message });
+        res.push({ nama, ok: false, msg: err.message });
       }
     }
 
@@ -247,6 +354,20 @@ function ImportModal({ onClose, onImportDone }) {
         </div>
 
         <div className="p-6 space-y-5">
+
+          {/* Info box aturan orang tua */}
+          {/* {!done && (
+            <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-700 space-y-1">
+              <p className="font-semibold text-blue-800">Aturan kolom Orang Tua di Excel:</p>
+              <ul className="list-disc list-inside space-y-0.5 text-blue-600">
+                <li><span className="font-medium">ID Orang Tua ada & cocok di DB</span> → data orang tua diambil dari database.</li>
+                <li><span className="font-medium">ID ada tapi tidak cocok</span> → sistem coba pakai kolom detail (NIK, Nama, dll) untuk buat baru. Jika detail juga kosong → baris gagal.</li>
+                <li><span className="font-medium">ID kosong, kolom detail diisi</span> → orang tua baru dibuat otomatis.</li>
+                <li><span className="font-medium">Semua kosong</span> → siswa diimport tanpa orang tua.</li>
+              </ul>
+            </div>
+          )} */}
+
           {!rows.length && (
             <div
               onDrop={handleDrop}
@@ -270,12 +391,28 @@ function ImportModal({ onClose, onImportDone }) {
               <div className="overflow-auto max-h-48 border border-gray-200 rounded-lg">
                 <table className="w-full text-xs">
                   <thead className="bg-gray-50 sticky top-0">
-                    <tr>{Object.keys(rows[0]).map((k) => (<th key={k} className="px-3 py-2 text-left font-semibold text-gray-600 whitespace-nowrap">{k}</th>))}</tr>
+                    <tr>
+                      {Object.keys(rows[0]).map((k) => (
+                        <th key={k} className={`px-3 py-2 text-left font-semibold whitespace-nowrap
+                          ${["ID Orang Tua","NIK Orang Tua","Nama Orang Tua","No Telp Orang Tua","Pekerjaan Orang Tua","Alamat Orang Tua"].includes(k)
+                            ? "text-blue-600 bg-blue-50"
+                            : "text-gray-600"}`}>
+                          {k}
+                        </th>
+                      ))}
+                    </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {rows.slice(0, 10).map((r, i) => (
                       <tr key={i}>
-                        {Object.values(r).map((v, j) => (<td key={j} className="px-3 py-2 text-gray-700 whitespace-nowrap">{String(v)}</td>))}
+                        {Object.entries(r).map(([k, v], j) => (
+                          <td key={j} className={`px-3 py-2 whitespace-nowrap
+                            ${["ID Orang Tua","NIK Orang Tua","Nama Orang Tua","No Telp Orang Tua","Pekerjaan Orang Tua","Alamat Orang Tua"].includes(k)
+                              ? "text-blue-700 bg-blue-50/40"
+                              : "text-gray-700"}`}>
+                            {String(v)}
+                          </td>
+                        ))}
                       </tr>
                     ))}
                   </tbody>
@@ -296,7 +433,7 @@ function ImportModal({ onClose, onImportDone }) {
                   <div key={i} className="flex items-center gap-2 px-4 py-2 text-sm">
                     <span className={r.ok ? "text-green-500" : "text-red-500"}>{r.ok ? <CheckCircle /> : <XCircle />}</span>
                     <span className="font-medium text-gray-800 flex-1">{r.nama}</span>
-                    {!r.ok && <span className="text-xs text-red-500">{r.msg}</span>}
+                    {!r.ok && <span className="text-xs text-red-500 text-right max-w-xs">{r.msg}</span>}
                   </div>
                 ))}
               </div>
@@ -325,7 +462,7 @@ function ImportModal({ onClose, onImportDone }) {
   );
 }
 
-// Modal Update
+// Update Modal (tidak berubah)
 
 function UpdateModal({ onClose, onUpdateDone }) {
   const [rows, setRows]         = useState([]);
@@ -425,7 +562,6 @@ function UpdateModal({ onClose, onUpdateDone }) {
         </div>
 
         <div className="p-6 space-y-5">
-
           {!rows.length && (
             <div
               onDrop={handleDrop}
@@ -504,7 +640,7 @@ function UpdateModal({ onClose, onUpdateDone }) {
   );
 }
 
-// Modal Delete Konfirmasi Siswa
+// Delete Confirm Modal (tidak berubah)
 
 function DeleteConfirmModal({ student, onClose, onDeleted }) {
   const [deleting, setDeleting] = useState(false);
@@ -537,7 +673,6 @@ function DeleteConfirmModal({ student, onClose, onDeleted }) {
           </div>
           <button onClick={onClose} className="text-red-200 hover:text-white transition-colors"><XCircle /></button>
         </div>
-
         <div className="p-6 space-y-4">
           <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-100 rounded-xl">
             <span className="text-red-500 mt-0.5 shrink-0"><AlertCircle /></span>
@@ -550,29 +685,19 @@ function DeleteConfirmModal({ student, onClose, onDeleted }) {
               <p className="text-xs text-gray-400 mt-1">Data akan dinonaktifkan (soft delete) dan tidak muncul di daftar.</p>
             </div>
           </div>
-
           {error && (
             <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
               <AlertCircle /> {error}
             </div>
           )}
-
           <div className="flex gap-3 pt-1">
-            <button
-              onClick={onClose}
-              disabled={deleting}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition disabled:opacity-50"
-            >
+            <button onClick={onClose} disabled={deleting} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition disabled:opacity-50">
               Batal
             </button>
-            <button
-              onClick={handleDelete}
-              disabled={deleting}
-              className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-2"
-            >
+            <button onClick={handleDelete} disabled={deleting} className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-2">
               {deleting ? (
                 <><svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>Menghapus...</>
-              ) : (<>Hapus Siswa</>)}
+              ) : "Hapus Siswa"}
             </button>
           </div>
         </div>
@@ -581,19 +706,19 @@ function DeleteConfirmModal({ student, onClose, onDeleted }) {
   );
 }
 
-// Main Component
+// ─── Main Component (tidak berubah) ─────────────────────────────────────────
 
 export default function ImportSiswa() {
-  const [allStudents, setAllStudents]         = useState([]);
-  const [kelasList, setKelasList]             = useState([]);
-  const [selectedKelas, setSelectedKelas]     = useState("");
-  const [searchQuery, setSearchQuery]         = useState("");
-  const [loading, setLoading]                 = useState(false);
-  const [error, setError]                     = useState("");
-  const [page, setPage]                       = useState(1);
-  const [totalPages, setTotalPages]           = useState(1);
-  const [showImportModal, setShowImportModal] = useState(false);
-  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [allStudents, setAllStudents]           = useState([]);
+  const [kelasList, setKelasList]               = useState([]);
+  const [selectedKelas, setSelectedKelas]       = useState("");
+  const [searchQuery, setSearchQuery]           = useState("");
+  const [loading, setLoading]                   = useState(false);
+  const [error, setError]                       = useState("");
+  const [page, setPage]                         = useState(1);
+  const [totalPages, setTotalPages]             = useState(1);
+  const [showImportModal, setShowImportModal]   = useState(false);
+  const [showUpdateModal, setShowUpdateModal]   = useState(false);
   const [showTemplateMenu, setShowTemplateMenu] = useState(false);
   const [showExportMenu, setShowExportMenu]     = useState(false);
   const [showImportMenu, setShowImportMenu]     = useState(false);
@@ -604,21 +729,15 @@ export default function ImportSiswa() {
   const exportRef     = useRef();
   const importMenuRef = useRef();
 
-  // Fetch kelas
-
   useEffect(() => {
     const fetchKelas = async () => {
       try {
         const res = await kelas.list("limit=100");
         if (res.success && res.data) setKelasList(res.data);
-      } catch (err) {
-        console.error("Error fetching kelas:", err);
-      }
+      } catch (err) { console.error("Error fetching kelas:", err); }
     };
     fetchKelas();
   }, []);
-
-  // Fetch siswa
 
   const fetchAllStudents = async () => {
     setLoading(true);
@@ -627,15 +746,11 @@ export default function ImportSiswa() {
       const userStr = localStorage.getItem("user");
       const user    = userStr ? JSON.parse(userStr) : null;
       const role    = (
-        user?.userRole?.[0]?.role?.name ||
-        user?.role?.name ||
-        user?.role || ""
+        user?.userRole?.[0]?.role?.name || user?.role?.name || user?.role || ""
       ).toString().toUpperCase();
-      const guruId = user?.guru?.id;
-
+      const guruId  = user?.guru?.id;
       const queryParams = {};
       if (role === "WALAS" && guruId) queryParams.walas_id = guruId.toString();
-
       const queryString = new URLSearchParams(queryParams).toString();
       const res = await siswa.list(queryString + "&limit=9999");
       if (res.success) {
@@ -652,13 +767,9 @@ export default function ImportSiswa() {
 
   useEffect(() => { fetchAllStudents(); }, []);
 
-  // Filter & Pagination (client-side)
-
   const filteredStudents = useMemo(() => {
     let filtered = allStudents;
-    if (selectedKelas) {
-      filtered = filtered.filter((s) => s.kelas_id === parseInt(selectedKelas));
-    }
+    if (selectedKelas) filtered = filtered.filter((s) => s.kelas_id === parseInt(selectedKelas));
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
       filtered = filtered.filter((s) =>
@@ -686,13 +797,9 @@ export default function ImportSiswa() {
 
   useEffect(() => { setPage(1); }, [selectedKelas, searchQuery]);
 
-  // Handlers
-
   const handleSearch = (value) => setSearchQuery(value);
   const clearSearch  = () => setSearchQuery("");
   const refreshData  = () => fetchAllStudents();
-
-  // Outside click
 
   useEffect(() => {
     const handler = (e) => {
@@ -716,7 +823,6 @@ export default function ImportSiswa() {
         )}
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          {/* Toolbar */}
           <div className="px-6 pt-4 pb-2 border-b border-gray-100">
             <div className="mb-3">
               <p className="text-sm text-gray-400">
@@ -727,7 +833,6 @@ export default function ImportSiswa() {
             </div>
 
             <div className="flex items-center gap-3 flex-wrap pb-2">
-              {/* Search */}
               <div className="relative flex-1 max-w-md">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><SearchIcon /></div>
                 <input
@@ -744,7 +849,6 @@ export default function ImportSiswa() {
                 )}
               </div>
 
-              {/* Kelas filter */}
               <select
                 value={selectedKelas}
                 onChange={(e) => setSelectedKelas(e.target.value)}
@@ -756,10 +860,9 @@ export default function ImportSiswa() {
                 ))}
               </select>
 
-              {/* Action buttons */}
               <div className="flex items-center gap-2 ml-auto flex-wrap">
 
-                {/* Template dropdown (Import Baru + Update Data) */}
+                {/* Template dropdown */}
                 <div className="relative" ref={templateRef}>
                   <button
                     onClick={() => { setShowTemplateMenu(!showTemplateMenu); setShowExportMenu(false); setShowImportMenu(false); }}
@@ -833,12 +936,10 @@ export default function ImportSiswa() {
                     </div>
                   )}
                 </div>
-
               </div>
             </div>
           </div>
 
-          {/* Table */}
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50/80">
@@ -872,7 +973,7 @@ export default function ImportSiswa() {
                           title="Hapus siswa"
                           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors duration-150"
                         >
-                           Hapus
+                          Hapus
                         </button>
                       </td>
                     </tr>
