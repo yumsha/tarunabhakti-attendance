@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { jadwal, guru, kelas, mapel } from "../../lib/backendApi";
+import { jadwal, guru, kelas, mapel, auth } from "../../lib/backendApi";
 import PageHeader from "../layout/PageHeader";
 
 const formatTime = (timeStr) => {
@@ -131,6 +131,26 @@ export default function DaftarJadwal() {
   const [importResult, setImportResult] = useState(null); // result phase
   const [notification, setNotification] = useState(null);
   const createMenuRef = useRef();
+
+  const [canManageJadwal, setCanManageJadwal] = useState(false);
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      try {
+        const res = await auth.me();
+        if (res?.success && res?.data?.roles) {
+          const roles = res.data.roles.map((r) => r.name.toUpperCase());
+          const hasAccess = roles.some((r) =>
+            ["SUPER ADMIN"].includes(r)
+          );
+          setCanManageJadwal(hasAccess);
+        }
+      } catch (e) {
+        // console.error(e);
+      }
+    };
+    fetchUserRole();
+  }, []);
 
   const showNotification = (message, type = "success") => {
     setNotification({ message, type });
@@ -726,42 +746,44 @@ export default function DaftarJadwal() {
               </button>
 
               {/* Tambah Jadwal */}
-              <div className="relative" ref={createMenuRef}>
-                <button
-                  onClick={() => setShowCreateMenu(!showCreateMenu)}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-md shadow-blue-100 font-bold text-sm"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                  </svg>
-                  Tambah Jadwal
-                </button>
+              {canManageJadwal && (
+                <div className="relative" ref={createMenuRef}>
+                  <button
+                    onClick={() => setShowCreateMenu(!showCreateMenu)}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-md shadow-blue-100 font-bold text-sm"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Tambah Jadwal
+                  </button>
 
-                {showCreateMenu && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden">
-                    <button
-                      onClick={handleCreateManual}
-                      className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors flex items-center gap-3 border-b border-gray-50"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                      Tambah Manual
-                    </button>
-                    <button
-                      onClick={() => { setShowCreateMenu(false); setShowImportModal(true); }}
-                      className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors flex items-center gap-3"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      Import XLSX/PDF
-                    </button>
-                  </div>
-                )}
-              </div>
+                  {showCreateMenu && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden">
+                      <button
+                        onClick={handleCreateManual}
+                        className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors flex items-center gap-3 border-b border-gray-50"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        Tambah Manual
+                      </button>
+                      <button
+                        onClick={() => { setShowCreateMenu(false); setShowImportModal(true); }}
+                        className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors flex items-center gap-3"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Import XLSX/PDF
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -774,7 +796,9 @@ export default function DaftarJadwal() {
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mata Pelajaran</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Kelas</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Guru</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Action</th>
+                {canManageJadwal && (
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Action</th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -822,23 +846,25 @@ export default function DaftarJadwal() {
                         <span className="text-sm text-gray-600">{item.guru?.nama || "-"}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <button
-                        className="text-red-500 hover:text-red-700 font-medium text-sm transition-colors flex items-center gap-1"
-                        onClick={() => handleDeleteJadwal(item)}
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        Hapus
-                      </button>
-                    </td>
+                    {canManageJadwal && (
+                      <td className="px-6 py-4">
+                        <button
+                          className="text-red-500 hover:text-red-700 font-medium text-sm transition-colors flex items-center gap-1"
+                          onClick={() => handleDeleteJadwal(item)}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                          Hapus
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center text-gray-500 italic">
+                  <td colSpan={canManageJadwal ? "6" : "5"} className="px-6 py-12 text-center text-gray-500 italic">
                     {searchTerm || selectedKelasFilter
                       ? "Tidak ada jadwal cocok dengan filter yang dipilih."
                       : "Jadwal tidak ditemukan."}
