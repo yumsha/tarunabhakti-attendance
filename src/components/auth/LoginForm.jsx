@@ -16,15 +16,12 @@ export default function LoginForm() {
             const res = await auth.login({ username, password });
 
             if (res.success && res.data?.accessToken) {
-                // Simpan accessToken
                 localStorage.setItem("accessToken", res.data.accessToken);
 
-                // Simpan refreshToken kalau ada — dibutuhkan backendApi saat 401
                 if (res.data.refreshToken) {
                     localStorage.setItem("refreshToken", res.data.refreshToken);
                 }
 
-                // Simpan data user
                 if (res.data.user) {
                     localStorage.setItem("user", JSON.stringify(res.data.user));
                 }
