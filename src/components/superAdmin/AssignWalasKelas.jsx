@@ -17,7 +17,7 @@ import {
 import PageHeader from "../layout/PageHeader";
 import InfoStatCard from "../layout/InfoStatCard";
 import Pagination from "../layout/Pagination";
-import { kelas, role as roleApi, users } from "../../lib/backendApi";
+import { guru as guruApi, kelas, role as roleApi, users } from "../../lib/backendApi";
 
 const inputClass =
   "w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm " +
@@ -235,27 +235,27 @@ function AssignWalasModal({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">User WALAS</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700">Guru WALAS</label>
             <select
               className={inputClass}
               value={form.user_id}
               onChange={(e) => setForm((prev) => ({ ...prev, user_id: e.target.value }))}
               disabled={submitting}
             >
-              <option value="">Pilih user WALAS</option>
+              <option value="">Pilih guru WALAS</option>
               {guruOptions.map((item) => (
                 <option key={item.id} value={item.id}>
-                  {item.guru?.nama || item.email} - {item.email}
+                  {item.nama} {item.NIP ? `- ${item.NIP}` : ""}
                 </option>
               ))}
             </select>
             <p className="mt-1.5 text-xs text-gray-400">
-              Yang tampil hanya user guru yang sudah punya role WALAS.
+              Yang tampil hanya guru yang sudah punya role WALAS dan belum punya kelas.
             </p>
             {!guruOptions.length ? (
               <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                Belum ada user WALAS yang siap di-assign. Atur role user dulu dari menu Kelola Users.
+                Belum ada guru WALAS yang siap di-assign. Atur role user dulu dari menu Kelola Users.
               </div>
             ) : null}
           </div>
@@ -277,7 +277,7 @@ function AssignWalasModal({
                 <div>
                   <p className="text-xs text-gray-400">Guru terpilih</p>
                   <p className="text-sm font-semibold text-gray-800">
-                    {selectedUser?.guru?.nama || selectedUser?.email || "-"}
+                    {selectedUser?.nama || "-"}
                   </p>
                 </div>
               </div>
@@ -389,6 +389,7 @@ export default function AssignWalasKelas() {
 
   const [kelasList, setKelasList] = useState([]);
   const [userList, setUserList] = useState([]);
+  const [guruWalasList, setGuruWalasList] = useState([]);
   const [roleList, setRoleList] = useState([]);
 
   const [search, setSearch] = useState("");
@@ -410,15 +411,17 @@ export default function AssignWalasKelas() {
     setFetchError("");
 
     try {
-      const [kelasRes, usersRes, roleRes] = await Promise.all([
+      const [kelasRes, usersRes, roleRes, guruWalasRes] = await Promise.all([
         kelas.list("limit=100"),
         users.list("page=1&limit=10000"),
         roleApi.list(),
+        guruApi.walas(),
       ]);
 
       setKelasList(Array.isArray(kelasRes?.data) ? kelasRes.data : []);
       setUserList(Array.isArray(usersRes?.data) ? usersRes.data.map(normalizeUser) : []);
       setRoleList(Array.isArray(roleRes?.data) ? roleRes.data : []);
+      setGuruWalasList(Array.isArray(guruWalasRes?.data) ? guruWalasRes.data : []);
     } catch (err) {
       setFetchError(err?.message || "Gagal memuat data assign walas");
     } finally {
@@ -436,12 +439,17 @@ export default function AssignWalasKelas() {
     return copied.sort((a, b) => getClassLabel(a).localeCompare(getClassLabel(b), "id"));
   }, [kelasList]);
 
+  // Guru walas dari backend (sudah filter role WALAS dari DB, belum punya kelas)
+  // Map ke { guruId, nama, NIP, linkedUser } untuk kebutuhan dropdown & assign
   const walasUsers = useMemo(
     () =>
-      userList
-        .filter((item) => item.guru && item.normalized_roles.includes("WALAS"))
-        .sort((a, b) => (a.guru?.nama || a.email).localeCompare(b.guru?.nama || b.email, "id")),
-    [userList]
+      guruWalasList
+        .map((g) => {
+          const linkedUser = userList.find((u) => Number(u.guru_id) === Number(g.id)) || null;
+          return { ...g, _linkedUser: linkedUser };
+        })
+        .sort((a, b) => (a.nama || "").localeCompare(b.nama || "", "id")),
+    [guruWalasList, userList]
   );
 
   const walasRole = useMemo(
@@ -502,31 +510,12 @@ export default function AssignWalasKelas() {
 
   const showToast = (message, type = "success") => setToast({ message, type });
 
-  const getSelectedWalasUser = (userId) => {
-    const selectedUser = userList.find((item) => item.id === userId);
-    if (!selectedUser) throw new Error("User guru tidak ditemukan");
-    if (!selectedUser.guru_id) throw new Error("User belum terhubung ke data guru");
-    if (!selectedUser.normalized_roles.includes("WALAS")) {
-      throw new Error("User belum punya role WALAS. Atur dulu dari Kelola Users");
-    }
-    return selectedUser;
-  };
-
-  const handleSubmitAssign = async ({ kelas_id, user_id }) => {
-    if (!walasRole) {
-      throw new Error("Role WALAS belum tersedia di master role");
-    }
+  const handleSubmitAssign = async ({ kelas_id, user_id: guru_id }) => {
+    if (!guru_id) throw new Error("Pilih guru walas terlebih dahulu");
 
     setSubmitLoading(true);
     try {
-      const selectedUser = getSelectedWalasUser(user_id);
-      const targetGuruId = selectedUser.guru_id;
-
-      if (!targetGuruId) {
-        throw new Error("User terpilih belum memiliki data guru");
-      }
-
-      const assignRes = await kelas.assignWalas(kelas_id, Number(targetGuruId));
+      const assignRes = await kelas.assignWalas(kelas_id, Number(guru_id));
       if (assignRes?.success === false) {
         throw new Error(assignRes.message || "Gagal assign walas ke kelas");
       }
