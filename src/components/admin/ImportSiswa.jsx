@@ -8,7 +8,6 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import InfoStatCard from "../layout/InfoStatCard";
 
-// Constants
 
 const TEMPLATE_HEADERS = [
   "NISN",
