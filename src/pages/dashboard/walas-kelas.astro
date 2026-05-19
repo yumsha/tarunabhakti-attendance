@@ -5,7 +5,7 @@ import AuthGate from "../../components/auth/AuthGate.jsx";
 import WalasKelasList from "../../components/walas/WalasKelasList.jsx";
 ---
 
-<BaseLayout title="Daftar Kelas Walas">
+<BaseLayout requireAuth={true} title="Daftar Kelas Walas">
   <div class="flex h-screen bg-gray-50 overflow-hidden">
     <Sidebar />
 

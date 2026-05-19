@@ -3,7 +3,7 @@ import BaseLayout from "../layouts/BaseLayout.astro"
 import LoginForm from "../components/auth/LoginForm.jsx"
 ---
 
-<BaseLayout title="Login - TB Attendance">
+<BaseLayout requireGuest={true} title="Login - TB Attendance">
     <div class="min-h-screen bg-gradient-to-br from-[#5B9BD5] via-[#4A8BC2] to-[#2D5F7F] flex items-center justify-center p-4">
       <div class="bg-gradient-to-b from-gray-100 to-gray-200 rounded-3xl shadow-2xl p-10 w-full max-w-md">
         <div class="mb-10">

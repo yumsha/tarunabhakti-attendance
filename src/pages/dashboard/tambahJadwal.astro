@@ -5,7 +5,7 @@ import DaftarJadwal from "../../components/attendance/DaftarJadwal";
 import AuthGate from "../../components/auth/AuthGate.jsx";
 ---
 
-<BaseLayout title="Tambah Jadwal">
+<BaseLayout requireAuth={true} title="Tambah Jadwal">
   <div class="flex h-screen bg-gray-50">
     <Sidebar />
     <AuthGate client:load allowedRoles={["ADMIN", "SUPERADMIN", "KESISWAAN"]}>
