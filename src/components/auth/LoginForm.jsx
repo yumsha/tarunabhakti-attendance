@@ -2,7 +2,7 @@ import { useState } from "react";
 import { auth } from "../../lib/backendApi";
 
 export default function LoginForm() {
-    const [email, setEmail] = useState("");
+    const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
@@ -13,7 +13,7 @@ export default function LoginForm() {
         setError("");
 
         try {
-            const res = await auth.login({ email, password });
+            const res = await auth.login({ username, password });
 
             if (res.success && res.data?.accessToken) {
                 // Simpan accessToken
@@ -31,7 +31,7 @@ export default function LoginForm() {
 
                 window.location.href = "/dashboard";
             } else {
-                setError(res.message || "Login gagal, periksa email dan password");
+                setError(res.message || "Login gagal, periksa username dan password");
             }
         } catch (err) {
             console.error("Login error:", err);
@@ -50,11 +50,11 @@ export default function LoginForm() {
             )}
             <div>
                 <input
-                    type="email"
-                    placeholder="Email or Username"
-                    name="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    type="text"
+                    placeholder="Username"
+                    name="username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
                     required
                     className="w-full px-5 py-3.5 bg-white border-0 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm"
                 />
