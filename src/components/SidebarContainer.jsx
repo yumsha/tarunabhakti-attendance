@@ -386,7 +386,7 @@ export default function SidebarContainer() {
         </a>
       )}
 
-      {isSuperAdmin && (
+      {/* {isSuperAdmin && (
         <a
           href="/dashboard/roles"
           data-astro-prefetch
@@ -395,7 +395,7 @@ export default function SidebarContainer() {
           <ShieldCheck width={20} height={20} />
           Manajemen Role
         </a>
-      )}
+      )} */}
 
       {canAccessAttendance && 
         <div className="flex items-center my-4">

@@ -1,8 +1,8 @@
 ---
-
 import "../styles/globals.css";
 import { ClientRouter } from 'astro:transitions';
-const { title = "Starbhak Attendance" } = Astro.props;
+
+const { title = "Starbhak Attendance", requireAuth = false, requireGuest = false } = Astro.props;
 ---
 <html lang="id">
   <head>
@@ -13,6 +13,32 @@ const { title = "Starbhak Attendance" } = Astro.props;
     <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
     <title>{title}</title>
     <ClientRouter />
+
+    {/* Inline script to prevent unauthenticated access flash */}
+    {requireAuth && (
+      <script is:inline>
+        const checkAuth = () => {
+          if (!localStorage.getItem('accessToken')) {
+            window.location.replace('/login');
+          }
+        };
+        checkAuth();
+        document.addEventListener('astro:after-swap', checkAuth);
+      </script>
+    )}
+
+    {/* Inline script to prevent authenticated users from seeing login page */}
+    {requireGuest && (
+      <script is:inline>
+        const checkGuest = () => {
+          if (localStorage.getItem('accessToken')) {
+            window.location.replace('/dashboard');
+          }
+        };
+        checkGuest();
+        document.addEventListener('astro:after-swap', checkGuest);
+      </script>
+    )}
   </head>
 
   <body class="min-h-screen bg-gray-100 font-[Poppins] text-gray-800">

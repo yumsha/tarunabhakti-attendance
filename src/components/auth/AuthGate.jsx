@@ -1,12 +1,7 @@
 import { useState, useEffect } from 'react';
 
-// Semua varian nama SUPERADMIN yang mungkin digunakan
 const SUPERADMIN_VARIANTS = ['SUPERADMIN', 'SUPER ADMIN', 'SUPER_ADMIN'];
 
-/**
- * Helper: resolve semua roles dari berbagai struktur data user di localStorage.
- * Menormalkan ke uppercase dan deduplikasi.
- */
 function resolveUserRoles(user) {
   const fromRoles = Array.isArray(user?.roles)
     ? user.roles.map((r) => r?.name).filter(Boolean)
@@ -19,7 +14,6 @@ function resolveUserRoles(user) {
     .filter(Boolean)
     .map((r) => String(r).toUpperCase().trim());
 
-  // Normalisasi alias
   const normalized = merged.map((r) => (r === 'WALI KELAS' ? 'WALAS' : r));
 
   return Array.from(new Set(normalized));
@@ -47,12 +41,9 @@ export default function AuthGate({ children, allowedRoles = [] }) {
       try {
         const user = JSON.parse(userStr);
         const userRoles = resolveUserRoles(user);
-
-        // Cek apakah user adalah SuperAdmin — SuperAdmin selalu dapat akses ke semua halaman
         const isSuperAdmin = userRoles.some((r) => SUPERADMIN_VARIANTS.includes(r));
 
         if (allowedRoles.length === 0 || isSuperAdmin) {
-          // Tidak ada pembatasan role, atau user adalah SuperAdmin → izinkan
           setAuthorized(true);
         } else {
           const normalizedAllowed = allowedRoles.map((r) => r.toUpperCase().trim());

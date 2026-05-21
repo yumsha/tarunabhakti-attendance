@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import DaftarKehadiranKelas from "./DaftarKehadiranKelas";
-import KehadiranTableV2 from "./KehadiranTableV2";
+import KehadiranTable from "./KehadiranTable.old";
 
 function getUserFromStorage() {
   try {
@@ -57,11 +57,11 @@ export default function AttendanceMain() {
   }, []);
 
   if (!canViewAttendance) {
-    return <KehadiranTableV2 />;
+    return <KehadiranTable />;
   }
 
   if (kelasId) {
-    return <KehadiranTableV2 />;
+    return <KehadiranTable />;
   }
 
   return <DaftarKehadiranKelas />;

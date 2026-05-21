@@ -20,11 +20,6 @@ const TEMPLATE_HEADERS = [
   "Nomor Telepon",
   "Nama Kelas",
   "Jurusan",
-  // ── Orang Tua ──
-  // Isi salah satu: ID Orang Tua (jika sudah ada di DB)
-  // ATAU isi kolom NIK s/d Alamat Orang Tua (jika ingin tambah baru).
-  // Jika ID ada dan cocok di DB → kolom lain diabaikan.
-  // Jika ID tidak ada/kosong → sistem coba buat orang tua baru dari kolom berikut.
   "ID Orang Tua",
   "NIK Orang Tua",
   "Nama Orang Tua",
