@@ -1,3 +1,4 @@
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
@@ -51,17 +52,17 @@ function buildUserUpdatePayload(user, nextRoles) {
     new Set(nextRoles.map(normalizeRoleName).filter(Boolean))
   );
 
+  // Fallback ke GURU kalau semua role dihapus tapi user masih linked ke guru
   if (!normalizedRoles.length && user?.guru_id) {
     normalizedRoles.push("GURU");
   }
 
   return {
-    email: user.email,
-    role: normalizedRoles[0],
-    role_names: normalizedRoles,
-    guru_id: user.guru_id,
+    role: normalizedRoles[0] ?? "GURU",
+    role_names: normalizedRoles.length ? normalizedRoles : ["GURU"],
   };
 }
+
 
 function getClassLabel(item) {
   if (!item) return "-";

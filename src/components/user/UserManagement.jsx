@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { users, auth, guru as guruApi, role as roleApi } from "../../lib/backendApi";
+import { users, auth, role as roleApi, guru as guruApi } from "../../lib/backendApi";
 
 import UserPageHeader from "./UserPageHeader";
 import UserTable from "./UserTable";
@@ -83,6 +83,8 @@ export default function UserManagement() {
 
   const [toast, setToast] = useState(null);
   const [roleOptions, setRoleOptions] = useState([]);
+  const [guruList, setGuruList] = useState([]);
+  const [guruLoading, setGuruLoading] = useState(false);
 
   // Load role options
   useEffect(() => {
@@ -104,6 +106,23 @@ export default function UserManagement() {
     })();
     return () => { cancelled = true; };
   }, []);
+
+  // Load guru list (synced from YSBO)
+  const fetchGuru = useCallback(async () => {
+    setGuruLoading(true);
+    try {
+      const res = await guruApi.listWithYsboSync();
+      if (res?.success && Array.isArray(res.data)) {
+        setGuruList(res.data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch guru from YSBO:", err);
+    } finally {
+      setGuruLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchGuru(); }, [fetchGuru]);
 
   const showToast = (message, type = "success") => {
     setToast({ message, type });
@@ -166,6 +185,7 @@ export default function UserManagement() {
     }
     if (normalizedQuery) {
       rows = rows.filter((u) =>
+        (u.username || "").toLowerCase().includes(normalizedQuery) ||
         (u.email || "").toLowerCase().includes(normalizedQuery) ||
         (u.guru?.nama || "").toLowerCase().includes(normalizedQuery) ||
         (u.guru?.NIP || "").toLowerCase().includes(normalizedQuery)
@@ -173,6 +193,8 @@ export default function UserManagement() {
     }
     return rows;
   }, [userList, roleFilterTrimmed, normalizedQuery]);
+
+  // (availableGuru removed because we no longer have Add User mode)
 
   useEffect(() => {
     if (!needsClientFilter) return;
@@ -194,50 +216,15 @@ export default function UserManagement() {
   }, [needsClientFilter, filteredUsers, page, pagination.limit, userList]);
 
   // Create / Update
-  const handleSubmit = async (payload, userId, guruData, existingGuruId) => {
-    if (userId) {
-      // UPDATE
-      if (guruData && existingGuruId) {
-        const guruRes = await guruApi.update(existingGuruId, guruData);
-        if (!guruRes.success)
-          throw new Error(guruRes.message || "Gagal mengupdate data guru");
-        payload.guru_id = Number(existingGuruId);
-      } else if (guruData && !existingGuruId) {
-        // Role berubah ke GURU/WALAS dan belum punya guru record
-        const guruRes = await guruApi.create(guruData);
-        if (!guruRes.success)
-          throw new Error(guruRes.message || "Gagal membuat data guru");
-        payload.guru_id = Number(guruRes.data?.id);
-      }
-
-      // Update user
-      const res = await users.update(userId, payload);
-      if (!res.success) throw new Error(res.message || "Gagal mengupdate user");
-      showToast("User berhasil diperbarui");
-
-    } else {
-      // CREATE
-      if (guruData) {
-        const guruListRes = await guruApi.list();
-        const existingGuru =
-          guruListRes.success &&
-          Array.isArray(guruListRes.data) &&
-          guruListRes.data.find((g) => g.NIP === guruData.NIP);
-
-        if (existingGuru) {
-          payload.guru_id = Number(existingGuru.id);
-        } else {
-          const guruRes = await guruApi.create(guruData);
-          if (!guruRes.success)
-            throw new Error(guruRes.message || "Gagal membuat data guru");
-          payload.guru_id = Number(guruRes.data?.id);
-        }
-      }
-
-      const res = await auth.register(payload);
-      if (!res.success) throw new Error(res.message || "Gagal menambah user");
-      showToast("User baru berhasil ditambahkan");
+  const handleSubmit = async (payload, userId) => {
+    if (!userId) {
+      throw new Error("Mode tambah user sudah dinonaktifkan.");
     }
+    
+    // UPDATE hanya update role (ke db)
+    const res = await users.update(userId, payload);
+    if (!res.success) throw new Error(res.message || "Gagal mengupdate user");
+    showToast("User berhasil diperbarui");
 
     fetchUsers();
   };
@@ -263,10 +250,6 @@ export default function UserManagement() {
   };
 
   // Handlers 
-  const handleAdd = () => {
-    setEditUser(null);
-    setShowForm(true);
-  };
 
   const handleEdit = (user) => {
     (async () => {
@@ -303,7 +286,6 @@ export default function UserManagement() {
           onSearchChange={setSearchQuery}
           roleFilterLabel={roleFilterTrimmed}
           onClearRoleFilter={clearRoleFilter}
-          onAdd={handleAdd}
           onEdit={handleEdit}
           onDelete={setDeleteTarget}
           pagination={pagination}
@@ -318,6 +300,7 @@ export default function UserManagement() {
         onSubmit={handleSubmit}
         editUser={editUser}
         roleOptions={roleOptions}
+        guruLoading={guruLoading}
       />
 
       <DeleteConfirmModal

@@ -204,11 +204,18 @@ export default function WalasDetailAbsensi() {
       return;
     }
 
+    const mapToBackend = {
+      HADIR: "Hadir",
+      IZIN: "Izin",
+      SAKIT: "Sakit",
+      ALPHA: "Alpha",
+    };
+
     const payloadRows = rows
       .filter((r) => r.dirty)
       .map((r) => ({
         siswa_id: r.siswa_id,
-        status: normalizeStatus(r.status),
+        status: mapToBackend[normalizeStatus(r.status)] || "Alpha",
         keterangan: r.keterangan?.trim() ? r.keterangan.trim() : null,
       }));
 

@@ -9,6 +9,7 @@ function clearAuth() {
   if (typeof window === 'undefined') return;
   localStorage.removeItem('accessToken');
   localStorage.removeItem('user');
+  localStorage.removeItem('ysboToken');
 }
 
 function redirectToLogin() {
@@ -21,15 +22,16 @@ function redirectToLogin() {
 
 async function request(path: string, options: RequestInit = {}): Promise<any> {
   const token = getToken();
+  const { headers: customHeaders, ...restOptions } = options;
 
   const res = await fetch(`${BASE_URL}${path}`, {
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-      ...(options.headers || {}),
-    },
+      ...(customHeaders || {}),
+    } as Record<string, string>,
     credentials: 'include',
-    ...options,
+    ...restOptions,
   });
 
   // 401 = token expired/invalid → langsung ke login
@@ -70,8 +72,19 @@ export const mapel = {
   delete: (id: string | number) => request(`/api/v1/mata-pelajaran/${id}`, { method: 'DELETE' }),
 };
 
+function getYsboToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('ysboToken');
+}
+
 export const guru = {
   list: (params?: string) => request(`/api/v1/guru${params ? `?${params}` : ''}`),
+  listWithYsboSync: () => {
+    const ysboToken = getYsboToken();
+    return request('/api/v1/guru', {
+      headers: ysboToken ? { 'x-ysbo-token': ysboToken } : {},
+    });
+  },
   walas: () => request('/api/v1/guru/walas'),
   get: (id: string | number) => request(`/api/v1/guru/${id}`),
   create: (data: any) => request('/api/v1/guru', { method: 'POST', body: JSON.stringify(data) }),

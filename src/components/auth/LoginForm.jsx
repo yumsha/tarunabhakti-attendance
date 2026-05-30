@@ -22,6 +22,10 @@ export default function LoginForm() {
                     localStorage.setItem("refreshToken", res.data.refreshToken);
                 }
 
+                if (res.data.ysboToken) {
+                    localStorage.setItem("ysboToken", res.data.ysboToken);
+                }
+
                 if (res.data.user) {
                     localStorage.setItem("user", JSON.stringify(res.data.user));
                 }

@@ -110,19 +110,12 @@ export default function UserTable({
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Cari email atau nama..."
+              placeholder="Cari username atau nama..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-56 transition"
             />
           </div>
-          <button
-            onClick={onAdd}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm whitespace-nowrap"
-          >
-            <Plus className="w-4 h-4" />
-            Tambah User
-          </button>
         </div>
       </div>
 
@@ -131,7 +124,7 @@ export default function UserTable({
         <table className="w-full">
           <thead>
             <tr className="bg-gray-50/80">
-              {["No", "Email", "Role", "Guru", "No Telepon", "Dibuat", "Aksi"].map(
+              {["No", "Username", "NIP", "Role", "Dibuat", "Aksi"].map(
                 (col, i) => (
                   <th
                     key={col}
@@ -166,28 +159,30 @@ export default function UserTable({
                     {(page - 1) * (pagination?.limit || 10) + index + 1}
                   </td>
                   <td className="px-6 py-4">
-                    <p className="text-sm font-medium text-gray-900">
-                      {user.email}
-                    </p>
+                    <div>
+                      {user.guru && (
+                        <p className="text-sm font-medium text-gray-900">
+                          {user.guru.nama}
+                        </p>
+                      )}
+                      {/* develop */}
+                      {user.email && (
+                        <p className="text-xs text-gray-400">{user.email}</p>
+                      )}
+                    </div>
                   </td>
-                  <td className="px-6 py-4">{getRoleBadges(user)}</td>
                   <td className="px-6 py-4 text-sm text-gray-600">
                     {user.guru ? (
                       <div>
-                        <p className="font-medium text-gray-900">
-                          {user.guru.nama}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          NIP: {user.guru.NIP}
+                        <p className="text-sm font-medium text-gray-900">
+                          {user.guru.NIP}
                         </p>
                       </div>
                     ) : (
                       <span className="text-gray-400">—</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {user.guru?.nomor_telepon || "—"}
-                  </td>
+                  <td className="px-6 py-4">{getRoleBadges(user)}</td>
                   <td className="px-6 py-4 text-sm text-gray-500">
                     {formatDate(user.created_at)}
                   </td>

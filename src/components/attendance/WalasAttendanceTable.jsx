@@ -18,7 +18,7 @@ function getTodayWIB() {
 }
 
 const getStatusText = (status) => {
-  switch (status) {
+  switch (String(status || "").toUpperCase()) {
     case "TEPAT_WAKTU":
       return "Hadir";
     case "TERLAMBAT":
@@ -218,7 +218,8 @@ export default function WalasAttendanceTable({ kelasId, kelasName, walasId }) {
           label: "Alpha",
         },
       };
-      const s = map[walasStatus] || map.ALPHA;
+      const key = String(walasStatus).toUpperCase();
+      const s = map[key] || map.ALPHA;
       return (
         <div className="flex flex-col gap-1">
           <span
@@ -441,15 +442,15 @@ export default function WalasAttendanceTable({ kelasId, kelasName, walasId }) {
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                   <div className="flex items-center gap-2">
                     {req.status_lama && (
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_CLS[req.status_lama] ?? "bg-gray-100 text-gray-600"}  opacity-60`}>
-                        {STATUS_LABEL[req.status_lama] ?? req.status_lama}
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_CLS[String(req.status_lama).toUpperCase()] ?? "bg-gray-100 text-gray-600"}  opacity-60`}>
+                        {STATUS_LABEL[String(req.status_lama).toUpperCase()] ?? req.status_lama}
                       </span>
                     )}
                     <span className="text-gray-400 text-xs">→</span>
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_CLS[req.status_baru] ?? "bg-gray-100 text-gray-600"}` }>
-                      {STATUS_LABEL[req.status_baru] ?? req.status_baru}
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_CLS[String(req.status_baru).toUpperCase()] ?? "bg-gray-100 text-gray-600"}` }>
+                      {STATUS_LABEL[String(req.status_baru).toUpperCase()] ?? req.status_baru}
                     </span>
                   </div>
 
