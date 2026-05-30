@@ -141,7 +141,7 @@ export default function DaftarJadwal() {
         if (res?.success && res?.data?.roles) {
           const roles = res.data.roles.map((r) => r.name.toUpperCase());
           const hasAccess = roles.some((r) =>
-            ["SUPER ADMIN"].includes(r)
+            ["SUPER_ADMIN"].includes(r)
           );
           setCanManageJadwal(hasAccess);
         }
