@@ -242,14 +242,11 @@ function ImportModal({ onClose, onImportDone }) {
 
         // Resolusi Orang Tua
         //
-        // Prioritas:
-        //   1. Jika "ID Orang Tua" diisi dan ID ada di DB  → pakai data dari DB
-        //   2. Jika "ID Orang Tua" diisi tapi TIDAK ada di DB
-        //      → coba pakai kolom detail (NIK Orang Tua, dst) untuk buat baru
-        //      → jika kolom detail juga kosong → gagal dengan pesan jelas
-        //   3. Jika "ID Orang Tua" kosong
-        //      → cek apakah kolom detail diisi → buat baru
-        //      → jika semua kosong → import siswa tanpa orang tua
+        // Behavior:
+        //   1. ID Orang Tua diisi & ada di DB     → kirim orangtua_id (integer)
+        //   2. ID Orang Tua diisi & TIDAK ada di DB → langsung gagal
+        //   3. ID kosong, detail diisi lengkap     → kirim orangtua object (buat baru)
+        //   4. Semua kosong                        → siswa tanpa orang tua
 
         const idOrtu     = String(row["ID Orang Tua"] || "").trim();
         const nikOrtu    = String(row["NIK Orang Tua"] || "").trim();
@@ -260,42 +257,24 @@ function ImportModal({ onClose, onImportDone }) {
 
         const hasDetail  = nikOrtu && namaOrtu && telpOrtu && pekerjaanOrtu && alamatOrtu;
 
+        let resolvedOrangtuaId = null;
         let orangtuaPayload = undefined;
 
         if (idOrtu) {
           const matched = orangtuaMap[idOrtu];
           if (matched) {
-            // ✅ ID ada di DB → pakai data dari DB
-            orangtuaPayload = {
-              NIK:           matched.NIK,
-              nama_orangtua: matched.nama_orangtua,
-              nomor_telepon: matched.nomor_telepon,
-              pekerjaan:     matched.pekerjaan,
-              alamat:        matched.alamat,
-            };
+            resolvedOrangtuaId = parseInt(idOrtu);
           } else {
-            // ❌ ID tidak ditemukan di DB
-            if (hasDetail) {
-              // Fallback: pakai kolom detail untuk buat baru
-              orangtuaPayload = {
-                NIK:           nikOrtu,
-                nama_orangtua: namaOrtu,
-                nomor_telepon: telpOrtu,
-                pekerjaan:     pekerjaanOrtu,
-                alamat:        alamatOrtu,
-              };
-            } else {
-              // Tidak ada fallback → gagal baris ini
-              res.push({
-                nama,
-                ok: false,
-                msg: `ID Orang Tua "${idOrtu}" tidak ditemukan di database dan kolom detail orang tua kosong`,
-              });
-              continue;
-            }
+            // kalo ID tidak ditemukan di DB maka langsung gagal (no fallback)
+            res.push({
+              nama,
+              ok: false,
+              msg: `ID Orang Tua "${idOrtu}" tidak ditemukan di database`,
+            });
+            continue;
           }
         } else if (hasDetail) {
-          // ID kosong tapi detail ada → buat orang tua baru
+          // ID kosong tapi detail lengkap maka buat orang tua baru
           orangtuaPayload = {
             NIK:           nikOrtu,
             nama_orangtua: namaOrtu,
@@ -304,7 +283,7 @@ function ImportModal({ onClose, onImportDone }) {
             alamat:        alamatOrtu,
           };
         }
-        // else: semua kosong → import siswa tanpa orang tua (orangtuaPayload tetap undefined)
+        // else: semua kosong maka import siswa tanpa orang tua
 
         // Buat siswa
         const payload = {
@@ -317,6 +296,7 @@ function ImportModal({ onClose, onImportDone }) {
           nomor_telepon: String(row["Nomor Telepon"] || ""),
           nama_kelas:    row["Nama Kelas"] || "",
           jurusan:       row["Jurusan"] || "",
+          ...(resolvedOrangtuaId ? { orangtua_id: resolvedOrangtuaId } : {}),
           ...(orangtuaPayload ? { orangtua: orangtuaPayload } : {}),
         };
 

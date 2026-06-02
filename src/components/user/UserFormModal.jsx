@@ -211,7 +211,7 @@ export default function UserFormModal({ isOpen, onClose, onSubmit, editUser, rol
       setForm({
         username: editUser.username || "",
         roles: pickRoleOptionNames(editUser, roleOptions),
-        guru_id: editUser.guru_id || null,
+        guru_id: editUser.guru_id ?? editUser.guru?.id ?? null,
       });
     } else {
       setForm({
@@ -240,6 +240,7 @@ export default function UserFormModal({ isOpen, onClose, onSubmit, editUser, rol
         username: form.username.trim(),
         role,
         role_names,
+        guru_id: form.guru_id ?? null,
       };
 
       await onSubmit(payload, editUser?.id);
