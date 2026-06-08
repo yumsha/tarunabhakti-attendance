@@ -191,6 +191,7 @@ export default function WalasDetailAbsensi() {
   const handleSave = async () => {
     setError("");
     setSuccess("");
+
     if (!walasId) {
       setError("Walas ID tidak ditemukan (user.guru.id)");
       return;
@@ -227,6 +228,7 @@ export default function WalasDetailAbsensi() {
         tanggal,
         data_absensi: payloadRows,
       });
+
       if (!res?.success) throw new Error(res?.message || "Gagal menyimpan absensi");
 
       setSuccess(
@@ -236,7 +238,17 @@ export default function WalasDetailAbsensi() {
             : ""
         }`
       );
-      await fetchDetail();
+
+      // ✅ FIX: Reset dirty rows locally instead of calling fetchDetail().
+      // Calling fetchDetail() after save can return 401 and trigger a redirect
+      // to the login page. Since the save succeeded, we just sync state locally.
+      setRows((prev) =>
+        prev.map((r) => ({
+          ...r,
+          status_awal: r.status,   // new baseline = what was just saved
+          dirty: false,
+        }))
+      );
     } catch (e) {
       setError(e?.message || "Gagal menyimpan absensi");
     } finally {
@@ -354,7 +366,7 @@ export default function WalasDetailAbsensi() {
                   className={`${inputClass} w-44`}
                   value={tanggal}
                   onChange={(e) => setTanggal(e.target.value)}
-                />                
+                />
               </div>
 
               <div>
@@ -369,7 +381,7 @@ export default function WalasDetailAbsensi() {
                     <Save className="w-4 h-4" />
                   )}
                   Simpan{dirtyCount > 0 ? ` (${dirtyCount})` : ""}
-                </button>                
+                </button>
               </div>
             </div>
           </div>

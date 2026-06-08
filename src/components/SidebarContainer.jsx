@@ -450,7 +450,7 @@ export default function SidebarContainer() {
                 classes.map((cls) => (
                   <a
                     key={cls.id}
-                    href={`/dashboard/kehadiran?kelasId=${cls.id}`}
+                    href={`/dashboard/kehadiranV2?kelasId=${cls.id}`}
                     data-astro-prefetch
                     className={`block px-4 py-2 rounded-lg text-xs transition-all duration-200 ${currentClassId === String(cls.id)
                       ? "bg-blue-100 text-blue-700 font-semibold"

@@ -20,9 +20,9 @@ function redirectToLogin() {
   }
 }
 
-async function request(path: string, options: RequestInit = {}): Promise<any> {
+async function request(path: string, options: RequestInit & { skipAuthRedirect?: boolean } = {}): Promise<any> {
   const token = getToken();
-  const { headers: customHeaders, ...restOptions } = options;
+  const { headers: customHeaders, skipAuthRedirect, ...restOptions } = options as any;
 
   const res = await fetch(`${BASE_URL}${path}`, {
     headers: {
@@ -34,18 +34,24 @@ async function request(path: string, options: RequestInit = {}): Promise<any> {
     ...restOptions,
   });
 
-  // 401 = token expired/invalid → langsung ke login
+  const text = await res.text();
+  let body: any;
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    body = text;
+  }
+
+  // 401 = token expired/invalid
   if (res.status === 401) {
+    if (skipAuthRedirect) {
+      return { success: false, message: body?.message || 'Sesi habis, silakan login kembali', status: 401 };
+    }
     redirectToLogin();
     return { success: false, message: 'Sesi habis, silakan login kembali' };
   }
 
-  const text = await res.text();
-  try {
-    return text ? JSON.parse(text) : null;
-  } catch {
-    return text;
-  }
+  return body;
 }
 
 export const siswa = {
@@ -164,7 +170,7 @@ export const detailAbsensi = {
   rekapJadwal: (params?: string) => request(`/api/v1/detail-absensi/rekap-jadwal${params ? `?${params}` : ''}`),
   pratinjauWalas: (params?: string) => request(`/api/v1/detail-absensi/pratinjau-walas${params ? `?${params}` : ''}`),
   getRekapAbsensiSemuaKelas: (params?: string) => request(`/api/v1/detail-absensi/rekap-absensi${params ? `?${params}` : ''}`),
-  absensiWalas: (data: any) => request('/api/v1/detail-absensi/absensi-walas', { method: 'POST', body: JSON.stringify(data) }),
+  absensiWalas: (data: any) => request('/api/v1/detail-absensi/absensi-walas', { method: 'POST', body: JSON.stringify(data), skipAuthRedirect: true }),
   delete: (id: string | number) => request(`/api/v1/detail-absensi/${id}`, { method: 'DELETE' }),
 };
 

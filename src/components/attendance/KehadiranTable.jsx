@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { detailAbsensi, jadwal, statusRequest } from "../../lib/backendApi.js";
 import PageHeader from "../layout/PageHeader.jsx";
 import Pagination from "../layout/Pagination.jsx";
@@ -44,8 +44,28 @@ const STATUS_OPTIONS = [
   { value: "SAKIT",  label: "Sakit",  cls: "bg-purple-100 text-purple-700",   dot: "bg-purple-500"  },
   { value: "ALPHA",  label: "Alpha",  cls: "bg-red-100 text-red-700",         dot: "bg-red-500"     },
 ];
+function normalizeStatusCode(value) {
+  if (!value) return "";
+  const normalized = String(value).trim();
+  const upper = normalized.toUpperCase();
+
+  const matchedByCode = STATUS_OPTIONS.find((o) => o.value === upper);
+  if (matchedByCode) return matchedByCode.value;
+
+  const matchedByLabel = STATUS_OPTIONS.find((o) => o.label.toUpperCase() === upper);
+  if (matchedByLabel) return matchedByLabel.value;
+
+  return "ALPHA";
+}
+
+function getStatusApiValue(value) {
+  const statusCode = normalizeStatusCode(value);
+  return STATUS_OPTIONS.find((o) => o.value === statusCode)?.label ?? value;
+}
+
 function getStatusConfig(value) {
-  return STATUS_OPTIONS.find((o) => o.value === value)
+  const statusCode = normalizeStatusCode(value);
+  return STATUS_OPTIONS.find((o) => o.value === statusCode)
     ?? { label: value || "-", cls: "bg-gray-100 text-gray-600", dot: "bg-gray-400" };
 }
 
@@ -67,6 +87,19 @@ function StatusTapBadge({ status }) {
 function StatusDropdown({ currentStatus, rowState, onSelect, disabled }) {
   const [open, setOpen] = useState(false);
   const current = getStatusConfig(currentStatus);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
+  const buttonRef = useRef(null);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    if (!open || !buttonRef.current) return;
+
+    const rect = buttonRef.current.getBoundingClientRect();
+    setDropdownPos({
+      top: rect.bottom + window.scrollY + 4,
+      left: rect.left + window.scrollX,
+    });
+  }, [open]);
 
   if (rowState === "pending") {
     return (
@@ -97,24 +130,35 @@ function StatusDropdown({ currentStatus, rowState, onSelect, disabled }) {
   }
 
   return (
-    <div className="relative inline-block text-left">
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => setOpen((v) => !v)}
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition
-          ${current.cls} border-current/20 hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed`}
-      >
-        <span className={`w-1.5 h-1.5 rounded-full ${current.dot}`} />
-        {current.label}
-        <ChevronDown className={`w-3 h-3 transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
+    <>
+      <div className="relative inline-block text-left">
+        <button
+          ref={buttonRef}
+          type="button"
+          disabled={disabled}
+          onClick={() => setOpen((v) => !v)}
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition
+            ${current.cls} border-current/20 hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed`}
+        >
+          <span className={`w-1.5 h-1.5 rounded-full ${current.dot}`} />
+          {current.label}
+          <ChevronDown className={`w-3 h-3 transition-transform ${open ? "rotate-180" : ""}`} />
+        </button>
+      </div>
 
       {open && (
         <>
           {/* backdrop */}
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 mt-1 w-36 bg-white rounded-xl shadow-lg border border-gray-100 z-20 overflow-hidden py-1">
+          {/* Portal-style dropdown positioned absolutely on viewport */}
+          <div
+            ref={dropdownRef}
+            className="fixed bg-white rounded-xl shadow-lg border border-gray-100 z-20 overflow-hidden py-1 w-36"
+            style={{
+              top: `${dropdownPos.top}px`,
+              left: `${dropdownPos.left}px`,
+            }}
+          >
             {STATUS_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
@@ -137,9 +181,11 @@ function StatusDropdown({ currentStatus, rowState, onSelect, disabled }) {
           </div>
         </>
       )}
-    </div>
+    </>
   );
 }
+
+StatusDropdown.propTypes = {};
 
 function SkeletonRow() {
   return (
@@ -215,7 +261,7 @@ export default function KehadiranTableV2() {
   const handleStatusChange = async (row, newStatus) => {
     if (!guruId) { alert("Informasi guru tidak ditemukan."); return; }
     const sid = row.siswa_id;
-    const currentStatus = row.status_saat_ini || row.status_rekomendasi || (row.tap_in ? "HADIR" : "ALPHA");
+    const currentStatus = normalizeStatusCode(row._pending_status || row.status_saat_ini || row.status_rekomendasi || (row.tap_in ? "HADIR" : "ALPHA"));
     if (newStatus === currentStatus) return; // nothing changed
 
     setRowState((prev) => ({ ...prev, [sid]: "pending" }));
@@ -225,7 +271,7 @@ export default function KehadiranTableV2() {
         siswa_id: sid,
         kelas_id: parseInt(kelasId),
         tanggal,
-        status_baru: newStatus,
+        status_baru: getStatusApiValue(newStatus),
       });
       if (!res?.success) throw new Error(res?.message || "Gagal mengirim permintaan");
 
@@ -351,11 +397,12 @@ export default function KehadiranTableV2() {
                   pagedRows.map((row, index) => {
                     const sid = row.siswa_id;
                     const state = rowState[sid] ?? "idle";
-                    const effectiveStatus =
+                    const effectiveStatus = normalizeStatusCode(
                       row._pending_status ||
                       row.status_saat_ini ||
                       row.status_rekomendasi ||
-                      (row.tap_in ? "HADIR" : "ALPHA");
+                      (row.tap_in ? "HADIR" : "ALPHA")
+                    );
 
                     return (
                       <tr key={sid} className="transition-colors duration-150 hover:bg-blue-50/20">
