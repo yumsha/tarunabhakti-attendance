@@ -49,8 +49,8 @@ function deriveRolePayload(selectedNames) {
 
   const role_names_set = new Set(selectedNames.map((n) => n.trim()));
 
-  // WALAS selalu butuh GURU juga di BE
-  if (uppers.includes("WALAS")) {
+  //  WALAS & KESISWAAN selalu butuh GURU juga di BE
+  if (uppers.includes("WALAS") || uppers.includes("KESISWAAN")) {
     const guruName = selectedNames.find((n) => n.trim().toUpperCase() === "GURU") ?? "GURU";
     role_names_set.add(guruName);
   }
@@ -196,8 +196,11 @@ export default function UserFormModal({ isOpen, onClose, onSubmit, editUser, rol
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const isEditAdmin = !!editUser && resolveRoles(editUser).includes("ADMIN");
-
+  const isEditAdmin = !!editUser && (
+      resolveRoles(editUser).includes("ADMIN") || 
+      resolveRoles(editUser).includes("SUPER_ADMIN")
+  );
+  
   useEffect(() => {
     if (!isOpen) return;
 
@@ -290,7 +293,7 @@ export default function UserFormModal({ isOpen, onClose, onSubmit, editUser, rol
                 {editUser?.guru?.nama || editUser?.email || "Nama tidak tersedia"}
               </p>
               <p className="text-xs text-gray-500 mt-0.5">
-                Username / NIP: <span className="font-medium text-gray-700">{editUser?.username}/{editUser?.guru.NIP}</span>
+                Username / NIP: <span className="font-medium text-gray-700">{editUser?.username}/{editUser?.guru?.NIP ?? "-"}</span>
               </p>
             </div>
           </div>
@@ -312,7 +315,7 @@ export default function UserFormModal({ isOpen, onClose, onSubmit, editUser, rol
             />
             {isEditAdmin && (
               <p className="mt-2 text-xs text-gray-500">
-                User dengan role <span className="font-semibold">Admin</span> tidak bisa diubah rolenya.
+                User dengan role <span className="font-semibold">Admin/Superadmin</span> tidak bisa diubah rolenya.
               </p>
             )}
             {/* Info WALAS */}

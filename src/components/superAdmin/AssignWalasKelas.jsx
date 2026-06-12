@@ -528,7 +528,7 @@ export default function AssignWalasKelas() {
     }
   };
 
-  const handleRemoveWalas = async () => {
+const handleRemoveWalas = async () => {
     if (!removeTarget) return;
     setRemoveLoading(true);
     let walasReleased = false;
@@ -552,7 +552,11 @@ export default function AssignWalasKelas() {
         const nextRoles = currentUser.normalized_roles.filter((role) => role !== "WALAS");
         const updateRes = await users.update(
           currentUser.id,
-          buildUserUpdatePayload(currentUser, nextRoles)
+          {
+            username: currentUser.username,
+            guru_id: currentUser.guru_id,
+            ...buildUserUpdatePayload(currentUser, nextRoles),
+          }
         );
 
         if (updateRes?.success === false) {
@@ -602,8 +606,6 @@ export default function AssignWalasKelas() {
             disabled={refreshing}
             className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-50 disabled:opacity-60"
           >
-            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-            Refresh
           </button>
         }
       />

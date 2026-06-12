@@ -8,7 +8,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import InfoStatCard from "../layout/InfoStatCard";
 
-// ─── Constants ─────────────────────────────────────────────────────────────────
+// Constants
 
 const TEMPLATE_HEADERS = [
   "NISN",
@@ -36,13 +36,52 @@ const UPDATE_HEADERS = [
   "Gender",
   "Tanggal Lahir (YYYY-MM-DD)",
   "Nomor Telepon",
-  "Kelas ID",
+  "Nama Kelas",
+  "Jurusan",
   "ID Orang Tua",
 ];
 
-// ─── Template example rows ──────────────────────────────────────────────────
 
-// Contoh 1: punya ID orang tua di DB → cukup isi ID, kolom detail kosong
+
+// Template Downloaders 
+
+function getSiswaGuideSheet() {
+  const guideData = [
+    ["PANDUAN PENGGUNAAN - IMPORT & UPDATE DATA SISWA"],
+    [""],
+    ["1. ATURAN ANGKA NOL DI DEPAN (SANGAT PENTING!)"],
+    ["   Untuk data yang diawali angka 0 seperti NISN, NIPD, Nomor Telepon, Tanggal Lahir (YYYY-MM-DD), atau NIK,"],
+    ["   WAJIB tambahkan tanda petik tunggal (') di awal data di Excel agar terbaca sebagai Teks oleh Excel."],
+    ["   Contoh: '08123456789 atau '3050626105 atau '2005-06-01"],
+    ["   Jika tidak ditambahkan, Excel akan otomatis menghapus angka 0 di depan dan merusak format data Anda."],
+    [""],
+    ["2. PANDUAN KELAS SISWA"],
+    ["   - Gunakan kolom 'Nama Kelas' dan 'Jurusan."],
+    ["   - Pastikan nilainya sama persis dengan yang ada di sistem (Contoh: XII dan Rekayasa Perangkat Lunak)."],
+    [""],
+    ["3. CARA TAMBAH DATA SISWA & RELASI ORANG TUA."],
+    ["   - Gunakan template Excel yang tersedia"],
+    ["   - Jika orang tua sudah terdaftar: Cukup isi kolom 'ID Orang Tua', kosongkan kolom detail orang tua."],
+    ["   - Jika orang tua belum terdaftar: Kosongkan 'ID Orang Tua', dan isi lengkap NIK Orang Tua s/d Alamat Orang Tua."],
+    [""],
+    ["4. CARA UPDATE DATA SISWA (TUNGGAL)"],
+    ["   - Gunakan template excel yang tersedia"],
+    ["   - Ubah data siswa di Excel (misal memindahkan kelas siswa dengan mengubah 'Nama Kelas' dan 'Jurusan')."],
+    ["   - PERINGATAN: Kolom NISN bertindak sebagai kunci utama. Jangan pernah mengubah nilai NISN pada data yang ingin diupdate!"],
+    [""],
+    ["5. CARA UPDATE DATA SISWA (MASSAL)"],
+    ["   - Ekspor data terlebih dahulu untuk mendapatkan semua data siswa saat ini yang berisi kolom NISN."],
+    ["   - Ubah data siswa di Excel (misal memindahkan kelas siswa dengan mengubah 'Nama Kelas' dan 'Jurusan')."],
+    ["   - PERINGATAN: Kolom NISN bertindak sebagai kunci utama. Jangan pernah mengubah nilai NISN pada data yang ingin diupdate!"]
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(guideData);
+  ws["!cols"] = [{ wch: 125 }];
+  return ws;
+}
+
+// Template example rows
+
+// Contoh 1: punya ID orang tua di DB = cukup isi ID, kolom detail kosong
 const EXAMPLE_ROW_WITH_ID = [
   "3050626105", "2025001", "Sandi Permata", "Jl. Kenanga No. 46 Bogor",
   "L", "2005-12-06", "08875094072", "XII", "Rekayasa Perangkat Lunak",
@@ -50,7 +89,7 @@ const EXAMPLE_ROW_WITH_ID = [
   "", "", "", "", "", // detail ortu dikosongkan
 ];
 
-// Contoh 2: orang tua belum ada di DB → ID kosong, isi kolom detail
+// Contoh 2: orang tua belum ada di DB = ID kosong, isi kolom detail
 const EXAMPLE_ROW_NEW_PARENT = [
   "3050626106", "2025002", "Dewi Rahayu", "Jl. Melati No. 12 Bogor",
   "P", "2006-03-15", "08761234567", "XI", "Teknik Komputer Jaringan",
@@ -68,10 +107,10 @@ function downloadExcelTemplate() {
   ]);
   ws["!cols"] = TEMPLATE_HEADERS.map(() => ({ wch: 26 }));
 
-  // Tambah komentar di header "ID Orang Tua" supaya user paham
-  // (SheetJS tidak support rich comment, pakai catatan di baris kedua saja)
+  // Tambah komentar di header "ID Orang Tua" biar user paham
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Template Siswa");
+  XLSX.utils.book_append_sheet(wb, getSiswaGuideSheet(), "Panduan Penggunaan");
   XLSX.writeFile(wb, "template_siswa.xlsx");
 }
 
@@ -94,7 +133,7 @@ function downloadPdfTemplate() {
     styles: { fontSize: 7 },
     headStyles: { fillColor: [37, 99, 235] },
     columnStyles: {
-      9:  { fillColor: [239, 246, 255] }, // ID Orang Tua
+      9: { fillColor: [239, 246, 255] }, // ID Orang Tua
       10: { fillColor: [240, 253, 244] }, // NIK
       11: { fillColor: [240, 253, 244] },
       12: { fillColor: [240, 253, 244] },
@@ -108,11 +147,12 @@ function downloadPdfTemplate() {
 function downloadUpdateExcelTemplate() {
   const ws = XLSX.utils.aoa_to_sheet([
     UPDATE_HEADERS,
-    ["3050626105", "2025001", "Sandi Permata", "Jl. Kenanga No. 46 Bogor", "L", "2005-12-06", "08875094072", 1, 1],
+    ["3050626105", "2025001", "Sandi Permata", "Jl. Kenanga No. 46 Bogor", "L", "2005-12-06", "08875094072", "XII", "Rekayasa Perangkat Lunak", 1],
   ]);
   ws["!cols"] = UPDATE_HEADERS.map(() => ({ wch: 26 }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Update Siswa");
+  XLSX.utils.book_append_sheet(wb, getSiswaGuideSheet(), "Panduan Penggunaan");
   XLSX.writeFile(wb, "update_siswa.xlsx");
 }
 
@@ -123,11 +163,11 @@ function downloadUpdatePdfTemplate() {
   doc.text("Template Update Data Siswa", 14, 16);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text("NISN digunakan sebagai key pencarian. Kelas ID & ID Orang Tua harus berupa angka.", 14, 23);
+  doc.text("NISN digunakan sebagai key pencarian. Nama Kelas & Jurusan diisi sesuai kelas di sistem.", 14, 23);
   autoTable(doc, {
     startY: 28,
     head: [UPDATE_HEADERS],
-    body: [["3050626105", "2025001", "Sandi Permata", "Jl. Kenanga No. 46 Bogor", "L", "2005-12-06", "08875094072", "1", "1"]],
+    body: [["3050626105", "2025001", "Sandi Permata", "Jl. Kenanga No. 46 Bogor", "L", "2005-12-06", "08875094072", "XII", "Rekayasa Perangkat Lunak", "1"]],
     styles: { fontSize: 8 },
     headStyles: { fillColor: [16, 185, 129] },
   });
@@ -155,21 +195,38 @@ function exportTablePdf(students) {
 
 function exportTableExcel(students) {
   const rows = students.map((s) => ({
-    Nama: s.nama,
-    Kelas: s.kelas ? `${s.kelas.kelas} ${s.kelas.jurusan ?? ""}`.trim() : "-",
-    "No Telp": s.nomor_telepon,
-    NIPD: s.NIPD,
-    NISN: s.NISN,
-    "Nama Orang Tua": s.orang_tua?.nama_orangtua || "-",
+    "NISN":String(s.NISN || ""),
+    "NIPD": String(s.NIPD || ""),
+    "Nama": s.nama || "",
+    "Alamat": s.alamat || "",
+    "Gender": s.gender || "",
+    "Tanggal Lahir (YYYY-MM-DD)": (s.tanggal_lahir ? s.tanggal_lahir.slice(0, 10) : ""),
+    "Nomor Telepon": String(s.nomor_telepon || ""),
+    "Nama Kelas": s.kelas?.kelas || "",
+    "Jurusan": s.kelas?.jurusan || "",
+    "ID Orang Tua": s.orang_tua?.id || "",
   }));
+
   const ws = XLSX.utils.json_to_sheet(rows);
+
+  const range = XLSX.utils.decode_range(ws["!ref"]);
+  for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+    const nisnCell = XLSX.utils.encode_cell({ r: R, c: 0 });
+    const nipdCell = XLSX.utils.encode_cell({ r: R, c: 1 });
+    const telpCell = XLSX.utils.encode_cell({ r: R, c: 6 });
+    if (ws[nisnCell]) { ws[nisnCell].v = String(ws[nisnCell].v).trim(); ws[nisnCell].t = "s"; ws[nisnCell].z = "@"; }
+    if (ws[nipdCell]) { ws[nipdCell].v = String(ws[nipdCell].v).trim(); ws[nipdCell].t = "s"; ws[nipdCell].z = "@"; }
+    if (ws[telpCell]) { ws[telpCell].v = String(ws[telpCell].v).trim(); ws[telpCell].t = "s"; ws[telpCell].z = "@"; }
+  }
+
   ws["!cols"] = Object.keys(rows[0] || {}).map(() => ({ wch: 22 }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Data Siswa");
+  XLSX.utils.book_append_sheet(wb, getSiswaGuideSheet(), "Panduan Penggunaan");
   XLSX.writeFile(wb, "data_siswa.xlsx");
 }
 
-// ─── Icons ──────────────────────────────────────────────────────────────────
+// Icons
 
 const Icon = ({ d, size = 16 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -177,31 +234,31 @@ const Icon = ({ d, size = 16 }) => (
   </svg>
 );
 
-const UploadIcon    = () => <Icon d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />;
-const DownloadIcon  = () => <Icon d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />;
+const UploadIcon = () => <Icon d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />;
+const DownloadIcon = () => <Icon d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />;
 const FileExcelIcon = () => <Icon d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM9 13l1.5 2.5L9 18h1.5l.75-1.5.75 1.5H13.5l-1.5-2.5L13.5 13H12l-.75 1.5L10.5 13H9z" />;
-const FilePdfIcon   = () => <Icon d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM9 17v-5h1.5a1.5 1.5 0 0 1 0 3H9M14 17v-5h2M14 14.5h1.5" />;
-const AlertCircle   = () => <Icon d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zM12 8v4M12 16h.01" />;
-const CheckCircle   = () => <Icon d="M22 11.08V12a10 10 0 1 1-5.93-9.14M22 4 12 14.01l-3-3" />;
-const XCircle       = () => <Icon d="M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10zM15 9l-6 6M9 9l6 6" />;
-const SearchIcon    = () => <Icon d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />;
-const XIcon         = () => <Icon d="M18 6L6 18M6 6l12 12" />;
-const ChevronDown   = () => <Icon d="M6 9l6 6 6-6" />;
+const FilePdfIcon = () => <Icon d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM9 17v-5h1.5a1.5 1.5 0 0 1 0 3H9M14 17v-5h2M14 14.5h1.5" />;
+const AlertCircle = () => <Icon d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zM12 8v4M12 16h.01" />;
+const CheckCircle = () => <Icon d="M22 11.08V12a10 10 0 1 1-5.93-9.14M22 4 12 14.01l-3-3" />;
+const XCircle = () => <Icon d="M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10zM15 9l-6 6M9 9l6 6" />;
+const SearchIcon = () => <Icon d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />;
+const XIcon = () => <Icon d="M18 6L6 18M6 6l12 12" />;
+const ChevronDown = () => <Icon d="M6 9l6 6 6-6" />;
 
 // Import Modal
 
 function ImportModal({ onClose, onImportDone }) {
-  const [rows, setRows]           = useState([]);
-  const [results, setResults]     = useState([]);
+  const [rows, setRows] = useState([]);
+  const [results, setResults] = useState([]);
   const [importing, setImporting] = useState(false);
-  const [done, setDone]           = useState(false);
+  const [done, setDone] = useState(false);
   const fileRef = useRef();
 
   const parseFile = (file) => {
     const reader = new FileReader();
     reader.onload = (e) => {
-      const wb   = XLSX.read(e.target.result, { type: "binary" });
-      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const wb = XLSX.read(e.target.result, { type: "binary" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
       const json = XLSX.utils.sheet_to_json(ws, { defval: "" });
       setRows(json);
       setResults([]);
@@ -226,7 +283,7 @@ function ImportModal({ onClose, onImportDone }) {
           orangtuaMap[String(o.id)] = o;
         });
       }
-    } catch (_) {}
+    } catch (_) { }
 
     const res = [];
 
@@ -243,19 +300,19 @@ function ImportModal({ onClose, onImportDone }) {
         // Resolusi Orang Tua
         //
         // Behavior:
-        //   1. ID Orang Tua diisi & ada di DB     → kirim orangtua_id (integer)
-        //   2. ID Orang Tua diisi & TIDAK ada di DB → langsung gagal
-        //   3. ID kosong, detail diisi lengkap     → kirim orangtua object (buat baru)
-        //   4. Semua kosong                        → siswa tanpa orang tua
+        //   1. ID Orang Tua diisi & ada di DB        = kirim orangtua_id (integer)
+        //   2. ID Orang Tua diisi & TIDAK ada di DB  = langsung gagal
+        //   3. ID kosong, detail diisi lengkap       = kirim orangtua object (buat baru)
+        //   4. Semua kosong                          = siswa tanpa orang tua
 
-        const idOrtu     = String(row["ID Orang Tua"] || "").trim();
-        const nikOrtu    = String(row["NIK Orang Tua"] || "").trim();
-        const namaOrtu   = String(row["Nama Orang Tua"] || "").trim();
-        const telpOrtu   = String(row["No Telp Orang Tua"] || "").trim();
+        const idOrtu = String(row["ID Orang Tua"] || "").trim();
+        const nikOrtu = String(row["NIK Orang Tua"] || "").trim();
+        const namaOrtu = String(row["Nama Orang Tua"] || "").trim();
+        const telpOrtu = String(row["No Telp Orang Tua"] || "").trim();
         const pekerjaanOrtu = String(row["Pekerjaan Orang Tua"] || "").trim();
         const alamatOrtu = String(row["Alamat Orang Tua"] || "").trim();
 
-        const hasDetail  = nikOrtu && namaOrtu && telpOrtu && pekerjaanOrtu && alamatOrtu;
+        const hasDetail = nikOrtu && namaOrtu && telpOrtu && pekerjaanOrtu && alamatOrtu;
 
         let resolvedOrangtuaId = null;
         let orangtuaPayload = undefined;
@@ -276,26 +333,26 @@ function ImportModal({ onClose, onImportDone }) {
         } else if (hasDetail) {
           // ID kosong tapi detail lengkap maka buat orang tua baru
           orangtuaPayload = {
-            NIK:           nikOrtu,
+            NIK: nikOrtu,
             nama_orangtua: namaOrtu,
             nomor_telepon: telpOrtu,
-            pekerjaan:     pekerjaanOrtu,
-            alamat:        alamatOrtu,
+            pekerjaan: pekerjaanOrtu,
+            alamat: alamatOrtu,
           };
         }
         // else: semua kosong maka import siswa tanpa orang tua
 
         // Buat siswa
         const payload = {
-          NISN:          String(row["NISN"] || ""),
-          NIPD:          String(row["NIPD"] || ""),
+          NISN: String(row["NISN"] || ""),
+          NIPD: String(row["NIPD"] || ""),
           nama,
-          alamat:        row["Alamat"] || "",
-          gender:        row["Gender"] || "",
+          alamat: row["Alamat"] || "",
+          gender: row["Gender"] || "",
           tanggal_lahir: row["Tanggal Lahir (YYYY-MM-DD)"] || "",
           nomor_telepon: String(row["Nomor Telepon"] || ""),
-          nama_kelas:    row["Nama Kelas"] || "",
-          jurusan:       row["Jurusan"] || "",
+          nama_kelas: row["Nama Kelas"] || "",
+          jurusan: row["Jurusan"] || "",
           ...(resolvedOrangtuaId ? { orangtua_id: resolvedOrangtuaId } : {}),
           ...(orangtuaPayload ? { orangtua: orangtuaPayload } : {}),
         };
@@ -315,7 +372,7 @@ function ImportModal({ onClose, onImportDone }) {
   };
 
   const successCount = results.filter((r) => r.ok).length;
-  const failCount    = results.filter((r) => !r.ok).length;
+  const failCount = results.filter((r) => !r.ok).length;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -369,7 +426,7 @@ function ImportModal({ onClose, onImportDone }) {
                     <tr>
                       {Object.keys(rows[0]).map((k) => (
                         <th key={k} className={`px-3 py-2 text-left font-semibold whitespace-nowrap
-                          ${["ID Orang Tua","NIK Orang Tua","Nama Orang Tua","No Telp Orang Tua","Pekerjaan Orang Tua","Alamat Orang Tua"].includes(k)
+                          ${["ID Orang Tua", "NIK Orang Tua", "Nama Orang Tua", "No Telp Orang Tua", "Pekerjaan Orang Tua", "Alamat Orang Tua"].includes(k)
                             ? "text-blue-600 bg-blue-50"
                             : "text-gray-600"}`}>
                           {k}
@@ -382,7 +439,7 @@ function ImportModal({ onClose, onImportDone }) {
                       <tr key={i}>
                         {Object.entries(r).map(([k, v], j) => (
                           <td key={j} className={`px-3 py-2 whitespace-nowrap
-                            ${["ID Orang Tua","NIK Orang Tua","Nama Orang Tua","No Telp Orang Tua","Pekerjaan Orang Tua","Alamat Orang Tua"].includes(k)
+                            ${["ID Orang Tua", "NIK Orang Tua", "Nama Orang Tua", "No Telp Orang Tua", "Pekerjaan Orang Tua", "Alamat Orang Tua"].includes(k)
                               ? "text-blue-700 bg-blue-50/40"
                               : "text-gray-700"}`}>
                             {String(v)}
@@ -437,20 +494,20 @@ function ImportModal({ onClose, onImportDone }) {
   );
 }
 
-// Update Modal (tidak berubah)
+// Update Modal
 
-function UpdateModal({ onClose, onUpdateDone }) {
-  const [rows, setRows]         = useState([]);
-  const [results, setResults]   = useState([]);
+function UpdateModal({ onClose, onUpdateDone, kelasList }) {
+  const [rows, setRows] = useState([]);
+  const [results, setResults] = useState([]);
   const [updating, setUpdating] = useState(false);
-  const [done, setDone]         = useState(false);
+  const [done, setDone] = useState(false);
   const fileRef = useRef();
 
   const parseFile = (file) => {
     const reader = new FileReader();
     reader.onload = (e) => {
-      const wb   = XLSX.read(e.target.result, { type: "binary" });
-      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const wb = XLSX.read(e.target.result, { type: "binary" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
       const json = XLSX.utils.sheet_to_json(ws, { defval: "" });
       setRows(json);
       setResults([]);
@@ -472,7 +529,7 @@ function UpdateModal({ onClose, onUpdateDone }) {
       if (r?.success && Array.isArray(r.data)) {
         r.data.forEach((s) => { siswaMap[String(s.NISN)] = s; });
       }
-    } catch (_) {}
+    } catch (_) { }
 
     const res = [];
     for (const row of rows) {
@@ -488,24 +545,42 @@ function UpdateModal({ onClose, onUpdateDone }) {
         continue;
       }
 
-      const kelasId = parseInt(row["Kelas ID"] || "");
-      if (!kelasId) {
-        res.push({ nama: row["Nama"] || nisnKey, ok: false, msg: "Kelas ID wajib diisi (angka)" });
+      const namaKelasStr = String(row["Nama Kelas"] || "").trim();
+      const jurusanStr = String(row["Jurusan"] || "").trim();
+
+      if (!namaKelasStr) {
+        res.push({ nama: row["Nama"] || nisnKey, ok: false, msg: "Nama Kelas wajib diisi" });
         continue;
       }
 
+      const matchedKelas = kelasList.find(
+        (k) =>
+          k.kelas?.toString().toLowerCase() === namaKelasStr.toLowerCase() &&
+          (k.jurusan || "").toString().toLowerCase() === jurusanStr.toLowerCase()
+      );
+
+      if (!matchedKelas) {
+        res.push({
+          nama: row["Nama"] || nisnKey,
+          ok: false,
+          msg: `Kelas "${namaKelasStr}" ${jurusanStr ? `dengan jurusan "${jurusanStr}"` : ""} tidak ditemukan`,
+        });
+        continue;
+      }
+
+      const kelasId = matchedKelas.id;
       const ortuId = row["ID Orang Tua"] ? parseInt(row["ID Orang Tua"]) : null;
 
       try {
         const payload = {
-          NISN:          String(row["NISN"] || "").trim(),
-          NIPD:          String(row["NIPD"] || "").trim(),
-          nama:          String(row["Nama"] || "").trim(),
-          alamat:        String(row["Alamat"] || "").trim(),
-          gender:        String(row["Gender"] || "").trim(),
+          NISN: String(row["NISN"] || "").trim(),
+          NIPD: String(row["NIPD"] || "").trim(),
+          nama: String(row["Nama"] || "").trim(),
+          alamat: String(row["Alamat"] || "").trim(),
+          gender: String(row["Gender"] || "").trim(),
           tanggal_lahir: String(row["Tanggal Lahir (YYYY-MM-DD)"] || "").trim(),
           nomor_telepon: String(row["Nomor Telepon"] || "").trim(),
-          kelas_id:      kelasId,
+          kelas_id: kelasId,
           ...(ortuId ? { orangtua_id: ortuId } : {}),
         };
 
@@ -523,7 +598,7 @@ function UpdateModal({ onClose, onUpdateDone }) {
   };
 
   const successCount = results.filter((r) => r.ok).length;
-  const failCount    = results.filter((r) => !r.ok).length;
+  const failCount = results.filter((r) => !r.ok).length;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -531,7 +606,7 @@ function UpdateModal({ onClose, onUpdateDone }) {
         <div className="bg-linear-to-r from-emerald-600 to-emerald-700 px-6 py-4 flex items-center justify-between">
           <div>
             <h2 className="text-white font-semibold text-lg">Update Data Siswa</h2>
-            <p className="text-emerald-200 text-xs mt-0.5">Upload Excel dengan kolom NISN (key), field siswa, Kelas ID, ID Orang Tua</p>
+            <p className="text-emerald-200 text-xs mt-0.5">Upload Excel dengan kolom NISN (key), field siswa, Nama Kelas, Jurusan, ID Orang Tua</p>
           </div>
           <button onClick={onClose} className="text-emerald-200 hover:text-white transition-colors"><XCircle /></button>
         </div>
@@ -619,7 +694,7 @@ function UpdateModal({ onClose, onUpdateDone }) {
 
 function DeleteConfirmModal({ student, onClose, onDeleted }) {
   const [deleting, setDeleting] = useState(false);
-  const [error, setError]       = useState("");
+  const [error, setError] = useState("");
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -641,7 +716,7 @@ function DeleteConfirmModal({ student, onClose, onDeleted }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
-        <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4 flex items-center justify-between">
+        <div className="bg-linear-to-r from-red-500 to-red-600 px-6 py-4 flex items-center justify-between">
           <div>
             <h2 className="text-white font-semibold text-lg">Hapus Data Siswa</h2>
             <p className="text-red-200 text-xs mt-0.5">Tindakan ini tidak dapat dibatalkan</p>
@@ -681,27 +756,27 @@ function DeleteConfirmModal({ student, onClose, onDeleted }) {
   );
 }
 
-// ─── Main Component (tidak berubah) ─────────────────────────────────────────
+// Main Component
 
 export default function ImportSiswa() {
-  const [allStudents, setAllStudents]           = useState([]);
-  const [kelasList, setKelasList]               = useState([]);
-  const [selectedKelas, setSelectedKelas]       = useState("");
-  const [searchQuery, setSearchQuery]           = useState("");
-  const [loading, setLoading]                   = useState(false);
-  const [error, setError]                       = useState("");
-  const [page, setPage]                         = useState(1);
-  const [totalPages, setTotalPages]             = useState(1);
-  const [showImportModal, setShowImportModal]   = useState(false);
-  const [showUpdateModal, setShowUpdateModal]   = useState(false);
+  const [allStudents, setAllStudents] = useState([]);
+  const [kelasList, setKelasList] = useState([]);
+  const [selectedKelas, setSelectedKelas] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [showTemplateMenu, setShowTemplateMenu] = useState(false);
-  const [showExportMenu, setShowExportMenu]     = useState(false);
-  const [showImportMenu, setShowImportMenu]     = useState(false);
-  const [deleteTarget, setDeleteTarget]         = useState(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showImportMenu, setShowImportMenu] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const itemsPerPage = 10;
 
-  const templateRef   = useRef();
-  const exportRef     = useRef();
+  const templateRef = useRef();
+  const exportRef = useRef();
   const importMenuRef = useRef();
 
   useEffect(() => {
@@ -719,11 +794,11 @@ export default function ImportSiswa() {
     setError("");
     try {
       const userStr = localStorage.getItem("user");
-      const user    = userStr ? JSON.parse(userStr) : null;
-      const role    = (
+      const user = userStr ? JSON.parse(userStr) : null;
+      const role = (
         user?.userRole?.[0]?.role?.name || user?.role?.name || user?.role || ""
       ).toString().toUpperCase();
-      const guruId  = user?.guru?.id;
+      const guruId = user?.guru?.id;
       const queryParams = {};
       if (role === "WALAS" && guruId) queryParams.walas_id = guruId.toString();
       const queryString = new URLSearchParams(queryParams).toString();
@@ -773,13 +848,13 @@ export default function ImportSiswa() {
   useEffect(() => { setPage(1); }, [selectedKelas, searchQuery]);
 
   const handleSearch = (value) => setSearchQuery(value);
-  const clearSearch  = () => setSearchQuery("");
-  const refreshData  = () => fetchAllStudents();
+  const clearSearch = () => setSearchQuery("");
+  const refreshData = () => fetchAllStudents();
 
   useEffect(() => {
     const handler = (e) => {
-      if (templateRef.current   && !templateRef.current.contains(e.target))   setShowTemplateMenu(false);
-      if (exportRef.current     && !exportRef.current.contains(e.target))     setShowExportMenu(false);
+      if (templateRef.current && !templateRef.current.contains(e.target)) setShowTemplateMenu(false);
+      if (exportRef.current && !exportRef.current.contains(e.target)) setShowExportMenu(false);
       if (importMenuRef.current && !importMenuRef.current.contains(e.target)) setShowImportMenu(false);
     };
     document.addEventListener("mousedown", handler);
@@ -979,7 +1054,7 @@ export default function ImportSiswa() {
         <ImportModal onClose={() => setShowImportModal(false)} onImportDone={refreshData} />
       )}
       {showUpdateModal && (
-        <UpdateModal onClose={() => setShowUpdateModal(false)} onUpdateDone={refreshData} />
+        <UpdateModal onClose={() => setShowUpdateModal(false)} onUpdateDone={refreshData} kelasList={kelasList} />
       )}
       {deleteTarget && (
         <DeleteConfirmModal

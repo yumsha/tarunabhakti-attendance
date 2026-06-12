@@ -160,26 +160,20 @@ export default function UserTable({
                   </td>
                   <td className="px-6 py-4">
                     <div>
-                      {user.guru && (
-                        <p className="text-sm font-medium text-gray-900">
-                          {user.guru.nama}
-                        </p>
-                      )}
-                      {/* develop */}
+                      <p className="text-sm font-medium text-gray-900">
+                        {user.guru?.nama || user.username || "—"}
+                      </p>
                       {user.email && (
                         <p className="text-xs text-gray-400">{user.email}</p>
                       )}
                     </div>
                   </td>
+
                   <td className="px-6 py-4 text-sm text-gray-600">
                     {user.guru ? (
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">
-                          {user.guru.NIP}
-                        </p>
-                      </div>
+                      <p className="text-sm font-medium text-gray-900">{user.guru.NIP}</p>
                     ) : (
-                      <span className="text-gray-400">—</span>
+                      <span className="text-xs text-gray-400 italic">Non-guru</span>
                     )}
                   </td>
                   <td className="px-6 py-4">{getRoleBadges(user)}</td>
