@@ -570,11 +570,14 @@ const handleRemoveWalas = async () => {
       setRemoveTarget(null);
       await loadData({ silent: true });
     } catch (err) {
-      if (walasReleased) {
-        await loadData({ silent: true });
-      }
-      showToast(err?.message || "Gagal melepas walas", "error");
-    } finally {
+    if (walasReleased) {
+      await loadData({ silent: true });
+    }
+
+    setRemoveTarget(null);
+
+    showToast(err?.message || "Gagal melepas walas", "error");
+  } finally {
       setRemoveLoading(false);
     }
   };
@@ -634,7 +637,7 @@ const handleRemoveWalas = async () => {
             helper="Kelas yang belum ter-assign"
             icon={<AlertTriangle className="h-5 w-5" />}
             tone="amber"
-            loading={loading}
+            loading={loading}a
           />
           <InfoStatCard
             label="User WALAS Siap Assign"

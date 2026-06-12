@@ -1,14 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
-    Users, Clock, CloudOff, AlertTriangle, Moon, CalendarCheck, Settings, ShieldCheck
+    Users, Clock, CloudOff, AlertTriangle, Moon, CalendarCheck,
+    Settings, ShieldCheck, RefreshCw
 } from "lucide-react";
 import PageHeader from "../layout/PageHeader.jsx";
 import StatCard from "./StatCard.jsx";
 import AttendanceComparisonChart from "../attendance/AttendanceComparisonChart.jsx";
-import WeeklyAttendanceChart from "../attendance/WeeklyAttendanceChart.jsx";
-import { absensiSiswa, siswa } from "../../lib/backendApi";
+import { absensiSiswa, siswa, kelas, detailAbsensi } from "../../lib/backendApi";
 
-// ── Realtime Clock ────────────────────────────────────────────────────────────
+// Realtime Clock
 function RealtimeClock() {
     const [now, setNow] = useState(new Date());
     useEffect(() => {
@@ -21,7 +21,7 @@ function RealtimeClock() {
         minute: "2-digit",
         second: "2-digit",
     });
-    const dateStr = now.toLocaleDateString("en-GB", {
+    const dateStr = now.toLocaleDateString("id-ID", {
         day: "numeric",
         month: "long",
         year: "numeric",
@@ -40,85 +40,167 @@ function RealtimeClock() {
     );
 }
 
+// Helpers
+
+/**
+ * Ambil SEMUA siswa tanpa batas pagination.
+ */
+async function fetchTotalSiswa() {
+    try {
+        const res = await siswa.list("limit=99999&page=1");
+        if (res?.success) {
+            if (res.pagination?.total !== undefined) return res.pagination.total;
+            if (Array.isArray(res.data)) return res.data.length;
+        }
+        return 0;
+    } catch (e) {
+        console.error("fetchTotalSiswa error", e);
+        return 0;
+    }
+}
+
+/**
+ * Ambil semua kelas aktif.
+ */
+async function fetchSemuaKelas() {
+    try {
+        const res = await kelas.list("limit=99999&page=1");
+        if (res?.success && Array.isArray(res.data)) return res.data;
+        return [];
+    } catch (e) {
+        console.error("fetchSemuaKelas error", e);
+        return [];
+    }
+}
+
+async function fetchStatsHarian(today) {
+    // Fetch laporan harian (tap-in RFID & manual) 
+    const laporanRes = await absensiSiswa.laporanHarian(`tanggal=${today}`);
+    const list = (laporanRes?.success && Array.isArray(laporanRes.data))
+        ? laporanRes.data
+        : [];
+
+    let hadir = 0, terlambat = 0, izin = 0, sakit = 0, alpha = 0;
+
+    list.forEach((r) => {
+        const sh = r.status_harian;
+        const st = r.status_tapin; // "Terlambat" or "Tepat_Waktu"
+
+        if (sh === "Izin") {
+            izin++;
+        } else if (sh === "Sakit") {
+            sakit++;
+        } else if (sh === "Alpha") {
+            alpha++;
+        } else if (sh === "Hadir") {
+            if (st === "Terlambat") {
+                terlambat++;
+            } else {
+                hadir++;
+            }
+        } else {
+            // Fallback for unset status_harian
+            if (st === "Terlambat") {
+                terlambat++;
+            } else if (st === "Tepat_Waktu") {
+                hadir++;
+            } else {
+                alpha++;
+            }
+        }
+    });
+
+    const tercatat = list.length; // jumlah siswa yang tercatat tap-in atau override
+
+    return { hadir, terlambat, izin, sakit, alpha, tercatat };
+}
+
+// Dashboard
 export default function SuperAdminDashboard() {
     const [stats, setStats] = useState({
-        total: 0,
-        hadir: 0,
-        absen: 0,
-        telat: 0,
-        pulangAwal: 0,
-        izin: 0,
-        sakit: 0,
+        total:      0,
+        hadir:      0,
+        absen:      0,
+        terlambat:  0,
+        izin:       0,
+        sakit:      0,
+        alpha:      0,
     });
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading]         = useState(true);
+    const [lastUpdated, setLastUpdated] = useState(null);
 
-    useEffect(() => {
-        const load = async () => {
-            setLoading(true);
-            try {
-                const today = new Date().toISOString().split("T")[0];
-                const [absensiRes, siswaRes] = await Promise.all([
-                    absensiSiswa.laporanHarian(`tanggal=${today}`),
-                    siswa.list(),
-                ]);
+    const load = useCallback(async () => {
+        setLoading(true);
+        try {
+            const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
 
-                let hadir = 0, telat = 0, izin = 0, sakit = 0, pulangAwal = 0;
-                if (absensiRes?.success && Array.isArray(absensiRes.data)) {
-                    telat = absensiRes.data.filter((r) => r.status_tapin === "TERLAMBAT").length;
-                    izin = absensiRes.data.filter((r) => r.keterangan === "IZIN").length;
-                    sakit = absensiRes.data.filter((r) => r.keterangan === "SAKIT").length;
-                    pulangAwal = absensiRes.data.filter((r) => r.status_tapout === "PULANG_AWAL").length;
-                    hadir = absensiRes.data.length - telat;
-                }
-                const total = siswaRes?.data?.length ?? 0;
-                const absen = Math.max(0, total - (hadir + telat + izin + sakit));
+            // Ambil total siswa
+            const totalSiswa = await fetchTotalSiswa();
 
-                setStats({ total, hadir, absen, telat, pulangAwal, izin, sakit });
-            } catch (e) {
-                console.error("SuperAdminDashboard stats error", e);
-            } finally {
-                setLoading(false);
-            }
-        };
-        load();
+            // Hitung stats dari data harian
+            const { hadir, terlambat, izin, sakit, alpha, tercatat } =
+                await fetchStatsHarian(today);
+
+            // Tidak hadir = siswa yang sama sekali tidak ada record tap-in/override
+            const absen = Math.max(0, totalSiswa - tercatat);
+
+            setStats({
+                total:     totalSiswa,
+                hadir,
+                absen,
+                terlambat,
+                izin,
+                sakit,
+                alpha,
+            });
+            setLastUpdated(new Date());
+        } catch (e) {
+            console.error("SuperAdminDashboard stats error", e);
+        } finally {
+            setLoading(false);
+        }
     }, []);
+
+    useEffect(() => { load(); }, [load]);
+
+    const fmtTime = (d) => d ? d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : null;
 
     const cards = [
         {
             value: stats.total,
             label: "Total Siswa",
             icon: <Users className="w-5 h-5" />,
-            trend: { direction: "down", label: "Data tersinkronisasi" },
+            trend: { direction: "neutral", label: "Data tersinkronisasi" },
         },
         {
             value: stats.hadir,
             label: "Hadir Tepat Waktu",
             icon: <Clock className="w-5 h-5" />,
-            trend: { direction: "down", label: "Absensi hari ini" },
+            trend: { direction: "up", label: "Absensi hari ini" },
         },
         {
             value: stats.absen,
             label: "Tidak Hadir",
             icon: <CloudOff className="w-5 h-5" />,
-            trend: { direction: "up", label: "Absen hari ini" },
+            trend: { direction: "down", label: "Belum tercatat hari ini" },
         },
         {
-            value: stats.telat,
+            value: stats.terlambat,
             label: "Terlambat",
             icon: <AlertTriangle className="w-5 h-5" />,
-            trend: { direction: "up", label: "Kedatangan terlambat" },
+            trend: { direction: "down", label: "Kedatangan terlambat" },
         },
         {
             value: stats.sakit,
             label: "Sakit",
             icon: <Moon className="w-5 h-5" />,
-            trend: { direction: "down", label: "Sakit hari ini" },
+            trend: { direction: "neutral", label: "Sakit hari ini" },
         },
         {
             value: stats.izin,
             label: "Izin",
             icon: <CalendarCheck className="w-5 h-5" />,
-            trend: { direction: "up", label: "Izin hari ini" },
+            trend: { direction: "neutral", label: "Izin hari ini" },
         },
     ];
 
@@ -127,9 +209,8 @@ export default function SuperAdminDashboard() {
             <PageHeader
                 title="Super Admin Dashboard"
                 subtitle={
-                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-600 bg-violet-50 border border-violet-200 px-2.5 py-0.5 rounded-full">
-                        <ShieldCheck className="w-3.5 h-3.5" />
-                        Super Administrator
+                    <span className="inline-flex items-center gap-1.5 text-sm ">
+                        <h1>Lihat dan pantau Data Siswa saat ini</h1>
                     </span>
                 }
             />
@@ -141,10 +222,6 @@ export default function SuperAdminDashboard() {
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col justify-between min-w-[200px] w-[200px]">
                         <Clock className="w-10 h-10 text-gray-300 mb-3" />
                         <RealtimeClock />
-                        <button className="mt-6 flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition-colors w-full justify-center">
-                            <Settings className="w-4 h-4" />
-                            Advanced Configuration
-                        </button>
                     </div>
 
                     {/* 2×3 stat grid */}
@@ -155,16 +232,9 @@ export default function SuperAdminDashboard() {
                     </div>
                 </div>
 
-                {/* ── Bottom: charts ── */}
-                <div className="grid grid-cols-3 gap-5">
-                    <div className="col-span-2">
-                        <AttendanceComparisonChart />
-                    </div>
-
-                    {/* klep klep klep siklepp */}
-                    {/* <div className="col-span-1">
-                        <WeeklyAttendanceChart />
-                    </div> */}
+                {/* Bottom: chart */}
+                <div className="grid grid-cols-1 gap-5">
+                    <AttendanceComparisonChart />
                 </div>
             </div>
         </div>
