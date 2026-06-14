@@ -36,11 +36,9 @@ export default function StudentHeader() {
   }, []);
 
   return (
-  <div className="flex-1 flex flex-col overflow-hidden bg-gray-50 h-17 ">
     <PageHeader 
       title="Daftar siswa"
       subtitle="Daftar seluruh siswa"
     />
-  </div>
   );
 }

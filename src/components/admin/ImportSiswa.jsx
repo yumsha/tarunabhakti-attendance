@@ -41,7 +41,31 @@ const UPDATE_HEADERS = [
   "ID Orang Tua",
 ];
 
+// Jumlah request paralel saat proses import/update massal.
+// Angka 5 dipilih sebagai titik aman: cukup cepat tapi tidak membebani backend.
+const CONCURRENCY = 5;
 
+// Helper: jalankan banyak task async dengan batasan concurrency,
+// sambil melaporkan progres tiap kali satu task selesai.
+async function runWithConcurrency(items, concurrency, worker, onProgress) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+  let completed = 0;
+
+  async function run() {
+    while (true) {
+      const i = nextIndex++;
+      if (i >= items.length) return;
+      results[i] = await worker(items[i], i);
+      completed++;
+      if (onProgress) onProgress(completed, items.length, results);
+    }
+  }
+
+  const workerCount = Math.max(1, Math.min(concurrency, items.length));
+  await Promise.all(Array.from({ length: workerCount }, run));
+  return results;
+}
 
 // Template Downloaders 
 
@@ -55,9 +79,10 @@ function getSiswaGuideSheet() {
     ["   Contoh: '08123456789 atau '3050626105 atau '2005-06-01"],
     ["   Jika tidak ditambahkan, Excel akan otomatis menghapus angka 0 di depan dan merusak format data Anda."],
     [""],
-    ["2. PANDUAN KELAS SISWA"],
+    ["2. PANDUAN DATA KELAS & GENDER SISWA"],
     ["   - Gunakan kolom 'Nama Kelas' dan 'Jurusan."],
     ["   - Pastikan nilainya sama persis dengan yang ada di sistem (Contoh: XII dan Rekayasa Perangkat Lunak)."],
+    ["   - WAJIB: Kolom Gender harus menggunakan huruf KAPITAL (L untuk Laki-laki, P untuk Perempuan). Contoh: L atau P."],
     [""],
     ["3. CARA TAMBAH DATA SISWA & RELASI ORANG TUA."],
     ["   - Gunakan template Excel yang tersedia"],
@@ -245,6 +270,26 @@ const SearchIcon = () => <Icon d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /
 const XIcon = () => <Icon d="M18 6L6 18M6 6l12 12" />;
 const ChevronDown = () => <Icon d="M6 9l6 6 6-6" />;
 
+// Progress bar kecil dipakai saat proses import/update massal berjalan
+function ProgressBar({ current, total, color = "blue" }) {
+  const pct = total ? Math.round((current / total) * 100) : 0;
+  const barColor = color === "emerald" ? "bg-emerald-500" : "bg-blue-500";
+  return (
+    <div className="space-y-1">
+      <div className="flex justify-between text-xs text-gray-500">
+        <span>Memproses {current} dari {total} baris...</span>
+        <span>{pct}%</span>
+      </div>
+      <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+        <div
+          className={`h-full ${barColor} transition-all duration-300`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 // Import Modal
 
 function ImportModal({ onClose, onImportDone }) {
@@ -252,7 +297,19 @@ function ImportModal({ onClose, onImportDone }) {
   const [results, setResults] = useState([]);
   const [importing, setImporting] = useState(false);
   const [done, setDone] = useState(false);
+  const [progress, setProgress] = useState({ current: 0, total: 0 });
+  const [previewLimit, setPreviewLimit] = useState(250);
+  const [resultSearch, setResultSearch] = useState("");
+  const [draftSearch, setDraftSearch] = useState("");
   const fileRef = useRef();
+
+  // Cegah user nutup/refresh tab di tengah proses import massal
+  useEffect(() => {
+    if (!importing) return;
+    const handler = (e) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [importing]);
 
   const parseFile = (file) => {
     const reader = new FileReader();
@@ -263,6 +320,10 @@ function ImportModal({ onClose, onImportDone }) {
       setRows(json);
       setResults([]);
       setDone(false);
+      setProgress({ current: 0, total: 0 });
+      setPreviewLimit(250);
+      setResultSearch("");
+      setDraftSearch("");
     };
     reader.readAsBinaryString(file);
   };
@@ -273,6 +334,9 @@ function ImportModal({ onClose, onImportDone }) {
   const startImport = async () => {
     if (!rows.length) return;
     setImporting(true);
+    setDone(false);
+    setResults([]);
+    setProgress({ current: 0, total: rows.length });
 
     // Fetch semua orang tua sekali di awal untuk lookup cepat
     let orangtuaMap = {}; // id (string) → object orang tua
@@ -285,92 +349,126 @@ function ImportModal({ onClose, onImportDone }) {
       }
     } catch (_) { }
 
-    const res = [];
+    // prepared menyimpan hasil per baris sesuai urutan asli (sparse array)
+    const prepared = new Array(rows.length);
 
-    for (const row of rows) {
+    // ── Pre-pass: validasi sinkron & deteksi duplikat NISN/NIPD dalam file ──
+    const seenNISN = new Set();
+    const seenNIPD = new Set();
+    const toProcess = [];
+
+    rows.forEach((row, idx) => {
       const nama = row["Nama"] || "?";
+      const NISN = String(row["NISN"] || "").trim();
+      const NIPD = String(row["NIPD"] || "").trim();
 
-      try {
-        // Validasi wajib siswa
-        if (!row["NISN"] || !row["NIPD"] || !row["Nama"]) {
-          res.push({ nama, ok: false, msg: "Field wajib siswa kosong (NISN / NIPD / Nama)" });
-          continue;
-        }
-
-        // Resolusi Orang Tua
-        //
-        // Behavior:
-        //   1. ID Orang Tua diisi & ada di DB        = kirim orangtua_id (integer)
-        //   2. ID Orang Tua diisi & TIDAK ada di DB  = langsung gagal
-        //   3. ID kosong, detail diisi lengkap       = kirim orangtua object (buat baru)
-        //   4. Semua kosong                          = siswa tanpa orang tua
-
-        const idOrtu = String(row["ID Orang Tua"] || "").trim();
-        const nikOrtu = String(row["NIK Orang Tua"] || "").trim();
-        const namaOrtu = String(row["Nama Orang Tua"] || "").trim();
-        const telpOrtu = String(row["No Telp Orang Tua"] || "").trim();
-        const pekerjaanOrtu = String(row["Pekerjaan Orang Tua"] || "").trim();
-        const alamatOrtu = String(row["Alamat Orang Tua"] || "").trim();
-
-        const hasDetail = nikOrtu && namaOrtu && telpOrtu && pekerjaanOrtu && alamatOrtu;
-
-        let resolvedOrangtuaId = null;
-        let orangtuaPayload = undefined;
-
-        if (idOrtu) {
-          const matched = orangtuaMap[idOrtu];
-          if (matched) {
-            orangtuaPayload = {
-              NIK: matched.NIK,
-              nama_orangtua: matched.nama_orangtua,
-              nomor_telepon: matched.nomor_telepon,
-              pekerjaan: matched.pekerjaan,
-              alamat: matched.alamat,
-            };
-          } else {
-            // kalo ID tidak ditemukan di DB maka langsung gagal (no fallback)
-            res.push({
-              nama,
-              ok: false,
-              msg: `ID Orang Tua "${idOrtu}" tidak ditemukan di database`,
-            });
-            continue;
-          }
-        } else if (hasDetail) {
-          // ID kosong tapi detail lengkap maka buat orang tua baru
-          orangtuaPayload = {
-            NIK: nikOrtu,
-            nama_orangtua: namaOrtu,
-            nomor_telepon: telpOrtu,
-            pekerjaan: pekerjaanOrtu,
-            alamat: alamatOrtu,
-          };
-        }
-        // else: semua kosong maka import siswa tanpa orang tua
-
-        // Buat siswa
-        const payload = {
-          NISN: String(row["NISN"] || ""),
-          NIPD: String(row["NIPD"] || ""),
-          nama,
-          alamat: row["Alamat"] || "",
-          gender: row["Gender"] || "",
-          tanggal_lahir: row["Tanggal Lahir (YYYY-MM-DD)"] || "",
-          nomor_telepon: String(row["Nomor Telepon"] || ""),
-          nama_kelas: row["Nama Kelas"] || "",
-          jurusan: row["Jurusan"] || "",
-          ...(orangtuaPayload ? { orangtua: orangtuaPayload } : {}),
-        };
-
-        const result = await siswa.create(payload);
-        res.push({ nama, ok: result?.success, msg: result?.message || "" });
-
-      } catch (err) {
-        res.push({ nama, ok: false, msg: err.message });
+      if (!NISN || !NIPD || !row["Nama"]) {
+        prepared[idx] = { nama, ok: false, msg: "Field wajib siswa kosong (NISN / NIPD / Nama)" };
+        return;
       }
-    }
+      if (seenNISN.has(NISN)) {
+        prepared[idx] = { nama, ok: false, msg: `NISN ${NISN} duplikat dalam file (skip)` };
+        return;
+      }
+      if (seenNIPD.has(NIPD)) {
+        prepared[idx] = { nama, ok: false, msg: `NIPD ${NIPD} duplikat dalam file (skip)` };
+        return;
+      }
+      seenNISN.add(NISN);
+      seenNIPD.add(NIPD);
+      toProcess.push({ row, idx });
+    });
 
-    setResults(res);
+    // Tampilkan hasil pre-pass duluan (progress sudah terisi sebagian)
+    const preDone = rows.length - toProcess.length;
+    setProgress({ current: preDone, total: rows.length });
+    setResults(prepared.filter(Boolean));
+
+    // ── Proses ke backend dengan concurrency terbatas ──
+    await runWithConcurrency(
+      toProcess,
+      CONCURRENCY,
+      async ({ row, idx }) => {
+        const nama = row["Nama"] || "?";
+
+        try {
+          // Resolusi Orang Tua
+          //
+          // Behavior:
+          //   1. ID Orang Tua diisi & ada di DB        = kirim orangtua_id (integer)
+          //   2. ID Orang Tua diisi & TIDAK ada di DB  = langsung gagal
+          //   3. ID kosong, detail diisi lengkap       = kirim orangtua object (buat baru)
+          //   4. Semua kosong                          = siswa tanpa orang tua
+
+          const idOrtu = String(row["ID Orang Tua"] || "").trim();
+          const nikOrtu = String(row["NIK Orang Tua"] || "").trim();
+          const namaOrtu = String(row["Nama Orang Tua"] || "").trim();
+          const telpOrtu = String(row["No Telp Orang Tua"] || "").trim();
+          const pekerjaanOrtu = String(row["Pekerjaan Orang Tua"] || "").trim();
+          const alamatOrtu = String(row["Alamat Orang Tua"] || "").trim();
+
+          const hasDetail = nikOrtu && namaOrtu && telpOrtu && pekerjaanOrtu && alamatOrtu;
+
+          let orangtuaPayload = undefined;
+
+          if (idOrtu) {
+            const matched = orangtuaMap[idOrtu];
+            if (matched) {
+              orangtuaPayload = {
+                NIK: matched.NIK,
+                nama_orangtua: matched.nama_orangtua,
+                nomor_telepon: matched.nomor_telepon,
+                pekerjaan: matched.pekerjaan,
+                alamat: matched.alamat,
+              };
+            } else {
+              // kalo ID tidak ditemukan di DB maka langsung gagal (no fallback)
+              const entry = { nama, ok: false, msg: `ID Orang Tua "${idOrtu}" tidak ditemukan di database` };
+              prepared[idx] = entry;
+              return entry;
+            }
+          } else if (hasDetail) {
+            // ID kosong tapi detail lengkap maka buat orang tua baru
+            orangtuaPayload = {
+              NIK: nikOrtu,
+              nama_orangtua: namaOrtu,
+              nomor_telepon: telpOrtu,
+              pekerjaan: pekerjaanOrtu,
+              alamat: alamatOrtu,
+            };
+          }
+          // else: semua kosong maka import siswa tanpa orang tua
+
+          // Buat siswa
+          const payload = {
+            NISN: String(row["NISN"] || ""),
+            NIPD: String(row["NIPD"] || ""),
+            nama,
+            alamat: row["Alamat"] || "",
+            gender: row["Gender"] || "",
+            tanggal_lahir: row["Tanggal Lahir (YYYY-MM-DD)"] || "",
+            nomor_telepon: String(row["Nomor Telepon"] || ""),
+            nama_kelas: row["Nama Kelas"] || "",
+            jurusan: row["Jurusan"] || "",
+            ...(orangtuaPayload ? { orangtua: orangtuaPayload } : {}),
+          };
+
+          const result = await siswa.create(payload);
+          const entry = { nama, ok: result?.success ?? false, msg: result?.message || "" };
+          prepared[idx] = entry;
+          return entry;
+        } catch (err) {
+          const entry = { nama, ok: false, msg: err.message };
+          prepared[idx] = entry;
+          return entry;
+        }
+      },
+      (doneCount) => {
+        setProgress({ current: preDone + doneCount, total: rows.length });
+        setResults(prepared.filter(Boolean));
+      }
+    );
+
     setImporting(false);
     setDone(true);
     onImportDone();
@@ -378,6 +476,23 @@ function ImportModal({ onClose, onImportDone }) {
 
   const successCount = results.filter((r) => r.ok).length;
   const failCount = results.filter((r) => !r.ok).length;
+
+  const filteredRows = useMemo(() => {
+    if (!draftSearch.trim()) return rows;
+    const q = draftSearch.toLowerCase().trim();
+    return rows.filter((row) =>
+      Object.values(row).some((val) => String(val).toLowerCase().includes(q))
+    );
+  }, [rows, draftSearch]);
+
+  const filteredResults = useMemo(() => {
+    if (!resultSearch.trim()) return results;
+    const q = resultSearch.toLowerCase().trim();
+    return results.filter(
+      (r) =>
+        r.nama?.toLowerCase().includes(q) || r.msg?.toLowerCase().includes(q)
+    );
+  }, [results, resultSearch]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -387,23 +502,16 @@ function ImportModal({ onClose, onImportDone }) {
             <h2 className="text-white font-semibold text-lg">Import Data Siswa</h2>
             <p className="text-blue-200 text-xs mt-0.5">Upload file Excel (.xlsx) untuk import massal</p>
           </div>
-          <button onClick={onClose} className="text-blue-200 hover:text-white transition-colors"><XCircle /></button>
+          <button
+            onClick={onClose}
+            disabled={importing}
+            className="text-blue-200 hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <XCircle />
+          </button>
         </div>
 
         <div className="p-6 space-y-5">
-
-          {/* Info box aturan orang tua */}
-          {/* {!done && (
-            <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-700 space-y-1">
-              <p className="font-semibold text-blue-800">Aturan kolom Orang Tua di Excel:</p>
-              <ul className="list-disc list-inside space-y-0.5 text-blue-600">
-                <li><span className="font-medium">ID Orang Tua ada & cocok di DB</span> → data orang tua diambil dari database.</li>
-                <li><span className="font-medium">ID ada tapi tidak cocok</span> → sistem coba pakai kolom detail (NIK, Nama, dll) untuk buat baru. Jika detail juga kosong → baris gagal.</li>
-                <li><span className="font-medium">ID kosong, kolom detail diisi</span> → orang tua baru dibuat otomatis.</li>
-                <li><span className="font-medium">Semua kosong</span> → siswa diimport tanpa orang tua.</li>
-              </ul>
-            </div>
-          )} */}
 
           {!rows.length && (
             <div
@@ -419,11 +527,20 @@ function ImportModal({ onClose, onImportDone }) {
             </div>
           )}
 
-          {rows.length > 0 && !done && (
+          {rows.length > 0 && !done && !importing && (
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-semibold text-gray-700">{rows.length} baris ditemukan</p>
-                <button onClick={() => { setRows([]); setResults([]); }} className="text-xs text-red-500 hover:underline">Ganti file</button>
+                <p className="text-sm font-semibold text-gray-700">{filteredRows.length} dari {rows.length} baris ditemukan</p>
+                <button onClick={() => { setRows([]); setResults([]); setPreviewLimit(250); setResultSearch(""); setDraftSearch(""); }} className="text-xs text-red-500 hover:underline">Ganti file</button>
+              </div>
+              <div className="mb-3">
+                <input
+                  type="text"
+                  value={draftSearch}
+                  onChange={(e) => { setDraftSearch(e.target.value); setPreviewLimit(250); }}
+                  placeholder="Cari di data draft Excel..."
+                  className="w-full text-xs px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
               </div>
               <div className="overflow-auto max-h-48 border border-gray-200 rounded-lg">
                 <table className="w-full text-xs">
@@ -440,7 +557,7 @@ function ImportModal({ onClose, onImportDone }) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {rows.slice(0, 10).map((r, i) => (
+                    {filteredRows.slice(0, previewLimit).map((r, i) => (
                       <tr key={i}>
                         {Object.entries(r).map(([k, v], j) => (
                           <td key={j} className={`px-3 py-2 whitespace-nowrap
@@ -454,31 +571,62 @@ function ImportModal({ onClose, onImportDone }) {
                     ))}
                   </tbody>
                 </table>
-                {rows.length > 10 && <p className="text-center text-xs text-gray-400 py-2">... dan {rows.length - 10} baris lainnya</p>}
               </div>
+              {filteredRows.length > previewLimit && (
+                <div className="text-center py-2 bg-gray-50 border-t border-gray-100 flex flex-col items-center justify-center">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewLimit((prev) => prev + 250)}
+                    className="text-xs text-blue-600 font-semibold hover:underline"
+                  >
+                    Tampilkan lebih banyak (+250 data) ...
+                  </button>
+                  <p className="text-[10px] text-gray-400 mt-0.5">Menampilkan {Math.min(previewLimit, filteredRows.length)} dari {filteredRows.length} baris</p>
+                </div>
+              )}
             </div>
           )}
 
-          {done && (
-            <div>
-              <div className="grid grid-cols-1 gap-4 mb-3 sm:grid-cols-2">
+          {(importing || done) && (
+            <div className="space-y-3">
+              {importing && <ProgressBar current={progress.current} total={progress.total} color="blue" />}
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <InfoStatCard label="Berhasil" value={successCount} helper="Baris yang lolos proses import" icon={<CheckCircle2 className="h-5 w-5" />} tone="emerald" />
                 <InfoStatCard label="Gagal" value={failCount} helper="Baris yang perlu dicek lagi" icon={<AlertTriangle className="h-5 w-5" />} tone="red" />
               </div>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={resultSearch}
+                  onChange={(e) => setResultSearch(e.target.value)}
+                  placeholder="Cari nama atau status hasil log..."
+                  className="w-full text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
               <div className="overflow-auto max-h-44 border border-gray-200 rounded-lg divide-y divide-gray-100">
-                {results.map((r, i) => (
+                {filteredResults.map((r, i) => (
                   <div key={i} className="flex items-center gap-2 px-4 py-2 text-sm">
                     <span className={r.ok ? "text-green-500" : "text-red-500"}>{r.ok ? <CheckCircle /> : <XCircle />}</span>
                     <span className="font-medium text-gray-800 flex-1">{r.nama}</span>
                     {!r.ok && <span className="text-xs text-red-500 text-right max-w-xs">{r.msg}</span>}
                   </div>
                 ))}
+                {filteredResults.length === 0 && (
+                  <div className="p-4 text-center text-xs text-gray-400">
+                    {importing ? "Menunggu hasil baris pertama..." : "Tidak ada hasil pencarian log yang cocok"}
+                  </div>
+                )}
               </div>
             </div>
           )}
 
           <div className="flex gap-3 pt-1">
-            <button onClick={onClose} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
+            <button
+              onClick={onClose}
+              disabled={importing}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition disabled:opacity-40 disabled:cursor-not-allowed"
+            >
               {done ? "Tutup" : "Batal"}
             </button>
             {!done && (
@@ -506,7 +654,19 @@ function UpdateModal({ onClose, onUpdateDone, kelasList }) {
   const [results, setResults] = useState([]);
   const [updating, setUpdating] = useState(false);
   const [done, setDone] = useState(false);
+  const [progress, setProgress] = useState({ current: 0, total: 0 });
+  const [previewLimit, setPreviewLimit] = useState(250);
+  const [resultSearch, setResultSearch] = useState("");
+  const [draftSearch, setDraftSearch] = useState("");
   const fileRef = useRef();
+
+  // Cegah user nutup/refresh tab di tengah proses update massal
+  useEffect(() => {
+    if (!updating) return;
+    const handler = (e) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [updating]);
 
   const parseFile = (file) => {
     const reader = new FileReader();
@@ -517,6 +677,10 @@ function UpdateModal({ onClose, onUpdateDone, kelasList }) {
       setRows(json);
       setResults([]);
       setDone(false);
+      setProgress({ current: 0, total: 0 });
+      setPreviewLimit(250);
+      setResultSearch("");
+      setDraftSearch("");
     };
     reader.readAsBinaryString(file);
   };
@@ -527,6 +691,9 @@ function UpdateModal({ onClose, onUpdateDone, kelasList }) {
   const startUpdate = async () => {
     if (!rows.length) return;
     setUpdating(true);
+    setDone(false);
+    setResults([]);
+    setProgress({ current: 0, total: rows.length });
 
     let siswaMap = {};
     try {
@@ -536,26 +703,30 @@ function UpdateModal({ onClose, onUpdateDone, kelasList }) {
       }
     } catch (_) { }
 
-    const res = [];
-    for (const row of rows) {
+    // prepared menyimpan hasil per baris sesuai urutan asli (sparse array)
+    const prepared = new Array(rows.length);
+    const toProcess = [];
+
+    // ── Pre-pass: semua validasi yang tidak butuh request ke API ──
+    rows.forEach((row, idx) => {
       const nisnKey = String(row["NISN"] || "").trim();
       if (!nisnKey) {
-        res.push({ nama: row["Nama"] || "?", ok: false, msg: "NISN kosong – wajib diisi" });
-        continue;
+        prepared[idx] = { nama: row["Nama"] || "?", ok: false, msg: "NISN kosong – wajib diisi" };
+        return;
       }
 
       const existing = siswaMap[nisnKey];
       if (!existing) {
-        res.push({ nama: row["Nama"] || nisnKey, ok: false, msg: `Siswa NISN ${nisnKey} tidak ditemukan` });
-        continue;
+        prepared[idx] = { nama: row["Nama"] || nisnKey, ok: false, msg: `Siswa NISN ${nisnKey} tidak ditemukan` };
+        return;
       }
 
       const namaKelasStr = String(row["Nama Kelas"] || "").trim();
       const jurusanStr = String(row["Jurusan"] || "").trim();
 
       if (!namaKelasStr) {
-        res.push({ nama: row["Nama"] || nisnKey, ok: false, msg: "Nama Kelas wajib diisi" });
-        continue;
+        prepared[idx] = { nama: row["Nama"] || nisnKey, ok: false, msg: "Nama Kelas wajib diisi" };
+        return;
       }
 
       const matchedKelas = kelasList.find(
@@ -565,12 +736,12 @@ function UpdateModal({ onClose, onUpdateDone, kelasList }) {
       );
 
       if (!matchedKelas) {
-        res.push({
+        prepared[idx] = {
           nama: row["Nama"] || nisnKey,
           ok: false,
           msg: `Kelas "${namaKelasStr}" ${jurusanStr ? `dengan jurusan "${jurusanStr}"` : ""} tidak ditemukan`,
-        });
-        continue;
+        };
+        return;
       }
 
       const kelasId = matchedKelas.id;
@@ -591,35 +762,56 @@ function UpdateModal({ onClose, onUpdateDone, kelasList }) {
         existing.orangtua_id !== (ortuId || null);
 
       if (!hasChanged) {
-        res.push({
+        prepared[idx] = {
           nama: row["Nama"] || nisnKey,
           ok: false,
           msg: "Data sama dengan sebelumnya (tidak ada perubahan)",
-        });
-        continue;
-      }
-
-      try {
-        const payload = {
-          NISN: String(row["NISN"] || "").trim(),
-          NIPD: String(row["NIPD"] || "").trim(),
-          nama: String(row["Nama"] || "").trim(),
-          alamat: String(row["Alamat"] || "").trim(),
-          gender: String(row["Gender"] || "").trim(),
-          tanggal_lahir: String(row["Tanggal Lahir (YYYY-MM-DD)"] || "").trim(),
-          nomor_telepon: String(row["Nomor Telepon"] || "").trim(),
-          kelas_id: kelasId,
-          ...(ortuId ? { orangtua_id: ortuId } : {}),
         };
-
-        const result = await siswa.update(existing.id, payload);
-        res.push({ nama: payload.nama || nisnKey, ok: result?.success ?? false, msg: result?.message || "" });
-      } catch (err) {
-        res.push({ nama: row["Nama"] || nisnKey, ok: false, msg: err.message });
+        return;
       }
-    }
 
-    setResults(res);
+      toProcess.push({ idx, row, existing, kelasId, ortuId, nisnKey });
+    });
+
+    // Tampilkan hasil pre-pass duluan (progress sudah terisi sebagian)
+    const preDone = rows.length - toProcess.length;
+    setProgress({ current: preDone, total: rows.length });
+    setResults(prepared.filter(Boolean));
+
+    // ── Proses ke backend dengan concurrency terbatas ──
+    await runWithConcurrency(
+      toProcess,
+      CONCURRENCY,
+      async ({ idx, row, existing, kelasId, ortuId, nisnKey }) => {
+        try {
+          const payload = {
+            NISN: String(row["NISN"] || "").trim(),
+            NIPD: String(row["NIPD"] || "").trim(),
+            nama: String(row["Nama"] || "").trim(),
+            alamat: String(row["Alamat"] || "").trim(),
+            gender: String(row["Gender"] || "").trim(),
+            tanggal_lahir: String(row["Tanggal Lahir (YYYY-MM-DD)"] || "").trim(),
+            nomor_telepon: String(row["Nomor Telepon"] || "").trim(),
+            kelas_id: kelasId,
+            ...(ortuId ? { orangtua_id: ortuId } : {}),
+          };
+
+          const result = await siswa.update(existing.id, payload);
+          const entry = { nama: payload.nama || nisnKey, ok: result?.success ?? false, msg: result?.message || "" };
+          prepared[idx] = entry;
+          return entry;
+        } catch (err) {
+          const entry = { nama: row["Nama"] || nisnKey, ok: false, msg: err.message };
+          prepared[idx] = entry;
+          return entry;
+        }
+      },
+      (doneCount) => {
+        setProgress({ current: preDone + doneCount, total: rows.length });
+        setResults(prepared.filter(Boolean));
+      }
+    );
+
     setUpdating(false);
     setDone(true);
     onUpdateDone();
@@ -627,6 +819,23 @@ function UpdateModal({ onClose, onUpdateDone, kelasList }) {
 
   const successCount = results.filter((r) => r.ok).length;
   const failCount = results.filter((r) => !r.ok).length;
+
+  const filteredRows = useMemo(() => {
+    if (!draftSearch.trim()) return rows;
+    const q = draftSearch.toLowerCase().trim();
+    return rows.filter((row) =>
+      Object.values(row).some((val) => String(val).toLowerCase().includes(q))
+    );
+  }, [rows, draftSearch]);
+
+  const filteredResults = useMemo(() => {
+    if (!resultSearch.trim()) return results;
+    const q = resultSearch.toLowerCase().trim();
+    return results.filter(
+      (r) =>
+        r.nama?.toLowerCase().includes(q) || r.msg?.toLowerCase().includes(q)
+    );
+  }, [results, resultSearch]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -636,7 +845,13 @@ function UpdateModal({ onClose, onUpdateDone, kelasList }) {
             <h2 className="text-white font-semibold text-lg">Update Data Siswa</h2>
             <p className="text-emerald-200 text-xs mt-0.5">Upload Excel dengan kolom NISN (key), field siswa, Nama Kelas, Jurusan, ID Orang Tua</p>
           </div>
-          <button onClick={onClose} className="text-emerald-200 hover:text-white transition-colors"><XCircle /></button>
+          <button
+            onClick={onClose}
+            disabled={updating}
+            className="text-emerald-200 hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <XCircle />
+          </button>
         </div>
 
         <div className="p-6 space-y-5">
@@ -654,11 +869,20 @@ function UpdateModal({ onClose, onUpdateDone, kelasList }) {
             </div>
           )}
 
-          {rows.length > 0 && !done && (
+          {rows.length > 0 && !done && !updating && (
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-semibold text-gray-700">{rows.length} baris ditemukan</p>
-                <button onClick={() => { setRows([]); setResults([]); }} className="text-xs text-red-500 hover:underline">Ganti file</button>
+                <p className="text-sm font-semibold text-gray-700">{filteredRows.length} dari {rows.length} baris ditemukan</p>
+                <button onClick={() => { setRows([]); setResults([]); setPreviewLimit(250); setResultSearch(""); setDraftSearch(""); }} className="text-xs text-red-500 hover:underline">Ganti file</button>
+              </div>
+              <div className="mb-3">
+                <input
+                  type="text"
+                  value={draftSearch}
+                  onChange={(e) => { setDraftSearch(e.target.value); setPreviewLimit(250); }}
+                  placeholder="Cari di data draft Excel..."
+                  className="w-full text-xs px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
               </div>
               <div className="overflow-auto max-h-48 border border-gray-200 rounded-lg">
                 <table className="w-full text-xs">
@@ -666,38 +890,69 @@ function UpdateModal({ onClose, onUpdateDone, kelasList }) {
                     <tr>{UPDATE_HEADERS.map((k) => (<th key={k} className="px-3 py-2 text-left font-semibold text-gray-600 whitespace-nowrap">{k}</th>))}</tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {rows.slice(0, 10).map((r, i) => (
+                    {filteredRows.slice(0, previewLimit).map((r, i) => (
                       <tr key={i}>
                         {UPDATE_HEADERS.map((h) => (<td key={h} className="px-3 py-2 text-gray-700 whitespace-nowrap">{String(r[h] ?? "")}</td>))}
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                {rows.length > 10 && <p className="text-center text-xs text-gray-400 py-2">... dan {rows.length - 10} baris lainnya</p>}
               </div>
+              {filteredRows.length > previewLimit && (
+                <div className="text-center py-2 bg-gray-50 border-t border-gray-100 flex flex-col items-center justify-center">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewLimit((prev) => prev + 250)}
+                    className="text-xs text-emerald-600 font-semibold hover:underline"
+                  >
+                    Tampilkan lebih banyak (+250 data) ...
+                  </button>
+                  <p className="text-[10px] text-gray-400 mt-0.5">Menampilkan {Math.min(previewLimit, filteredRows.length)} dari {filteredRows.length} baris</p>
+                </div>
+              )}
             </div>
           )}
 
-          {done && (
-            <div>
-              <div className="grid grid-cols-1 gap-4 mb-3 sm:grid-cols-2">
+          {(updating || done) && (
+            <div className="space-y-3">
+              {updating && <ProgressBar current={progress.current} total={progress.total} color="emerald" />}
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <InfoStatCard label="Berhasil" value={successCount} helper="Baris yang berhasil diupdate" icon={<CheckCircle2 className="h-5 w-5" />} tone="emerald" />
                 <InfoStatCard label="Gagal" value={failCount} helper="Baris yang perlu dicek lagi" icon={<AlertTriangle className="h-5 w-5" />} tone="red" />
               </div>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={resultSearch}
+                  onChange={(e) => setResultSearch(e.target.value)}
+                  placeholder="Cari nama atau status hasil log..."
+                  className="w-full text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
               <div className="overflow-auto max-h-44 border border-gray-200 rounded-lg divide-y divide-gray-100">
-                {results.map((r, i) => (
+                {filteredResults.map((r, i) => (
                   <div key={i} className="flex items-center gap-2 px-4 py-2 text-sm">
                     <span className={r.ok ? "text-green-500" : "text-red-500"}>{r.ok ? <CheckCircle /> : <XCircle />}</span>
                     <span className="font-medium text-gray-800 flex-1">{r.nama}</span>
-                    {!r.ok && <span className="text-xs text-red-500">{r.msg}</span>}
+                    {!r.ok && <span className="text-xs text-red-500 text-right max-w-xs">{r.msg}</span>}
                   </div>
                 ))}
+                {filteredResults.length === 0 && (
+                  <div className="p-4 text-center text-xs text-gray-400">
+                    {updating ? "Menunggu hasil baris pertama..." : "Tidak ada hasil pencarian log yang cocok"}
+                  </div>
+                )}
               </div>
             </div>
           )}
 
           <div className="flex gap-3 pt-1">
-            <button onClick={onClose} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
+            <button
+              onClick={onClose}
+              disabled={updating}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition disabled:opacity-40 disabled:cursor-not-allowed"
+            >
               {done ? "Tutup" : "Batal"}
             </button>
             {!done && (

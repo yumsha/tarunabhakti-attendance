@@ -10,14 +10,9 @@ import StudentList from "../../components/student/StudentList.jsx";
 <BaseLayout requireAuth={true} title="Daftar Siswa">
     <div class="flex h-screen bg-gray-50">
         <Sidebar />
-
         <AuthGate client:load allowedRoles={["ADMIN", "SUPERADMIN", "WALAS", "KESISWAAN"]}>
             <main class="flex-1 flex flex-col overflow-hidden">
-                <header
-                    class="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between"
-                >
-                    <StudentHeader client:load />
-                </header>
+                <StudentHeader client:load />
 
 
                 <!-- modal overlay -->
