@@ -320,7 +320,13 @@ function ImportModal({ onClose, onImportDone }) {
         if (idOrtu) {
           const matched = orangtuaMap[idOrtu];
           if (matched) {
-            resolvedOrangtuaId = parseInt(idOrtu);
+            orangtuaPayload = {
+              NIK: matched.NIK,
+              nama_orangtua: matched.nama_orangtua,
+              nomor_telepon: matched.nomor_telepon,
+              pekerjaan: matched.pekerjaan,
+              alamat: matched.alamat,
+            };
           } else {
             // kalo ID tidak ditemukan di DB maka langsung gagal (no fallback)
             res.push({
@@ -353,7 +359,6 @@ function ImportModal({ onClose, onImportDone }) {
           nomor_telepon: String(row["Nomor Telepon"] || ""),
           nama_kelas: row["Nama Kelas"] || "",
           jurusan: row["Jurusan"] || "",
-          ...(resolvedOrangtuaId ? { orangtua_id: resolvedOrangtuaId } : {}),
           ...(orangtuaPayload ? { orangtua: orangtuaPayload } : {}),
         };
 
@@ -570,6 +575,29 @@ function UpdateModal({ onClose, onUpdateDone, kelasList }) {
 
       const kelasId = matchedKelas.id;
       const ortuId = row["ID Orang Tua"] ? parseInt(row["ID Orang Tua"]) : null;
+
+      // Check data apakah sama kek di db apa gnti
+      const existingDateStr = existing.tanggal_lahir ? existing.tanggal_lahir.slice(0, 10) : "";
+      const inputDateStr = String(row["Tanggal Lahir (YYYY-MM-DD)"] || "").trim();
+
+      const hasChanged =
+        String(existing.NIPD || "").trim() !== String(row["NIPD"] || "").trim() ||
+        String(existing.nama || "").trim() !== String(row["Nama"] || "").trim() ||
+        String(existing.alamat || "").trim() !== String(row["Alamat"] || "").trim() ||
+        String(existing.gender || "").trim() !== String(row["Gender"] || "").trim() ||
+        existingDateStr !== inputDateStr ||
+        String(existing.nomor_telepon || "").trim() !== String(row["Nomor Telepon"] || "").trim() ||
+        existing.kelas_id !== kelasId ||
+        existing.orangtua_id !== (ortuId || null);
+
+      if (!hasChanged) {
+        res.push({
+          nama: row["Nama"] || nisnKey,
+          ok: false,
+          msg: "Data sama dengan sebelumnya (tidak ada perubahan)",
+        });
+        continue;
+      }
 
       try {
         const payload = {

@@ -362,7 +362,7 @@ function ImportModal({ onClose, onImportDone }) {
 
 // Modal Update
 
-function UpdateOrtuModal({ onClose, onUpdateDone }) {
+function UpdateOrtuModal({ onClose, onUpdateDone, ortuList }) {
   const [rows, setRows]         = useState([]);
   const [results, setResults]   = useState([]);
   const [updating, setUpdating] = useState(false);
@@ -406,6 +406,25 @@ function UpdateOrtuModal({ onClose, onUpdateDone }) {
       if (!nama || !nik || !telp || !kerja || !alamat) {
         res.push({ nama: nama || String(id), ok: false, msg: "Semua field wajib diisi" });
         continue;
+      }
+
+      const existing = ortuList?.find((o) => o.id === id);
+      if (existing) {
+        const hasChanged =
+          String(existing.nama_orangtua || "").trim() !== nama ||
+          String(existing.NIK || "").trim() !== nik ||
+          String(existing.nomor_telepon || "").trim() !== telp ||
+          String(existing.pekerjaan || "").trim() !== kerja ||
+          String(existing.alamat || "").trim() !== alamat;
+
+        if (!hasChanged) {
+          res.push({
+            nama,
+            ok: false,
+            msg: "Data sama dengan sebelumnya (tidak ada perubahan)",
+          });
+          continue;
+        }
       }
 
       try {
@@ -877,7 +896,7 @@ export default function AdminImport() {
         <ImportModal onClose={() => setShowImportModal(false)} onImportDone={refreshData} />
       )}
       {showUpdateModal && (
-        <UpdateOrtuModal onClose={() => setShowUpdateModal(false)} onUpdateDone={refreshData} />
+        <UpdateOrtuModal onClose={() => setShowUpdateModal(false)} onUpdateDone={refreshData} ortuList={allData} />
       )}
       {deleteTarget && (
         <DeleteConfirmOrtuModal
