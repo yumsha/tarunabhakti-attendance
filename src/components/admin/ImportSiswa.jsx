@@ -331,14 +331,11 @@ function ImportModal({ onClose, onImportDone }) {
   const handleFile = (e) => { const f = e.target.files[0]; if (f) parseFile(f); };
   const handleDrop = (e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) parseFile(f); };
 
-  const startImport = async () => {
-    if (!rows.length) return;
-    setImporting(true);
-    setDone(false);
-    setResults([]);
-    setProgress({ current: 0, total: rows.length });
-
-    // Fetch semua orang tua sekali di awal untuk lookup cepat
+  // runImport menangani satu "batch" baris (bisa seluruh file, bisa cuma baris yang gagal saat retry).
+  // totalCount dipakai untuk progress bar (beda dengan rowsToProcess.length kalau ada yang ke-skip di pre-pass).
+  const runImport = async (rowsToProcess, totalCount) => {
+    // Fetch semua orang tua sekali di awal untuk lookup cepat (difetch ulang juga saat retry,
+    // supaya data orang tua yang baru dibuat di percobaan sebelumnya ikut terbaca)
     let orangtuaMap = {}; // id (string) → object orang tua
     try {
       const ortuRes = await orangTua.list("limit=9999");
@@ -350,14 +347,14 @@ function ImportModal({ onClose, onImportDone }) {
     } catch (_) { }
 
     // prepared menyimpan hasil per baris sesuai urutan asli (sparse array)
-    const prepared = new Array(rows.length);
+    const prepared = new Array(totalCount);
 
-    // ── Pre-pass: validasi sinkron & deteksi duplikat NISN/NIPD dalam file ──
+    // ── Pre-pass: validasi sinkron & deteksi duplikat NISN/NIPD dalam batch ini ──
     const seenNISN = new Set();
     const seenNIPD = new Set();
     const toProcess = [];
 
-    rows.forEach((row, idx) => {
+    rowsToProcess.forEach(({ row, idx }) => {
       const nama = row["Nama"] || "?";
       const NISN = String(row["NISN"] || "").trim();
       const NIPD = String(row["NIPD"] || "").trim();
@@ -380,8 +377,8 @@ function ImportModal({ onClose, onImportDone }) {
     });
 
     // Tampilkan hasil pre-pass duluan (progress sudah terisi sebagian)
-    const preDone = rows.length - toProcess.length;
-    setProgress({ current: preDone, total: rows.length });
+    const preDone = rowsToProcess.length - toProcess.length;
+    setProgress({ current: preDone, total: totalCount });
     setResults(prepared.filter(Boolean));
 
     // ── Proses ke backend dengan concurrency terbatas ──
@@ -464,11 +461,41 @@ function ImportModal({ onClose, onImportDone }) {
         }
       },
       (doneCount) => {
-        setProgress({ current: preDone + doneCount, total: rows.length });
+        setProgress({ current: preDone + doneCount, total: totalCount });
         setResults(prepared.filter(Boolean));
       }
     );
 
+    return prepared;
+  };
+
+  const startImport = async () => {
+    if (!rows.length) return;
+    setImporting(true);
+    setDone(false);
+    setResults([]);
+    setProgress({ current: 0, total: rows.length });
+
+    const allRows = rows.map((row, idx) => ({ row, idx }));
+    await runImport(allRows, rows.length);
+
+    setImporting(false);
+    setDone(true);
+    onImportDone();
+  };
+
+  // retryFailed hanya mengirim ulang baris-baris yang sebelumnya gagal,
+  const retryFailed = async () => {
+    const failedRows = results
+      .map((r, i) => ({ r, originalRow: rows[i] }))
+      .filter(({ r }) => !r.ok)
+      .map(({ originalRow }, i) => ({ row: originalRow, idx: i }));
+    if (!failedRows.length) return;
+    setImporting(true);
+    setDone(false);
+    setResults([]);
+    setProgress({ current: 0, total: failedRows.length });
+    await runImport(failedRows, failedRows.length);
     setImporting(false);
     setDone(true);
     onImportDone();
@@ -629,6 +656,14 @@ function ImportModal({ onClose, onImportDone }) {
             >
               {done ? "Tutup" : "Batal"}
             </button>
+            {done && failCount > 0 && (
+              <button
+                onClick={retryFailed}
+                className="flex-1 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-2"
+              >
+                Retry Gagal ({failCount})
+              </button>
+            )}
             {!done && (
               <button
                 onClick={startImport}
@@ -688,13 +723,8 @@ function UpdateModal({ onClose, onUpdateDone, kelasList }) {
   const handleFile = (e) => { const f = e.target.files[0]; if (f) parseFile(f); };
   const handleDrop = (e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) parseFile(f); };
 
-  const startUpdate = async () => {
-    if (!rows.length) return;
-    setUpdating(true);
-    setDone(false);
-    setResults([]);
-    setProgress({ current: 0, total: rows.length });
-
+  // runUpdate menangani satu "batch" baris (bisa seluruh file, bisa cuma baris yang gagal saat retry).
+  const runUpdate = async (rowsToProcess, totalCount) => {
     let siswaMap = {};
     try {
       const r = await siswa.list("limit=9999");
@@ -704,11 +734,11 @@ function UpdateModal({ onClose, onUpdateDone, kelasList }) {
     } catch (_) { }
 
     // prepared menyimpan hasil per baris sesuai urutan asli (sparse array)
-    const prepared = new Array(rows.length);
+    const prepared = new Array(totalCount);
     const toProcess = [];
 
-    // ── Pre-pass: semua validasi yang tidak butuh request ke API ──
-    rows.forEach((row, idx) => {
+    // Pre-pass: semua validasi yang tidak butuh request ke API
+    rowsToProcess.forEach(({ row, idx }) => {
       const nisnKey = String(row["NISN"] || "").trim();
       if (!nisnKey) {
         prepared[idx] = { nama: row["Nama"] || "?", ok: false, msg: "NISN kosong – wajib diisi" };
@@ -774,11 +804,11 @@ function UpdateModal({ onClose, onUpdateDone, kelasList }) {
     });
 
     // Tampilkan hasil pre-pass duluan (progress sudah terisi sebagian)
-    const preDone = rows.length - toProcess.length;
-    setProgress({ current: preDone, total: rows.length });
+    const preDone = rowsToProcess.length - toProcess.length;
+    setProgress({ current: preDone, total: totalCount });
     setResults(prepared.filter(Boolean));
 
-    // ── Proses ke backend dengan concurrency terbatas ──
+    // Proses ke backend dengan concurrency terbatas
     await runWithConcurrency(
       toProcess,
       CONCURRENCY,
@@ -807,11 +837,41 @@ function UpdateModal({ onClose, onUpdateDone, kelasList }) {
         }
       },
       (doneCount) => {
-        setProgress({ current: preDone + doneCount, total: rows.length });
+        setProgress({ current: preDone + doneCount, total: totalCount });
         setResults(prepared.filter(Boolean));
       }
     );
 
+    return prepared;
+  };
+
+  const startUpdate = async () => {
+    if (!rows.length) return;
+    setUpdating(true);
+    setDone(false);
+    setResults([]);
+    setProgress({ current: 0, total: rows.length });
+
+    const allRows = rows.map((row, idx) => ({ row, idx }));
+    await runUpdate(allRows, rows.length);
+
+    setUpdating(false);
+    setDone(true);
+    onUpdateDone();
+  };
+
+  // retryFailed hanya mengirim ulang baris-baris yang sebelumnya gagal,
+  const retryFailed = async () => {
+    const failedRows = results
+      .map((r, i) => ({ r, originalRow: rows[i] }))
+      .filter(({ r }) => !r.ok)
+      .map(({ originalRow }, i) => ({ row: originalRow, idx: i }));
+    if (!failedRows.length) return;
+    setUpdating(true);
+    setDone(false);
+    setResults([]);
+    setProgress({ current: 0, total: failedRows.length });
+    await runUpdate(failedRows, failedRows.length);
     setUpdating(false);
     setDone(true);
     onUpdateDone();
@@ -955,6 +1015,14 @@ function UpdateModal({ onClose, onUpdateDone, kelasList }) {
             >
               {done ? "Tutup" : "Batal"}
             </button>
+            {done && failCount > 0 && (
+              <button
+                onClick={retryFailed}
+                className="flex-1 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-2"
+              >
+                Retry Gagal ({failCount})
+              </button>
+            )}
             {!done && (
               <button
                 onClick={startUpdate}
