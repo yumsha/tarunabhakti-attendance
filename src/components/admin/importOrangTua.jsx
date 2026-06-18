@@ -3,10 +3,37 @@ import Pagination from "../layout/Pagination.jsx";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { CheckCircle2, AlertTriangle } from "lucide-react";
 import { orangTua } from "../../lib/backendApi.js";
-import * as XLSX from "xlsx";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import InfoStatCard from "../layout/InfoStatCard";
+
+// ─────────────────────────────────────────────────────────────────────────
+// OPTIMASI: lazy-load library berat
+//
+// xlsx, jspdf, dan jspdf-autotable cukup besar (xlsx saja ratusan KB).
+// Sebelumnya di-import statis di atas file → selalu ikut terdownload & ter-parse
+// begitu halaman ini dibuka, padahal cuma dipakai saat user klik
+// Export/Template/Import. Sekarang di-load dinamis baru saat dibutuhkan,
+// supaya bundle awal halaman jauh lebih kecil & cepat (terutama di koneksi/device lemah).
+// Promise-nya di-cache supaya import() cuma terjadi sekali per sesi.
+// ─────────────────────────────────────────────────────────────────────────
+
+let _xlsxPromise = null;
+function loadXLSX() {
+  if (!_xlsxPromise) _xlsxPromise = import("xlsx");
+  return _xlsxPromise;
+}
+
+let _pdfLibsPromise = null;
+function loadPdfLibs() {
+  if (!_pdfLibsPromise) {
+    _pdfLibsPromise = Promise.all([import("jspdf"), import("jspdf-autotable")]).then(
+      ([jsPDFModule, autoTableModule]) => ({
+        jsPDF: jsPDFModule.default,
+        autoTable: autoTableModule.default,
+      })
+    );
+  }
+  return _pdfLibsPromise;
+}
 
 // Constants
 
@@ -79,7 +106,9 @@ const UPDATE_ORTU_HEADERS = [
   "Alamat",
 ];
 
-function getOrangTuaGuideSheet() {
+// getOrangTuaGuideSheet sekarang menerima modul XLSX yang sudah di-load oleh caller,
+// supaya tidak perlu load ulang library di tempat lain.
+function getOrangTuaGuideSheet(XLSX) {
   const guideData = [
     ["PANDUAN PENGGUNAAN - IMPORT & UPDATE DATA ORANG TUA"],
     [""],
@@ -105,8 +134,10 @@ function getOrangTuaGuideSheet() {
 }
 
 // Template Downloaders
+// Semua fungsi di bawah sekarang async karena library-nya di-load on-demand.
 
-function downloadUpdateOrtuExcelTemplate() {
+async function downloadUpdateOrtuExcelTemplate() {
+  const XLSX = await loadXLSX();
   const ws = XLSX.utils.aoa_to_sheet([
     UPDATE_ORTU_HEADERS,
     [1, "Budi Santoso", "3201010101800001", "08123456789", "Wiraswasta", "Jl. Merdeka No. 1, Jakarta"],
@@ -114,11 +145,12 @@ function downloadUpdateOrtuExcelTemplate() {
   ws["!cols"] = UPDATE_ORTU_HEADERS.map((h) => ({ wch: h === "Alamat" ? 36 : 26 }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Update Orang Tua");
-  XLSX.utils.book_append_sheet(wb, getOrangTuaGuideSheet(), "Panduan Penggunaan");
+  XLSX.utils.book_append_sheet(wb, getOrangTuaGuideSheet(XLSX), "Panduan Penggunaan");
   XLSX.writeFile(wb, "update_orangtua.xlsx");
 }
 
-function downloadUpdateOrtuPdfTemplate() {
+async function downloadUpdateOrtuPdfTemplate() {
+  const { jsPDF, autoTable } = await loadPdfLibs();
   const doc = new jsPDF({ orientation: "landscape" });
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
@@ -136,7 +168,8 @@ function downloadUpdateOrtuPdfTemplate() {
   doc.save("update_orangtua.pdf");
 }
 
-function downloadExcelTemplate() {
+async function downloadExcelTemplate() {
+  const XLSX = await loadXLSX();
   const ws = XLSX.utils.aoa_to_sheet([
     TEMPLATE_HEADERS,
     ["Budi Santoso", "3201010101800001", "08123456789", "Wiraswasta", "Jl. Merdeka No. 1, Jakarta"],
@@ -144,11 +177,12 @@ function downloadExcelTemplate() {
   ws["!cols"] = TEMPLATE_HEADERS.map((h) => ({ wch: h === "Alamat" ? 36 : 24 }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Template Orang Tua");
-  XLSX.utils.book_append_sheet(wb, getOrangTuaGuideSheet(), "Panduan Penggunaan");
+  XLSX.utils.book_append_sheet(wb, getOrangTuaGuideSheet(XLSX), "Panduan Penggunaan");
   XLSX.writeFile(wb, "template_orangtua.xlsx");
 }
 
-function downloadPdfTemplate() {
+async function downloadPdfTemplate() {
+  const { jsPDF, autoTable } = await loadPdfLibs();
   const doc = new jsPDF({ orientation: "landscape" });
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
@@ -166,7 +200,8 @@ function downloadPdfTemplate() {
   doc.save("template_orangtua.pdf");
 }
 
-function exportTablePdf(data) {
+async function exportTablePdf(data) {
+  const { jsPDF, autoTable } = await loadPdfLibs();
   const doc = new jsPDF({ orientation: "landscape" });
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
@@ -187,7 +222,8 @@ function exportTablePdf(data) {
   doc.save("data_orangtua.pdf");
 }
 
-function exportTableExcel(data) {
+async function exportTableExcel(data) {
+  const XLSX = await loadXLSX();
   const rows = data.map((o) => ({
     "ID": o.id,
     "Nama Orang Tua": o.nama_orangtua,
@@ -218,7 +254,7 @@ function exportTableExcel(data) {
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Data Orang Tua");
-  XLSX.utils.book_append_sheet(wb, getOrangTuaGuideSheet(), "Panduan Penggunaan");
+  XLSX.utils.book_append_sheet(wb, getOrangTuaGuideSheet(XLSX), "Panduan Penggunaan");
   XLSX.writeFile(wb, "data_orangtua.xlsx");
 }
 
@@ -262,7 +298,9 @@ function ImportModal({ onClose, onImportDone }) {
     return () => window.removeEventListener("beforeunload", handler);
   }, [importing]);
 
-  const parseFile = (file) => {
+  // parseFile sekarang async karena XLSX di-load on-demand (lazy)
+  const parseFile = async (file) => {
+    const XLSX = await loadXLSX();
     const reader = new FileReader();
     reader.onload = (e) => {
       const wb   = XLSX.read(e.target.result, { type: "binary" });
@@ -557,7 +595,9 @@ function UpdateOrtuModal({ onClose, onUpdateDone, ortuList }) {
     return () => window.removeEventListener("beforeunload", handler);
   }, [updating]);
 
-  const parseFile = (file) => {
+  // parseFile sekarang async karena XLSX di-load on-demand (lazy)
+  const parseFile = async (file) => {
+    const XLSX = await loadXLSX();
     const reader = new FileReader();
     reader.onload = (e) => {
       const wb   = XLSX.read(e.target.result, { type: "binary" });
@@ -926,21 +966,35 @@ function DeleteConfirmOrtuModal({ ortu, onClose, onDeleted }) {
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// OPTIMASI: cache in-memory antar mount component dalam sesi browser yang sama
+// (bukan localStorage/sessionStorage — supaya tetap fresh tiap reload browser).
+// Kalau user pindah halaman lalu balik lagi ke halaman ini, data lama langsung
+// ditampilkan dulu (instan) sambil di-refresh diam-diam di background (SWR-style).
+// Pertama kali buka tetap menunggu network seperti biasa.
+// ─────────────────────────────────────────────────────────────────────────
+let ortuCache = null;
+
 // Main Component
 
 export default function AdminImport() {
-  const [data, setData]                       = useState([]);
-  const [allData, setAllData]                 = useState([]);
-  const [loading, setLoading]                 = useState(false);
+  const [pageData, setPageData]               = useState([]);
+  const [allData, setAllData]                 = useState(() => ortuCache || []);
+  const [loading, setLoading]                 = useState(true);
+  const [backgroundLoading, setBackgroundLoading] = useState(!ortuCache);
   const [error, setError]                     = useState("");
   const [page, setPage]                       = useState(1);
   const [totalPages, setTotalPages]           = useState(1);
+  const [totalRecords, setTotalRecords]       = useState(0);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [showTemplateMenu, setShowTemplateMenu] = useState(false);
   const [showExportMenu, setShowExportMenu]     = useState(false);
   const [showImportMenu, setShowImportMenu]     = useState(false);
   const [searchQuery, setSearchQuery]         = useState("");
+  // OPTIMASI: debounce — filter baru jalan 200ms setelah user berhenti mengetik,
+  // jadi tidak nge-filter ratusan/ribuan baris di setiap keystroke.
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [deleteTarget, setDeleteTarget]       = useState(null);
   const itemsPerPage = 10;
 
@@ -950,14 +1004,21 @@ export default function AdminImport() {
 
   // Fetch
 
-  const fetchAllData = async () => {
+  const fetchPageData = async (targetPage) => {
     setLoading(true);
     setError("");
     try {
-      const res = await orangTua.list("limit=9999");
+      const queryParams = new URLSearchParams({
+        page: targetPage.toString(),
+        limit: itemsPerPage.toString()
+      });
+      const res = await orangTua.list(queryParams.toString());
       if (res.success) {
-        setAllData(res.data);
-        setTotalPages(Math.ceil(res.data.length / itemsPerPage));
+        setPageData(res.data || []);
+        if (res.pagination) {
+          setTotalPages(res.pagination.totalPages || 1);
+          setTotalRecords(res.pagination.total || 0);
+        }
       } else {
         setError(res.message || "Gagal memuat data orang tua");
       }
@@ -968,40 +1029,86 @@ export default function AdminImport() {
     }
   };
 
-  useEffect(() => { fetchAllData(); }, []);
-
-  // Filter & Pagination (client-side)
-
-  const filteredData = useMemo(() => {
-    if (!searchQuery.trim()) return allData;
-    const q = searchQuery.toLowerCase().trim();
-    return allData.filter((item) =>
-      item.nama_orangtua?.toLowerCase().includes(q) ||
-      item.NIK?.toLowerCase().includes(q) ||
-      item.nomor_telepon?.toLowerCase().includes(q) ||
-      item.pekerjaan?.toLowerCase().includes(q) ||
-      item.alamat?.toLowerCase().includes(q)
-    );
-  }, [allData, searchQuery]);
+  const fetchAllDataBackground = async () => {
+    setBackgroundLoading(true);
+    try {
+      const res = await orangTua.list("limit=9999");
+      if (res.success) {
+        ortuCache = res.data;
+        setAllData(res.data);
+      }
+    } catch (err) {
+      console.error("Gagal memuat data background:", err);
+    } finally {
+      setBackgroundLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const newTotal = Math.ceil(filteredData.length / itemsPerPage);
-    setTotalPages(newTotal === 0 ? 1 : newTotal);
-    if (page > newTotal && newTotal > 0) setPage(1);
-  }, [filteredData, page]);
+    fetchPageData(page);
+  }, [page]);
+
+  useEffect(() => {
+    fetchAllDataBackground();
+  }, []);
+
+  // Debounce search query
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchQuery), 200);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  // Reset ke halaman 1 setiap kali hasil pencarian (yang sudah di-debounce) berubah
+  useEffect(() => { setPage(1); }, [debouncedSearch]);
+
+  // OPTIMASI: pre-index field pencarian sekali per perubahan allData,
+  // bukan di-lowercase ulang untuk tiap item di setiap keystroke.
+  const searchableData = useMemo(() => {
+    return allData.map((item) => ({
+      ...item,
+      __search: [item.nama_orangtua, item.NIK, item.nomor_telepon, item.pekerjaan, item.alamat]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase(),
+    }));
+  }, [allData]);
+
+  // Filter & Pagination (client-side ketika search aktif, server-side jika tidak)
+
+  const filteredData = useMemo(() => {
+    const q = debouncedSearch.trim().toLowerCase();
+    if (!q) return searchableData;
+    return searchableData.filter((item) => item.__search.includes(q));
+  }, [searchableData, debouncedSearch]);
+
+  const totalPagesCount = useMemo(() => {
+    if (debouncedSearch.trim()) {
+      const t = Math.ceil(filteredData.length / itemsPerPage);
+      return t === 0 ? 1 : t;
+    }
+    return totalPages;
+  }, [filteredData, debouncedSearch, totalPages]);
+
+  useEffect(() => {
+    if (page > totalPagesCount) setPage(1);
+  }, [totalPagesCount, page]);
 
   const currentPageData = useMemo(() => {
-    const start = (page - 1) * itemsPerPage;
-    return filteredData.slice(start, start + itemsPerPage);
-  }, [filteredData, page]);
-
-  useEffect(() => { setData(currentPageData); }, [currentPageData]);
+    if (debouncedSearch.trim()) {
+      const start = (page - 1) * itemsPerPage;
+      return filteredData.slice(start, start + itemsPerPage);
+    }
+    return pageData;
+  }, [filteredData, page, pageData, debouncedSearch]);
 
   // Handlers
 
-  const handleSearch = (value) => { setSearchQuery(value); setPage(1); };
-  const clearSearch  = () => { setSearchQuery(""); setPage(1); };
-  const refreshData  = () => fetchAllData();
+  const handleSearch = (value) => setSearchQuery(value);
+  const clearSearch  = () => setSearchQuery("");
+  const refreshData  = () => {
+    fetchPageData(page);
+    fetchAllDataBackground();
+  };
 
   // Outside click
 
@@ -1034,8 +1141,16 @@ export default function AdminImport() {
               {/* Count */}
               <div className="flex-1">
                 <p className="text-sm text-gray-500">
-                  {loading ? <span>Memuat…</span> : (
-                    <><span className="font-semibold text-gray-700">{filteredData.length}</span> dari <span className="font-semibold text-gray-700">{allData.length}</span> orang tua ditemukan</>
+                  {loading && !searchQuery.trim() ? <span>Memuat…</span> : (
+                    searchQuery.trim() ? (
+                      backgroundLoading ? (
+                        <span>Memuat data pencarian…</span>
+                      ) : (
+                        <><span className="font-semibold text-gray-700">{filteredData.length}</span> dari <span className="font-semibold text-gray-700">{allData.length}</span> orang tua ditemukan</>
+                      )
+                    ) : (
+                      <><span className="font-semibold text-gray-700">{pageData.length}</span> dari <span className="font-semibold text-gray-700">{totalRecords}</span> orang tua terdaftar</>
+                    )
                   )}
                 </p>
               </div>
@@ -1157,8 +1272,8 @@ export default function AdminImport() {
                         </td>
                       </tr>
                     ))
-                  ) : data.length > 0 ? (
-                    data.map((o, i) => (
+                  ) : currentPageData.length > 0 ? (
+                    currentPageData.map((o, i) => (
                       <tr key={o.id ?? i} className="hover:bg-blue-50/30 transition-colors duration-150">
                         <td className="px-6 py-4 text-sm font-medium text-gray-900">{o.id}</td>
                         <td className="px-6 py-4 text-sm font-medium text-gray-900">{o.nama_orangtua}</td>
@@ -1192,9 +1307,9 @@ export default function AdminImport() {
 
             <Pagination
               page={page}
-              totalPages={totalPages}
+              totalPages={totalPagesCount}
               onPageChange={setPage}
-              summary={`Halaman ${page} dari ${totalPages} (Menampilkan ${data.length} dari ${filteredData.length} data)`}
+              summary={`Halaman ${page} dari ${totalPagesCount} (Menampilkan ${currentPageData.length} dari ${searchQuery.trim() ? filteredData.length : totalRecords} data)`}
             />
           </div>
         </div>

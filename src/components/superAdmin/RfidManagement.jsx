@@ -1095,11 +1095,15 @@ function getStatusBadge(isActive) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function RfidManagement() {
+  const [pageRfidRows, setPageRfidRows] = useState([]);
   const [rfidRows, setRfidRows] = useState([]);
   const [studentOptions, setStudentOptions] = useState([]);
   const [fetchLoading, setFetchLoading] = useState(true);
+  const [backgroundLoading, setBackgroundLoading] = useState(true);
   const [fetchError, setFetchError] = useState("");
   const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
@@ -1128,13 +1132,17 @@ export default function RfidManagement() {
     setStudentOptions(normalizeStudents(res.data || []));
   }, []);
 
-  const fetchRfid = useCallback(async () => {
+  const fetchPageRfid = useCallback(async (targetPage) => {
     setFetchLoading(true);
     setFetchError("");
     try {
-      const res = await rfidApi.list("page=1&limit=10000");
+      const res = await rfidApi.list(`page=${targetPage}&limit=${pageSize}`);
       if (!res?.success) throw new Error(res?.message || "Gagal memuat data RFID.");
-      setRfidRows(res.data || []);
+      setPageRfidRows(res.data || []);
+      if (res.pagination) {
+        setTotalPages(res.pagination.totalPages || 1);
+        setTotalRecords(res.pagination.total || 0);
+      }
     } catch (err) {
       setFetchError(err.message || "Gagal memuat data RFID.");
     } finally {
@@ -1142,8 +1150,23 @@ export default function RfidManagement() {
     }
   }, []);
 
+  const fetchRfidBackground = useCallback(async () => {
+    setBackgroundLoading(true);
+    try {
+      const res = await rfidApi.list("page=1&limit=10000");
+      if (res?.success) {
+        setRfidRows(res.data || []);
+      }
+    } catch (err) {
+      console.error("Gagal memuat background RFID:", err);
+    } finally {
+      setBackgroundLoading(false);
+    }
+  }, []);
+
   useEffect(() => { fetchStudents().catch((err) => showToast(err.message || "Gagal memuat daftar siswa.", "error")); }, [fetchStudents, showToast]);
-  useEffect(() => { fetchRfid(); }, [fetchRfid]);
+  useEffect(() => { fetchPageRfid(page); }, [fetchPageRfid, page]);
+  useEffect(() => { fetchRfidBackground(); }, [fetchRfidBackground]);
   useEffect(() => { setPage(1); }, [search]);
 
   // Close dropdowns on outside click
@@ -1168,25 +1191,31 @@ export default function RfidManagement() {
   }, [rfidRows, normalizedSearch]);
 
   const pagedRows = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return filteredRows.slice(start, start + pageSize);
-  }, [filteredRows, page]);
+    if (normalizedSearch) {
+      const start = (page - 1) * pageSize;
+      return filteredRows.slice(start, start + pageSize);
+    }
+    return pageRfidRows;
+  }, [filteredRows, page, pageRfidRows, normalizedSearch]);
 
   const effectivePagination = useMemo(() => {
-    const total = filteredRows.length;
-    const totalPages = Math.max(1, Math.ceil(total / pageSize));
-    return { page, limit: pageSize, total, totalPages };
-  }, [filteredRows.length, page]);
+    if (normalizedSearch) {
+      const total = filteredRows.length;
+      const totalPagesVal = Math.max(1, Math.ceil(total / pageSize));
+      return { page, limit: pageSize, total, totalPages: totalPagesVal };
+    }
+    return { page, limit: pageSize, total: totalRecords, totalPages };
+  }, [filteredRows.length, page, totalRecords, totalPages, normalizedSearch]);
 
   const stats = useMemo(() => {
     const active = rfidRows.filter((item) => item.is_active).length;
     const inactive = rfidRows.length - active;
     const assigned = rfidRows.filter((item) => item.siswa?.id).length;
-    return { total: rfidRows.length, active, inactive, assigned };
-  }, [rfidRows]);
+    return { total: rfidRows.length || totalRecords, active, inactive, assigned };
+  }, [rfidRows, totalRecords]);
 
   const handleRefresh = async () => {
-    await Promise.all([fetchRfid(), fetchStudents().catch((err) => showToast(err.message || "Gagal memuat daftar siswa.", "error"))]);
+    await Promise.all([fetchPageRfid(page), fetchRfidBackground(), fetchStudents().catch((err) => showToast(err.message || "Gagal memuat daftar siswa.", "error"))]);
   };
 
   const handleSubmit = async (payload) => {
@@ -1222,11 +1251,13 @@ export default function RfidManagement() {
     }
   };
 
-  const summaryText = filteredRows.length === 0
+  const summaryText = pagedRows.length === 0
     ? "Belum ada data RFID untuk ditampilkan"
     : normalizedSearch
-      ? `Menampilkan ${pagedRows.length} hasil pencarian dari ${filteredRows.length} data, total seluruh RFID ${stats.total}`
-      : `Menampilkan ${pagedRows.length} data dari total ${stats.total} RFID`;
+      ? backgroundLoading
+        ? "Memuat data pencarian..."
+        : `Menampilkan ${pagedRows.length} hasil pencarian dari ${filteredRows.length} data, total seluruh RFID ${stats.total}`
+      : `Menampilkan ${pagedRows.length} data dari total ${totalRecords} RFID`;
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden bg-gray-50/60">
@@ -1253,7 +1284,11 @@ export default function RfidManagement() {
               <div>
                 <h3 className="font-semibold text-gray-800">Daftar RFID</h3>
                 <p className="mt-0.5 text-xs text-gray-400">
-                  {fetchLoading ? "Memuat data..." : `${stats.total} data RFID tersedia`}
+                  {fetchLoading && !search.trim() ? "Memuat data..." : (
+                    search.trim() ? (
+                      backgroundLoading ? "Memuat data pencarian..." : `${filteredRows.length} hasil pencarian ditemukan`
+                    ) : `${totalRecords} data RFID tersedia`
+                  )}
                 </p>
               </div>
 

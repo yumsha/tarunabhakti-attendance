@@ -1110,14 +1110,17 @@ function DeleteConfirmModal({ student, onClose, onDeleted }) {
 // Main Component
 
 export default function ImportSiswa() {
+  const [pageStudents, setPageStudents] = useState([]);
   const [allStudents, setAllStudents] = useState([]);
   const [kelasList, setKelasList] = useState([]);
   const [selectedKelas, setSelectedKelas] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [backgroundLoading, setBackgroundLoading] = useState(true);
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [showTemplateMenu, setShowTemplateMenu] = useState(false);
@@ -1140,7 +1143,7 @@ export default function ImportSiswa() {
     fetchKelas();
   }, []);
 
-  const fetchAllStudents = async () => {
+  const fetchPageStudents = async (targetPage) => {
     setLoading(true);
     setError("");
     try {
@@ -1150,12 +1153,20 @@ export default function ImportSiswa() {
         user?.userRole?.[0]?.role?.name || user?.role?.name || user?.role || ""
       ).toString().toUpperCase();
       const guruId = user?.guru?.id;
-      const queryParams = {};
+      const queryParams = {
+        page: targetPage.toString(),
+        limit: itemsPerPage.toString()
+      };
       if (role === "WALAS" && guruId) queryParams.walas_id = guruId.toString();
+      if (selectedKelas) queryParams.kelas_id = selectedKelas;
       const queryString = new URLSearchParams(queryParams).toString();
-      const res = await siswa.list(queryString + "&limit=9999");
+      const res = await siswa.list(queryString);
       if (res.success) {
-        setAllStudents(res.data);
+        setPageStudents(res.data || []);
+        if (res.pagination) {
+          setTotalPages(res.pagination.totalPages || 1);
+          setTotalRecords(res.pagination.total || 0);
+        }
       } else {
         setError(res.message || "Gagal memuat data siswa");
       }
@@ -1166,7 +1177,38 @@ export default function ImportSiswa() {
     }
   };
 
-  useEffect(() => { fetchAllStudents(); }, []);
+  const fetchAllStudentsBackground = async () => {
+    setBackgroundLoading(true);
+    try {
+      const userStr = localStorage.getItem("user");
+      const user = userStr ? JSON.parse(userStr) : null;
+      const role = (
+        user?.userRole?.[0]?.role?.name || user?.role?.name || user?.role || ""
+      ).toString().toUpperCase();
+      const guruId = user?.guru?.id;
+      const queryParams = {
+        limit: "9999"
+      };
+      if (role === "WALAS" && guruId) queryParams.walas_id = guruId.toString();
+      const queryString = new URLSearchParams(queryParams).toString();
+      const res = await siswa.list(queryString);
+      if (res.success) {
+        setAllStudents(res.data || []);
+      }
+    } catch (err) {
+      console.error("Gagal memuat data background siswa:", err);
+    } finally {
+      setBackgroundLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPageStudents(page);
+  }, [page, selectedKelas]);
+
+  useEffect(() => {
+    fetchAllStudentsBackground();
+  }, []);
 
   const filteredStudents = useMemo(() => {
     let filtered = allStudents;
@@ -1185,22 +1227,34 @@ export default function ImportSiswa() {
     return filtered;
   }, [allStudents, selectedKelas, searchQuery]);
 
+  const totalPagesCount = useMemo(() => {
+    if (searchQuery.trim()) {
+      const newTotal = Math.ceil(filteredStudents.length / itemsPerPage);
+      return newTotal === 0 ? 1 : newTotal;
+    }
+    return totalPages;
+  }, [filteredStudents, searchQuery, totalPages]);
+
   useEffect(() => {
-    const newTotal = Math.ceil(filteredStudents.length / itemsPerPage);
-    setTotalPages(newTotal === 0 ? 1 : newTotal);
-    if (page > newTotal && newTotal > 0) setPage(1);
-  }, [filteredStudents, page]);
+    if (page > totalPagesCount) setPage(1);
+  }, [totalPagesCount, page]);
 
   const currentPageData = useMemo(() => {
-    const start = (page - 1) * itemsPerPage;
-    return filteredStudents.slice(start, start + itemsPerPage);
-  }, [filteredStudents, page]);
+    if (searchQuery.trim()) {
+      const start = (page - 1) * itemsPerPage;
+      return filteredStudents.slice(start, start + itemsPerPage);
+    }
+    return pageStudents;
+  }, [filteredStudents, page, pageStudents, searchQuery]);
 
   useEffect(() => { setPage(1); }, [selectedKelas, searchQuery]);
 
   const handleSearch = (value) => setSearchQuery(value);
   const clearSearch = () => setSearchQuery("");
-  const refreshData = () => fetchAllStudents();
+  const refreshData = () => {
+    fetchPageStudents(page);
+    fetchAllStudentsBackground();
+  };
 
   useEffect(() => {
     const handler = (e) => {
@@ -1227,8 +1281,16 @@ export default function ImportSiswa() {
           <div className="px-6 pt-4 pb-2 border-b border-gray-100">
             <div className="mb-3">
               <p className="text-sm text-gray-400">
-                {loading ? <span>Memuat…</span> : (
-                  <><span className="font-semibold text-gray-700">{filteredStudents.length}</span> dari <span className="font-semibold text-gray-700">{allStudents.length}</span> Siswa ditemukan</>
+                {loading && !searchQuery.trim() ? <span>Memuat…</span> : (
+                  searchQuery.trim() ? (
+                    backgroundLoading ? (
+                      <span>Memuat data pencarian…</span>
+                    ) : (
+                      <><span className="font-semibold text-gray-700">{filteredStudents.length}</span> dari <span className="font-semibold text-gray-700">{allStudents.length}</span> Siswa ditemukan</>
+                    )
+                  ) : (
+                    <><span className="font-semibold text-gray-700">{pageStudents.length}</span> dari <span className="font-semibold text-gray-700">{totalRecords}</span> Siswa terdaftar</>
+                  )
                 )}
               </p>
             </div>
@@ -1394,9 +1456,9 @@ export default function ImportSiswa() {
 
           <Pagination
             page={page}
-            totalPages={totalPages}
+            totalPages={totalPagesCount}
             onPageChange={setPage}
-            summary={`Halaman ${page} dari ${totalPages} (Menampilkan ${currentPageData.length} dari ${filteredStudents.length} data)`}
+            summary={`Halaman ${page} dari ${totalPagesCount} (Menampilkan ${currentPageData.length} dari ${searchQuery.trim() ? filteredStudents.length : totalRecords} data)`}
           />
         </div>
       </div>
