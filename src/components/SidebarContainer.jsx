@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { jadwal } from "../lib/backendApi";
+import { auth, jadwal } from "../lib/backendApi";
 
 import { UserStarIcon, UserCog, ClipboardList, School, Upload, ShieldCheck, BookOpen, GraduationCap, ScanLine } from "lucide-react";
 
@@ -69,25 +69,35 @@ export default function SidebarContainer() {
   const [roles, setRoles] = useState(null);
   const [userData, setUserData] = useState(null);
 
-  const { isAdmin, isSuperAdmin, isWalas, isGuru, isKesiswaan, canAccessAttendance, isKurikulum } = useMemo(() => {
-    if (!roles) return { isAdmin: false, isSuperAdmin: false, isWalas: false, isGuru: false, isKesiswaan: false, canAccessAttendance: false, isKurikulum: false };
+  const { isAdmin, isSuperAdmin, isWalas, isGuru, isKesiswaan, canAccessAttendance, isKurikulum, canAccessPokja } = useMemo(() => {
+    if (!roles) return { isAdmin: false, isSuperAdmin: false, isWalas: false, isGuru: false, isKesiswaan: false, canAccessAttendance: false, isKurikulum: false, canAccessPokja: false };
     const superAdminRoles = ["SUPERADMIN", "SUPER ADMIN", "SUPER_ADMIN"];
     const guru = roles.includes("GURU");
     const walas = roles.includes("WALAS");
+    const kesiswaan = roles.includes("KESISWAAN");
+    const isPokja = userData?.is_pokja === true;
     return {
       isAdmin: roles.includes("ADMIN"),
       isSuperAdmin: roles.some((r) => superAdminRoles.includes(r)),
       isWalas: walas,
       isGuru: guru,
-      isKesiswaan: roles.includes("KESISWAAN"),
+      isKesiswaan: kesiswaan,
       isKurikulum: roles.includes("KURIKULUM"),
+      canAccessPokja: kesiswaan && isPokja,
       // hanya role guru & walas yang bisa akses, tapi role GURU juga bisa akses walaupun gak ada role WALAS (untuk guru mapel yang bukan walas)
       canAccessAttendance: walas || guru,
     };
-  }, [roles]);
+  }, [roles, userData]);
 
 
-  // load user & roles dari localStorage saat mount
+  const applyUserData = (user) => {
+    setUserData(user);
+
+    const resolved = resolveRoles(user);
+    setRoles(resolved.length > 0 ? resolved : ["UNKNOWN"]);
+  };
+
+  // load user & roles dari localStorage saat mount, lalu refresh dari /auth/me
 
   useEffect(() => {
     const userStr = localStorage.getItem("user");
@@ -99,15 +109,30 @@ export default function SidebarContainer() {
 
     try {
       const parsed = JSON.parse(userStr);
-      setUserData(parsed);
-
-      const resolved = resolveRoles(parsed);
-      setRoles(resolved.length > 0 ? resolved : ["UNKNOWN"]);
+      applyUserData(parsed);
     } catch (e) {
       console.error("Error parsing user dari localStorage:", e);
       setRoles([]);
       setLoading(false);
+      return;
     }
+
+    const token = localStorage.getItem("accessToken");
+    if (!token) return;
+
+    (async () => {
+      try {
+        const res = await auth.me();
+        const freshUser = res?.data?.user || res?.data;
+
+        if (res?.success && freshUser) {
+          localStorage.setItem("user", JSON.stringify(freshUser));
+          applyUserData(freshUser);
+        }
+      } catch (e) {
+        console.error("Gagal refresh user untuk sidebar:", e);
+      }
+    })();
   }, []);
 
 
@@ -274,7 +299,7 @@ export default function SidebarContainer() {
         </a>
       ) : null}
 
-      {isKesiswaan && (
+      {canAccessPokja && (
         <a
           href="/dashboard/pokja"
           data-astro-prefetch
