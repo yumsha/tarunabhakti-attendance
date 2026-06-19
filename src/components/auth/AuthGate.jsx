@@ -2,9 +2,22 @@ import { useState, useEffect } from 'react';
 
 const SUPERADMIN_VARIANTS = ['SUPERADMIN', 'SUPER ADMIN', 'SUPER_ADMIN'];
 
+function clearAuth() {
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('user');
+  localStorage.removeItem('ysboToken');
+}
+
 function resolveUserRoles(user) {
   const fromRoles = Array.isArray(user?.roles)
-    ? user.roles.map((r) => r?.name).filter(Boolean)
+    ? user.roles
+        .map((r) => {
+          if (typeof r === 'string') return r;
+          if (typeof r === 'object' && r !== null) return r?.name || r?.role;
+          return null;
+        })
+        .filter(Boolean)
     : [];
   const fromRoleNames = Array.isArray(user?.role_names) ? user.role_names : [];
   const fromRoleObj = user?.role?.name ? [user.role.name] : [];
@@ -34,7 +47,8 @@ export default function AuthGate({ children, allowedRoles = [] }) {
       const userStr = localStorage.getItem('user');
 
       if (!token || !userStr) {
-        window.location.href = '/login';
+        clearAuth();
+        window.location.replace('/login');
         return;
       }
 
@@ -51,7 +65,8 @@ export default function AuthGate({ children, allowedRoles = [] }) {
           setAuthorized(hasRole);
         }
       } catch {
-        window.location.href = '/login';
+        clearAuth();
+        window.location.replace('/login');
         return;
       }
 

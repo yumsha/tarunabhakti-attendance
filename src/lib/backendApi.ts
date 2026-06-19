@@ -8,6 +8,7 @@ function getToken(): string | null {
 function clearAuth() {
   if (typeof window === 'undefined') return;
   localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
   localStorage.removeItem('user');
   localStorage.removeItem('ysboToken');
 }
@@ -16,7 +17,7 @@ function redirectToLogin() {
   if (typeof window === 'undefined') return;
   clearAuth();
   if (!window.location.pathname.startsWith('/login')) {
-    window.location.href = '/login';
+    window.location.replace('/login');
   }
 }
 

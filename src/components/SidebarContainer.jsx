@@ -11,7 +11,13 @@ const getTodayHari = () => HARI_MAP[new Date().getDay()];
 // helper untuk resolve roles dari berbagai kemungkinan struktur data user
 const resolveRoles = (userData) => {
   const fromRoles = Array.isArray(userData?.roles)
-    ? userData.roles.map((r) => r?.name).filter(Boolean)
+    ? userData.roles
+        .map((r) => {
+          if (typeof r === 'string') return r;
+          if (typeof r === 'object' && r !== null) return r?.name || r?.role;
+          return null;
+        })
+        .filter(Boolean)
     : [];
   const fromRoleNames = Array.isArray(userData?.role_names) ? userData.role_names : [];
   const fromRoleObj = userData?.role?.name ? [userData.role.name] : [];
@@ -192,16 +198,16 @@ export default function SidebarContainer() {
 
   return (
     <nav className="space-y-1 text-sm">
-    <div class="flex items-center gap-3 mb-10">
-      <div class="w-12 h-12 flex items-center justify-center shadow-lg">
+    <div className="flex items-center gap-3 mb-10">
+      <div className="w-12 h-12 flex items-center justify-center shadow-lg">
         <img src="/src/assets/logotbvector-copy.png" alt=""/>
       </div>
 
-      <div class="flex flex-col leading-tight">
-        <span class="text-lg font-bold text-gray-800 tracking-tight">
+      <div className="flex flex-col leading-tight">
+        <span className="text-lg font-bold text-gray-800 tracking-tight">
           STARBHAK
         </span>
-        <span class="text-sm text-gray-500 whitespace-nowrap">
+        <span className="text-sm text-gray-500 whitespace-nowrap">
           Attendance Management
         </span>
       </div>

@@ -5,12 +5,25 @@ import GuruDashboard from "./GuruDashboard.jsx";
 import WalasDashboard from "./WalasDashboard.jsx";
 import KesiswaanDashboard from "./KesiswaanDashboard.jsx";  
 
+function clearAuth() {
+  localStorage.removeItem("accessToken");
+  localStorage.removeItem("refreshToken");
+  localStorage.removeItem("user");
+  localStorage.removeItem("ysboToken");
+}
+
 export default function DashboardSwitcher() {
   const [roles, setRoles] = useState(null);
 
   const resolveRoles = (userData) => {
     const fromRoles = Array.isArray(userData?.roles)
-      ? userData.roles.map((r) => r?.name).filter(Boolean)
+      ? userData.roles
+          .map((r) => {
+            if (typeof r === 'string') return r;
+            if (typeof r === 'object' && r !== null) return r?.name || r?.role;
+            return null;
+          })
+          .filter(Boolean)
       : [];
     const fromRoleNames = Array.isArray(userData?.role_names) ? userData.role_names : [];
     const fromRoleObj = userData?.role?.name ? [userData.role.name] : [];
@@ -27,7 +40,8 @@ export default function DashboardSwitcher() {
   useEffect(() => {
     const userStr = localStorage.getItem("user");
     if (!userStr) {
-      window.location.href = "/login";
+      clearAuth();
+      window.location.replace("/login");
       return;
     }
 
@@ -37,7 +51,8 @@ export default function DashboardSwitcher() {
       const resolved = resolveRoles(user);
       setRoles(resolved.length > 0 ? resolved : ["UNKNOWN"]);
     } catch {
-      window.location.href = "/login";
+      clearAuth();
+      window.location.replace("/login");
     }
   }, []);
 
