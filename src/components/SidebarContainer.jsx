@@ -69,8 +69,8 @@ export default function SidebarContainer() {
   const [roles, setRoles] = useState(null);
   const [userData, setUserData] = useState(null);
 
-  const { isAdmin, isSuperAdmin, isWalas, isGuru, isKesiswaan, canAccessAttendance } = useMemo(() => {
-    if (!roles) return { isAdmin: false, isSuperAdmin: false, isWalas: false, isGuru: false, isKesiswaan: false, canAccessAttendance: false };
+  const { isAdmin, isSuperAdmin, isWalas, isGuru, isKesiswaan, canAccessAttendance, isKurikulum } = useMemo(() => {
+    if (!roles) return { isAdmin: false, isSuperAdmin: false, isWalas: false, isGuru: false, isKesiswaan: false, canAccessAttendance: false, isKurikulum: false };
     const superAdminRoles = ["SUPERADMIN", "SUPER ADMIN", "SUPER_ADMIN"];
     const guru = roles.includes("GURU");
     const walas = roles.includes("WALAS");
@@ -80,6 +80,7 @@ export default function SidebarContainer() {
       isWalas: walas,
       isGuru: guru,
       isKesiswaan: roles.includes("KESISWAAN"),
+      isKurikulum: roles.includes("KURIKULUM"),
       // hanya role guru & walas yang bisa akses, tapi role GURU juga bisa akses walaupun gak ada role WALAS (untuk guru mapel yang bukan walas)
       canAccessAttendance: walas || guru,
     };
@@ -287,7 +288,7 @@ export default function SidebarContainer() {
               d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
             />
           </svg>
-          Manajemen Pokja
+          Export Data Kehadiran
         </a>
       )}
 
@@ -304,7 +305,7 @@ export default function SidebarContainer() {
         </a>
       )}
 
-      {(isAdmin || isSuperAdmin) && (
+      {/* {(isAdmin || isSuperAdmin) && (
         <a
           href="/dashboard/importOrangTua"
           data-astro-prefetch
@@ -313,7 +314,7 @@ export default function SidebarContainer() {
           <Upload width={20} height={20} />
           Tambah Orang Tua &amp; List Orang Tua
         </a>
-      )}
+      )} */}
 
       {(isSuperAdmin) && (
         <a
