@@ -301,9 +301,9 @@ export default function SidebarContainer() {
 
       {canAccessPokja && (
         <a
-          href="/dashboard/pokja"
+          href="/dashboard/exportDataKehadiran"
           data-astro-prefetch
-          className={getLinkClass("/dashboard/pokja", false)}
+          className={getLinkClass("/dashboard/exportDataKehadiran", false)}
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path

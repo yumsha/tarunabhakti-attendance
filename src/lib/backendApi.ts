@@ -43,10 +43,15 @@ async function request(path: string, options: RequestInit & { skipAuthRedirect?:
     body = text;
   }
 
-  // 401 = token expired/invalid
-  if (res.status === 401) {
+  const message = typeof body === 'object' ? body?.message : '';
+  const isAuthFailure =
+    res.status === 401 ||
+    (res.status === 403 && /access token|token tidak valid|token sudah expired/i.test(String(message)));
+
+  // Token expired/invalid
+  if (isAuthFailure) {
     if (skipAuthRedirect) {
-      return { success: false, message: body?.message || 'Sesi habis, silakan login kembali', status: 401 };
+      return { success: false, message: message || 'Sesi habis, silakan login kembali', status: res.status };
     }
     redirectToLogin();
     return { success: false, message: 'Sesi habis, silakan login kembali' };
@@ -206,4 +211,12 @@ export const statusRequest = {
     request(`/api/v1/status-request/${id}/respond`, { method: 'PATCH', body: JSON.stringify(data) }),
 };
 
-export default { siswa, tahunAjaran, mapel, guru, orangTua, kelas, jadwal, rfid, absensiSiswa, detailAbsensi, statusRequest, users, role, auth };
+export const finalAbsensi = {
+  list: (params?: string) => request(`/api/v1/final-absensi${params ? `?${params}` : ''}`),
+  filters: () => request('/api/v1/final-absensi/filters'),
+  finalisasiSiswa: (data: any) => request('/api/v1/final-absensi/siswa', { method: 'POST', body: JSON.stringify(data) }),
+  finalisasiKelas: (kelasId: string | number, data: any) => request(`/api/v1/final-absensi/kelas/${kelasId}`, { method: 'POST', body: JSON.stringify(data) }),
+  finalisasiSemuaKelas: (data: any) => request('/api/v1/final-absensi/semua-kelas', { method: 'POST', body: JSON.stringify(data) }),
+};
+
+export default { siswa, tahunAjaran, mapel, guru, orangTua, kelas, jadwal, rfid, absensiSiswa, detailAbsensi, statusRequest, users, role, auth, finalAbsensi };
