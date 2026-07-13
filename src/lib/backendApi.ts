@@ -1,4 +1,7 @@
 const BASE_URL = (import.meta as any).env?.PUBLIC_API_BASE_URL || 'http://localhost:3000';
+const API_CACHE_PREFIX = 'tb_api_cache:';
+const API_CACHE_TTL_MS = 60_000;
+const apiCacheMemory = new Map<string, { at: number; body: any }>();
 
 function getToken(): string | null {
   if (typeof window === 'undefined') return null;
@@ -11,6 +14,68 @@ function clearAuth() {
   localStorage.removeItem('refreshToken');
   localStorage.removeItem('user');
   localStorage.removeItem('ysboToken');
+  clearApiCache();
+}
+
+function clearApiCache() {
+  if (typeof window === 'undefined') return;
+
+  apiCacheMemory.clear();
+  for (const key of Object.keys(localStorage)) {
+    if (key.startsWith(API_CACHE_PREFIX)) {
+      localStorage.removeItem(key);
+    }
+  }
+}
+
+function buildApiCacheKey(path: string, method: string, headers: Record<string, string>) {
+  const normalizedHeaders = Object.keys(headers)
+    .sort()
+    .reduce((acc, key) => {
+      acc[key] = headers[key];
+      return acc;
+    }, {} as Record<string, string>);
+  return `${API_CACHE_PREFIX}${method}:${path}:${JSON.stringify(normalizedHeaders)}`;
+}
+
+function readCachedResponse(cacheKey: string) {
+  if (typeof window === 'undefined') return null;
+
+  const memoryHit = apiCacheMemory.get(cacheKey);
+  if (memoryHit && Date.now() - memoryHit.at < API_CACHE_TTL_MS) {
+    return memoryHit.body;
+  }
+
+  const raw = localStorage.getItem(cacheKey);
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw) as { at?: number; body?: any };
+    if (!parsed?.at || Date.now() - parsed.at >= API_CACHE_TTL_MS) {
+      localStorage.removeItem(cacheKey);
+      apiCacheMemory.delete(cacheKey);
+      return null;
+    }
+
+    apiCacheMemory.set(cacheKey, { at: parsed.at, body: parsed.body });
+    return parsed.body;
+  } catch {
+    localStorage.removeItem(cacheKey);
+    apiCacheMemory.delete(cacheKey);
+    return null;
+  }
+}
+
+function writeCachedResponse(cacheKey: string, body: any) {
+  if (typeof window === 'undefined') return;
+
+  const payload = { at: Date.now(), body };
+  apiCacheMemory.set(cacheKey, payload);
+  try {
+    localStorage.setItem(cacheKey, JSON.stringify(payload));
+  } catch {
+    // Ignore quota errors and keep the in-memory cache.
+  }
 }
 
 function redirectToLogin() {
@@ -24,13 +89,23 @@ function redirectToLogin() {
 async function request(path: string, options: RequestInit & { skipAuthRedirect?: boolean } = {}): Promise<any> {
   const token = getToken();
   const { headers: customHeaders, skipAuthRedirect, ...restOptions } = options as any;
+  const method = String((restOptions.method || 'GET')).toUpperCase();
+  const headerMap = {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(customHeaders || {}),
+  } as Record<string, string>;
+  const cacheKey = method === 'GET' ? buildApiCacheKey(path, method, headerMap) : '';
+
+  if (method === 'GET') {
+    const cached = readCachedResponse(cacheKey);
+    if (cached !== null) return cached;
+  }
 
   const res = await fetch(`${BASE_URL}${path}`, {
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-      ...(customHeaders || {}),
-    } as Record<string, string>,
+      ...headerMap,
+    },
     credentials: 'include',
     ...restOptions,
   });
@@ -55,6 +130,14 @@ async function request(path: string, options: RequestInit & { skipAuthRedirect?:
     }
     redirectToLogin();
     return { success: false, message: 'Sesi habis, silakan login kembali' };
+  }
+
+  if (method !== 'GET' && res.ok) {
+    clearApiCache();
+  }
+
+  if (method === 'GET' && res.ok) {
+    writeCachedResponse(cacheKey, body);
   }
 
   return body;

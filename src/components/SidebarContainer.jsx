@@ -431,11 +431,11 @@ export default function SidebarContainer() {
 
       {canAccessAttendance && 
         <div className="flex items-center my-4">
-          <div className="flex-grow border-t border-gray-500"></div>
+          <div className="grow border-t border-gray-500"></div>
           <p className="mx-2 text-sm text-gray-500 whitespace-nowrap">
             Manajemen Guru Mapel
           </p>
-          <div className="flex-grow border-t border-gray-500"></div>
+          <div className="grow border-t border-gray-500"></div>
         </div>
       }
 

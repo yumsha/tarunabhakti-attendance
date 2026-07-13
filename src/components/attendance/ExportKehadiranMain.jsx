@@ -34,7 +34,7 @@ function StatusAbsensiBadge({ status }) {
 function SkeletonRow() {
   return (
     <tr>
-      <td colSpan={9} className="px-4 py-3">
+      <td colSpan={7} className="px-4 py-3">
         <div className="h-4 bg-gray-100 rounded-full animate-pulse" />
       </td>
     </tr>
@@ -153,7 +153,7 @@ export default function ExportKehadiranMain() {
 
     setFetchingAttendance(true);
     try {
-      const params = new URLSearchParams({ limit: "1000" });
+      const params = new URLSearchParams({ limit: "1000", include_empty: "false" });
       if (tanggal) params.set("tanggal", tanggal);
       if (tanggalMulai && tanggalAkhir) {
         params.set("tanggal_mulai", tanggalMulai);
@@ -183,9 +183,6 @@ export default function ExportKehadiranMain() {
         kelas_nama: a.kelas?.kelas || "",
         jurusan: a.kelas?.jurusan || "",
         tahun_ajaran: a.kelas?.tahun?.tahun_ajaran || "",
-        tap_in: a.tap_in || null,
-        tap_out: a.tap_out || null,
-        status_tapin: a.status_tapin || null,
         status_saat_ini: a.status_final || null,
         tanggal: a.tanggal,
       })));
@@ -258,7 +255,7 @@ export default function ExportKehadiranMain() {
     doc.text(`Total Data: ${mergedData.length} siswa`, 14, yPos);
     yPos += 10;
 
-    const headers = ["No", "Nama", "NISN", "Kelas", "Jurusan", "Tanggal", "Tap In", "Tap Out", "Status"];
+    const headers = ["No", "Nama", "NISN", "Kelas", "Jurusan", "Tanggal", "Status"];
     const body = mergedData.map((row, idx) => [
       idx + 1,
       row.nama || "-",
@@ -266,8 +263,6 @@ export default function ExportKehadiranMain() {
       row.kelas_nama || "-",
       row.jurusan || "-",
       row.tanggal ? new Date(row.tanggal).toLocaleDateString("id-ID") : "-",
-      row.tap_in || "-",
-      row.tap_out || "-",
       row.status_saat_ini || "-",
     ]);
 
@@ -306,7 +301,7 @@ export default function ExportKehadiranMain() {
     infoRows.push([""]);
 
     // Column headers
-    infoRows.push(["No", "Nama", "NISN", "Kelas", "Jurusan", "Tanggal", "Tap In", "Tap Out", "Status"]);
+    infoRows.push(["No", "Nama", "NISN", "Kelas", "Jurusan", "Tanggal", "Status"]);
 
     // Data rows
     mergedData.forEach((row, idx) => {
@@ -317,8 +312,6 @@ export default function ExportKehadiranMain() {
         row.kelas_nama || "-",
         row.jurusan || "-",
         row.tanggal ? new Date(row.tanggal).toLocaleDateString("id-ID") : "-",
-        row.tap_in || "-",
-        row.tap_out || "-",
         row.status_saat_ini || "-",
       ]);
     });
@@ -351,7 +344,7 @@ export default function ExportKehadiranMain() {
     };
 
     // Apply title style
-    const cols = ["A", "B", "C", "D", "E", "F", "G", "H", "I"];
+    const cols = ["A", "B", "C", "D", "E", "F", "G"];
     cols.forEach((c) => {
       if (!ws[`${c}1`]) ws[`${c}1`] = { t: "s", v: "" };
       ws[`${c}1`].s = titleStyle;
@@ -380,8 +373,6 @@ export default function ExportKehadiranMain() {
       { wch: 10 }, // Kelas
       { wch: 15 }, // Jurusan
       { wch: 15 }, // Tanggal
-      { wch: 10 }, // Tap In
-      { wch: 10 }, // Tap Out
       { wch: 12 }, // Status
     ];
 
@@ -588,8 +579,6 @@ export default function ExportKehadiranMain() {
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Kelas</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Jurusan</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Tanggal</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Tap In</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Tap Out</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Status</th>
                 </tr>
               </thead>
@@ -599,7 +588,7 @@ export default function ExportKehadiranMain() {
                   [...Array(5)].map((_, i) => <SkeletonRow key={i} />)
                 ) : pagedData.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-6 py-14 text-center">
+                    <td colSpan={7} className="px-6 py-14 text-center">
                       <div className="flex flex-col items-center gap-2">
                         <svg className="w-10 h-10 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -637,20 +626,6 @@ export default function ExportKehadiranMain() {
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-600">
                         {row.tanggal ? new Date(row.tanggal).toLocaleDateString("id-ID") : "-"}
-                      </td>
-                      <td className="px-4 py-4 text-sm text-gray-700">
-                        {row.tap_in ? (
-                          <span className="font-medium">{row.tap_in}</span>
-                        ) : (
-                          <span className="text-gray-300">-</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-4 text-sm text-gray-700">
-                        {row.tap_out ? (
-                          <span className="font-medium">{row.tap_out}</span>
-                        ) : (
-                          <span className="text-gray-300">-</span>
-                        )}
                       </td>
                       <td className="px-4 py-4">
                         <StatusAbsensiBadge status={row.status_saat_ini} />
