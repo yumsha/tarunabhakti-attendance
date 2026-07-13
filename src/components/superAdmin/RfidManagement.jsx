@@ -328,8 +328,18 @@ function SearchableSelect({ value, onChange, students, disabled }) {
           (disabled ? " cursor-not-allowed opacity-60" : " cursor-pointer")
         }
       >
+        {/* nama + kelas sisswa kepilih */}
         <span className={selected ? "text-gray-800" : "text-gray-400"}>
-          {selected ? `${selected.nama} (ID: ${selected.id}) — ${selected.classLabel}` : "Pilih siswa"}
+          {selected ? (
+            <>
+              {selected.nama}{" "}
+              <span className="text-gray-500 text-sm">
+                ({selected.classLabel})
+              </span>
+            </>
+          ) : (
+            "Pilih siswa"
+          )}
         </span>
         <span className="flex items-center gap-1 shrink-0">
           {selected && !disabled ? (
@@ -360,7 +370,7 @@ function SearchableSelect({ value, onChange, students, disabled }) {
               return (
                 <li key={student.id} onClick={() => !isDisabled && (onChange(String(student.id)), setOpen(false), setQuery(""))}
                   className={"flex cursor-pointer items-center justify-between px-4 py-2.5 text-sm transition " + (isDisabled ? "cursor-not-allowed opacity-40" : isSelected ? "bg-blue-50 text-blue-700" : "text-gray-700 hover:bg-gray-50")}>
-                  <span><span className="font-medium">{student.nama}</span><span className="text-gray-400 text-xs ml-1.5">(ID: {student.id})</span><span className="ml-1.5 text-xs text-gray-400">{student.classLabel}</span></span>
+                  <span><span className="font-medium">{student.nama}</span><span className="ml-1.5 text-xs text-gray-400">{student.classLabel}</span></span>
                   <span className="flex items-center gap-1.5 shrink-0">
                     {isSelected ? <CheckCircle2 className="h-3.5 w-3.5 text-blue-500" /> : null}
                     {isDisabled ? <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-600">sudah ada RFID</span> : null}

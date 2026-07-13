@@ -30,9 +30,9 @@ function RealtimeClock() {
     return (
         <div>
             <div className="text-3xl font-bold text-gray-900 tracking-tight">{timeStr}</div>
-            <div className="text-xs text-gray-400 mt-0.5">Realtime Insight</div>
+            <div className="text-xs text-gray-400 mt-0.5">Waktu Terkini</div>
             <div className="mt-5 text-sm font-semibold text-gray-700">
-                Today:
+                Hari ini:
                 <br />
                 <span className="text-base font-bold text-gray-900">{dateStr}</span>
             </div>

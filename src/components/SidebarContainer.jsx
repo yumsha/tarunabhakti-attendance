@@ -329,6 +329,17 @@ export default function SidebarContainer() {
           Tambah Siswa &amp; List Siswa
         </a>
       )}
+      
+      {(isAdmin || isSuperAdmin) && (
+        <a
+          href="/dashboard/rfid"
+          data-astro-prefetch
+          className={getLinkClass("/dashboard/rfid")}
+        >
+          <ScanLine width={20} height={20} />
+          Manajemen RFID
+        </a>
+      )}
 
       {/* {(isAdmin || isSuperAdmin) && (
         <a
@@ -349,6 +360,17 @@ export default function SidebarContainer() {
         >
           <UserCog width={20} height={20} />
           Kelola Users
+        </a>
+      )}
+      
+      {isSuperAdmin && (
+        <a
+          href="/dashboard/assignWalas"
+          data-astro-prefetch
+          className={getLinkClass("/dashboard/assignWalas")}
+        >
+          <GraduationCap width={20} height={20} />
+          Assign Walas
         </a>
       )}
 
@@ -396,27 +418,6 @@ export default function SidebarContainer() {
         </a>
       )}
 
-      {(isAdmin || isSuperAdmin) && (
-        <a
-          href="/dashboard/rfid"
-          data-astro-prefetch
-          className={getLinkClass("/dashboard/rfid")}
-        >
-          <ScanLine width={20} height={20} />
-          Manajemen RFID
-        </a>
-      )}
-
-      {isSuperAdmin && (
-        <a
-          href="/dashboard/assignWalas"
-          data-astro-prefetch
-          className={getLinkClass("/dashboard/assignWalas")}
-        >
-          <GraduationCap width={20} height={20} />
-          Assign Walas
-        </a>
-      )}
 
       {/* {isSuperAdmin && (
         <a

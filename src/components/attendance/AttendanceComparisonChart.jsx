@@ -3,7 +3,7 @@ import Chart from "chart.js/auto";
 import { absensiSiswa, siswa } from "../../lib/backendApi";
 import { AlignJustify } from "lucide-react";
 
-const PERIODS = ["Daily", "Weekly", "Monthly", "Yearly"];
+const PERIODS = ["Harian", "Mingguan", "Bulanan", "Tahunan"];
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 function lastNDates(n) {
@@ -54,7 +54,7 @@ export default function AttendanceComparisonChart() {
     const chartRef      = useRef(null);
     const chartInstance = useRef(null);
 
-    const [period,    setPeriod]    = useState("Daily");
+    const [period,    setPeriod]    = useState("Harian");
     const [labels,    setLabels]    = useState([]);
     const [hadirData, setHadirData] = useState([]);
     const [absenData, setAbsenData] = useState([]);
@@ -68,7 +68,7 @@ export default function AttendanceComparisonChart() {
                 let newLabels = [], newHadir = [], newAbsen = [];
 
                 // ── DAILY: 14 hari terakhir, 1 titik = 1 hari ─────────────────
-                if (period === "Daily") {
+                if (period === "Harian") {
                     const dates   = lastNDates(14);
                     const grouped = await fetchRange(dates[0], dates[dates.length - 1]);
 
@@ -81,7 +81,7 @@ export default function AttendanceComparisonChart() {
                     });
 
                 // ── WEEKLY: 6 minggu terakhir, 1 titik = total tap-in seminggu ─
-                } else if (period === "Weekly") {
+                } else if (period === "Mingguan") {
                     const allDates = lastNDates(6 * 7);          // 42 hari
                     const grouped  = await fetchRange(
                         allDates[0],
@@ -114,18 +114,18 @@ export default function AttendanceComparisonChart() {
                     }
 
                 // ── MONTHLY: 6 bulan terakhir, 1 titik = total tap-in sebulan ──
-                } else if (period === "Monthly") {
+                } else if (period === "Bulanan") {
                     const today        = new Date();
-                    const sixMonthsAgo = new Date(
+                    const twelveMonthsAgo = new Date(
                         today.getFullYear(),
-                        today.getMonth() - 5,
+                        today.getMonth() - 11,
                         1
                     );
-                    const startStr = sixMonthsAgo.toISOString().split("T")[0];
+                    const startStr = twelveMonthsAgo.toISOString().split("T")[0];
                     const endStr   = today.toISOString().split("T")[0];
                     const grouped  = await fetchRange(startStr, endStr);
 
-                    for (let m = 5; m >= 0; m--) {
+                    for (let m = 11; m >= 0; m--) {
                         const date  = new Date(
                             today.getFullYear(),
                             today.getMonth() - m,
@@ -291,7 +291,7 @@ export default function AttendanceComparisonChart() {
             {/* Header */}
             <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-bold text-gray-900">
-                    Attendance Comparison Chart
+                    Grafik Perbandingan Kehadiran
                 </h3>
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-3 text-xs text-gray-500">
@@ -356,11 +356,11 @@ export default function AttendanceComparisonChart() {
             </div>
 
             {/* Footnote konteks skala */}
-            {!isLoading && (period === "Weekly" || period === "Monthly" || period === "Yearly") && (
+            {!isLoading && (period === "Mingguan" || period === "Bulanan" || period === "Tahunan") && (
                 <p className="mt-2 text-[10px] text-gray-400 text-right">
-                    {period === "Weekly"
+                    {period === "Mingguan"
                         ? "Total tap-in per minggu · estimasi tidak hadir = total siswa × 5 hari"
-                        : period === "Monthly"
+                        : period === "Bulanan"
                         ? "Total tap-in per bulan · estimasi tidak hadir = total siswa × 22 hari"
                         : "Total tap-in per tahun · estimasi tidak hadir = total siswa × 220 hari"}
                 </p>
