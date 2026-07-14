@@ -1,6 +1,7 @@
 import PageHeader from "../layout/PageHeader.jsx";
 import Pagination from "../layout/Pagination.jsx";
 import { useState, useEffect, useRef, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { CheckCircle2, AlertTriangle } from "lucide-react";
 import { siswa, kelas, orangTua } from "../../lib/backendApi";
 import * as XLSX from "xlsx";
@@ -269,6 +270,188 @@ const XCircle = () => <Icon d="M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477
 const SearchIcon = () => <Icon d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />;
 const XIcon = () => <Icon d="M18 6L6 18M6 6l12 12" />;
 const ChevronDown = () => <Icon d="M6 9l6 6 6-6" />;
+
+// Searchable Select Kelas
+
+function SearchableSelectKelas({ value, onChange, kelasList, disabled }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [coords, setCoords] = useState({ top: 0, left: 0, width: 288 });
+  const containerRef = useRef(null);
+  const searchInputRef = useRef(null);
+  const dropdownRef = useRef(null);
+
+  // Hitung posisi dropdown relatif ke viewport (fixed), bukan ke parent
+  const updateCoords = () => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setCoords({
+      top: rect.bottom + 6,
+      left: rect.left,
+      width: Math.max(rect.width, 288),
+    });
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    updateCoords();
+
+    const handleClickOutside = (e) => {
+      if (
+        containerRef.current && !containerRef.current.contains(e.target) &&
+        dropdownRef.current && !dropdownRef.current.contains(e.target)
+      ) {
+        setOpen(false);
+        setQuery("");
+      }
+    };
+    const handleReposition = () => updateCoords();
+
+    document.addEventListener("mousedown", handleClickOutside);
+    window.addEventListener("scroll", handleReposition, true);
+    window.addEventListener("resize", handleReposition);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("scroll", handleReposition, true);
+      window.removeEventListener("resize", handleReposition);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (open) setTimeout(() => searchInputRef.current?.focus(), 50);
+  }, [open]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return kelasList;
+    return kelasList.filter((k) => {
+      const label = `${k.kelas ?? ""} ${k.jurusan ?? ""} ${k.tahun?.tahun_ajaran ?? ""}`.toLowerCase();
+      return label.includes(q);
+    });
+  }, [kelasList, query]);
+
+  const selected = kelasList.find((k) => String(k.id) === String(value));
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => !disabled && setOpen((prev) => !prev)}
+        className={
+          "flex items-center justify-between gap-2 rounded-lg border bg-gray-50 px-3 py-2 text-sm transition min-w-44 " +
+          (open
+            ? "border-transparent ring-2 ring-blue-500"
+            : "border-gray-200 hover:border-gray-300") +
+          (disabled ? " cursor-not-allowed opacity-60" : " cursor-pointer")
+        }
+      >
+        <span className={selected ? "text-gray-800" : "text-gray-500"}>
+          {selected ? (
+            <>
+              <span className="font-medium">{selected.kelas} {selected.jurusan ?? ""}</span>
+              {selected.tahun?.tahun_ajaran ? (
+                <span className="ml-1 text-xs text-gray-400">({selected.tahun.tahun_ajaran})</span>
+              ) : null}
+            </>
+          ) : (
+            "Semua Kelas"
+          )}
+        </span>
+        <span className="flex shrink-0 items-center gap-1">
+          {selected && !disabled ? (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(e) => {
+                e.stopPropagation();
+                onChange("");
+                setQuery("");
+              }}
+              className="rounded p-0.5 text-gray-400 hover:text-gray-600"
+            >
+              <XIcon />
+            </span>
+          ) : null}
+          <span className={`transition-transform duration-200 text-gray-400 ${open ? "rotate-180" : ""}`}>
+            <ChevronDown />
+          </span>
+        </span>
+      </button>
+
+      {open && createPortal(
+        <div
+          ref={dropdownRef}
+          style={{ position: "fixed", top: coords.top, left: coords.left, width: coords.width }}
+          className="z-[999] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl"
+        >
+          <div className="border-b border-gray-100 px-3 py-2.5">
+            <div className="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-1.5">
+              <SearchIcon />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Cari kelas, jurusan, tahun ajaran..."
+                className="w-full bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
+              />
+              {query ? (
+                <button type="button" onClick={() => setQuery("")} className="text-gray-400 hover:text-gray-600">
+                  <XIcon />
+                </button>
+              ) : null}
+            </div>
+          </div>
+
+          <ul className="max-h-64 overflow-y-auto py-1">
+            <li
+              onClick={() => { onChange(""); setOpen(false); setQuery(""); }}
+              className={
+                "flex cursor-pointer items-center justify-between px-4 py-2.5 text-sm transition " +
+                (!value ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-500 hover:bg-gray-50")
+              }
+            >
+              <span>Semua Kelas</span>
+              {!value ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-blue-500" /> : null}
+            </li>
+
+            {filtered.length === 0 ? (
+              <li className="px-4 py-6 text-center text-sm text-gray-400">Kelas tidak ditemukan</li>
+            ) : (
+              filtered.map((kls) => {
+                const isSelected = String(kls.id) === String(value);
+                return (
+                  <li
+                    key={kls.id}
+                    onClick={() => { onChange(String(kls.id)); setOpen(false); setQuery(""); }}
+                    className={
+                      "flex cursor-pointer items-center justify-between px-4 py-2.5 text-sm transition " +
+                      (isSelected ? "bg-blue-50 text-blue-700" : "text-gray-700 hover:bg-gray-50")
+                    }
+                  >
+                    <span>
+                      <span className="font-medium">{kls.kelas} {kls.jurusan ?? ""}</span>
+                      {kls.tahun?.tahun_ajaran ? (
+                        <span className="ml-1.5 text-xs text-gray-400">{kls.tahun.tahun_ajaran}</span>
+                      ) : null}
+                    </span>
+                    {isSelected ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-blue-500" /> : null}
+                  </li>
+                );
+              })
+            )}
+          </ul>
+
+          <div className="border-t border-gray-100 px-3 py-2 text-[11px] text-gray-400">
+            {filtered.length} kelas ditampilkan · ketik untuk memfilter
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
 
 // Progress bar kecil dipakai saat proses import/update massal berjalan
 function ProgressBar({ current, total, color = "blue" }) {
@@ -1312,16 +1495,11 @@ export default function ImportSiswa() {
                 )}
               </div>
 
-              <select
+              <SearchableSelectKelas
                 value={selectedKelas}
-                onChange={(e) => setSelectedKelas(e.target.value)}
-                className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-44"
-              >
-                <option value="">Semua Kelas</option>
-                {kelasList.map((k) => (
-                  <option key={k.id} value={k.id.toString()}>{k.kelas} {k.jurusan}</option>
-                ))}
-              </select>
+                onChange={setSelectedKelas}
+                kelasList={kelasList}
+              />
 
               <div className="flex items-center gap-2 ml-auto flex-wrap">
 
