@@ -1024,7 +1024,7 @@ const handleRemoveWalas = async () => {
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <input
                   className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm text-gray-700 outline-none transition focus:border-transparent focus:ring-2 focus:ring-blue-500"
-                  placeholder="Cari kelas, jurusan, atau walas..."
+                  placeholder="    jurusan, atau walas..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />

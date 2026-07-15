@@ -14,6 +14,7 @@ import InfoStatCard from "../layout/InfoStatCard";
 const TEMPLATE_HEADERS = [
   "NISN",
   "NIPD",
+  "NIK",
   "Nama",
   "Alamat",
   "Gender",
@@ -32,6 +33,7 @@ const TEMPLATE_HEADERS = [
 const UPDATE_HEADERS = [
   "NISN",
   "NIPD",
+  "NIK",
   "Nama",
   "Alamat",
   "Gender",
@@ -109,7 +111,7 @@ function getSiswaGuideSheet() {
 
 // Contoh 1: punya ID orang tua di DB = cukup isi ID, kolom detail kosong
 const EXAMPLE_ROW_WITH_ID = [
-  "3050626105", "2025001", "Sandi Permata", "Jl. Kenanga No. 46 Bogor",
+  "3050626105", "2025001", "3201010103070001", "Sandi Permata", "Jl. Kenanga No. 46 Bogor",
   "L", "2005-12-06", "08875094072", "XII", "Rekayasa Perangkat Lunak",
   "1",           // ID Orang Tua (ada di DB)
   "", "", "", "", "", // detail ortu dikosongkan
@@ -117,7 +119,7 @@ const EXAMPLE_ROW_WITH_ID = [
 
 // Contoh 2: orang tua belum ada di DB = ID kosong, isi kolom detail
 const EXAMPLE_ROW_NEW_PARENT = [
-  "3050626106", "2025002", "Dewi Rahayu", "Jl. Melati No. 12 Bogor",
+  "3050626106", "2025002", "3201010103070002", "Dewi Rahayu", "Jl. Melati No. 12 Bogor",
   "P", "2006-03-15", "08761234567", "XI", "Teknik Komputer Jaringan",
   "",            // ID Orang Tua dikosongkan
   "3201234567890001", "Budi Santoso", "08123456789", "Wiraswasta", "Jl. Merdeka No. 1 Bogor",
@@ -173,7 +175,7 @@ function downloadPdfTemplate() {
 function downloadUpdateExcelTemplate() {
   const ws = XLSX.utils.aoa_to_sheet([
     UPDATE_HEADERS,
-    ["3050626105", "2025001", "Sandi Permata", "Jl. Kenanga No. 46 Bogor", "L", "2005-12-06", "08875094072", "XII", "Rekayasa Perangkat Lunak", 1],
+    ["3050626105", "2025001", "3201010103070001", "Sandi Permata", "Jl. Kenanga No. 46 Bogor", "L", "2005-12-06", "08875094072", "XII", "Rekayasa Perangkat Lunak", 1],
   ]);
   ws["!cols"] = UPDATE_HEADERS.map(() => ({ wch: 26 }));
   const wb = XLSX.utils.book_new();
@@ -193,7 +195,7 @@ function downloadUpdatePdfTemplate() {
   autoTable(doc, {
     startY: 28,
     head: [UPDATE_HEADERS],
-    body: [["3050626105", "2025001", "Sandi Permata", "Jl. Kenanga No. 46 Bogor", "L", "2005-12-06", "08875094072", "XII", "Rekayasa Perangkat Lunak", "1"]],
+    body: [["3050626105", "2025001", "3201010103070001", "Sandi Permata", "Jl. Kenanga No. 46 Bogor", "L", "2005-12-06", "08875094072", "XII", "Rekayasa Perangkat Lunak", "1"]],
     styles: { fontSize: 8 },
     headStyles: { fillColor: [16, 185, 129] },
   });
@@ -207,7 +209,7 @@ function exportTablePdf(students) {
   doc.text("Data Siswa", 14, 16);
   autoTable(doc, {
     startY: 22,
-    head: [["NISN", "NIPD", "Nama", "Alamat", "Gender", "Tanggal Lahir", "Nomor Telepon", "Nama Kelas", "Jurusan"]],
+    head: [["NISN", "NIPD", "NIK", "Nama", "Alamat", "Gender", "Tanggal Lahir", "Nomor Telepon", "Nama Kelas", "Jurusan"]],
     body: students.map((s) => [
       s.NISN, s.NIPD, s.nama, s.alamat, s.gender,
       s.tanggal_lahir?.slice(0, 10), s.nomor_telepon,
@@ -223,6 +225,7 @@ function exportTableExcel(students) {
   const rows = students.map((s) => ({
     "NISN":String(s.NISN || ""),
     "NIPD": String(s.NIPD || ""),
+    "NIK": String(s.NIK || ""),
     "Nama": s.nama || "",
     "Alamat": s.alamat || "",
     "Gender": s.gender || "",
@@ -239,9 +242,11 @@ function exportTableExcel(students) {
   for (let R = range.s.r + 1; R <= range.e.r; ++R) {
     const nisnCell = XLSX.utils.encode_cell({ r: R, c: 0 });
     const nipdCell = XLSX.utils.encode_cell({ r: R, c: 1 });
+    const nikCell = XLSX.utils.encode_cell({ r: R, c: 1 });
     const telpCell = XLSX.utils.encode_cell({ r: R, c: 6 });
     if (ws[nisnCell]) { ws[nisnCell].v = String(ws[nisnCell].v).trim(); ws[nisnCell].t = "s"; ws[nisnCell].z = "@"; }
     if (ws[nipdCell]) { ws[nipdCell].v = String(ws[nipdCell].v).trim(); ws[nipdCell].t = "s"; ws[nipdCell].z = "@"; }
+    if (ws[nikCell]) { ws[nikCell].v = String(ws[nikCell].v).trim(); ws[nikCell].t = "s"; ws[nikCell].z = "@"; }
     if (ws[telpCell]) { ws[telpCell].v = String(ws[telpCell].v).trim(); ws[telpCell].t = "s"; ws[telpCell].z = "@"; }
   }
 
@@ -535,14 +540,16 @@ function ImportModal({ onClose, onImportDone }) {
     // ── Pre-pass: validasi sinkron & deteksi duplikat NISN/NIPD dalam batch ini ──
     const seenNISN = new Set();
     const seenNIPD = new Set();
+    const seenNIK = new Set();
     const toProcess = [];
 
     rowsToProcess.forEach(({ row, idx }) => {
       const nama = row["Nama"] || "?";
       const NISN = String(row["NISN"] || "").trim();
       const NIPD = String(row["NIPD"] || "").trim();
+      const NIK = String(row["NIK"] || "").trim();
 
-      if (!NISN || !NIPD || !row["Nama"]) {
+      if (!NISN || !NIPD || !NIK || !row["Nama"]) {
         prepared[idx] = { nama, ok: false, msg: "Field wajib siswa kosong (NISN / NIPD / Nama)" };
         return;
       }
@@ -554,8 +561,13 @@ function ImportModal({ onClose, onImportDone }) {
         prepared[idx] = { nama, ok: false, msg: `NIPD ${NIPD} duplikat dalam file (skip)` };
         return;
       }
+      if (seenNIPD.has(NIK)) {
+        prepared[idx] = { nama, ok: false, msg: `NIPD ${NIPD} duplikat dalam file (skip)` };
+        return;
+      }
       seenNISN.add(NISN);
       seenNIPD.add(NIPD);
+      seenNIK.add(NIK);
       toProcess.push({ row, idx });
     });
 
@@ -623,6 +635,7 @@ function ImportModal({ onClose, onImportDone }) {
           const payload = {
             NISN: String(row["NISN"] || ""),
             NIPD: String(row["NIPD"] || ""),
+            NIK: String(row["NIK"] || ""),
             nama,
             alamat: row["Alamat"] || "",
             gender: row["Gender"] || "",
@@ -1000,6 +1013,7 @@ function UpdateModal({ onClose, onUpdateDone, kelasList }) {
           const payload = {
             NISN: String(row["NISN"] || "").trim(),
             NIPD: String(row["NIPD"] || "").trim(),
+            NIK: String(row["NIK"] || "").trim(),
             nama: String(row["Nama"] || "").trim(),
             alamat: String(row["Alamat"] || "").trim(),
             gender: String(row["Gender"] || "").trim(),
@@ -1264,7 +1278,7 @@ function DeleteConfirmModal({ student, onClose, onDeleted }) {
               <p className="text-sm font-semibold text-gray-800">Yakin ingin menghapus siswa ini?</p>
               <p className="text-sm text-gray-600 mt-1">
                 <span className="font-medium">{student.nama}</span>
-                {student.NISN && <span className="text-gray-400"> · NISN: {student.NISN}</span>}
+                {student.NISN && <span className="text-gray-400"> · NISN: {student.NISN} · NIK: {student.NIK}</span>}
               </p>
               <p className="text-xs text-gray-400 mt-1">Data akan dinonaktifkan (soft delete) dan tidak muncul di daftar.</p>
             </div>
@@ -1402,6 +1416,7 @@ export default function ImportSiswa() {
         s.nama?.toLowerCase().includes(q) ||
         s.NISN?.toLowerCase().includes(q) ||
         s.NIPD?.toLowerCase().includes(q) ||
+        s.NIK?.toLowerCase().includes(q) ||
         s.nomor_telepon?.toLowerCase().includes(q) ||
         s.orang_tua?.nama_orangtua?.toLowerCase().includes(q) ||
         (s.kelas && `${s.kelas.kelas} ${s.kelas.jurusan || ""}`.toLowerCase().includes(q))
@@ -1585,7 +1600,7 @@ export default function ImportSiswa() {
             <table className="w-full">
               <thead className="bg-gray-50/80">
                 <tr>
-                  {["Nama", "Kelas", "No Telp", "NIPD", "NISN", "Nama Orang Tua", "Aksi"].map((h) => (
+                  {["Nama", "Kelas", "No Telp", "NIPD", "NISN", "NIK", "Nama Orang Tua", "Aksi"].map((h) => (
                     <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -1607,6 +1622,7 @@ export default function ImportSiswa() {
                       <td className="px-6 py-4 text-sm text-gray-600">{s.nomor_telepon}</td>
                       <td className="px-6 py-4 text-sm text-gray-600 font-mono">{s.NIPD}</td>
                       <td className="px-6 py-4 text-sm text-gray-600 font-mono">{s.NISN}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600 font-mono">{s.NIK}</td>
                       <td className="px-6 py-4 text-sm text-gray-600">{s.orang_tua?.nama_orangtua || "-"}</td>
                       <td className="px-6 py-4">
                         <button
