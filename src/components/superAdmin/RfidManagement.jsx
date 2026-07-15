@@ -27,7 +27,7 @@ import { rfid as rfidApi, siswa as siswaApi } from "../../lib/backendApi";
 
 // ─── Template & Export Helpers ────────────────────────────────────────────────
 
-const TEMPLATE_HEADERS = ["UID RFID", "Nama Siswa", "Status Aktif (TRUE/FALSE)"];
+const TEMPLATE_HEADERS = ["Nama", "NISN", "NIK", "RFID"];
 const UPDATE_HEADERS = ["UID RFID", "Nama Siswa", "Status Aktif (TRUE/FALSE)"];
 
 const CONCURRENCY = 5;
@@ -75,21 +75,16 @@ function getRfidGuideSheet() {
   const guideData = [
     ["PANDUAN PENGGUNAAN - IMPORT & UPDATE RFID SISWA"],
     [""],
-    ["1. ATURAN UID RFID (KARTU RFID)"],
-    ["   - Merupakan kode UID unik dari kartu RFID. Harus unik dan belum terdaftar di sistem."],
-    ["   - Jika di awal UID RFID diawali angka 0, gunakan tanda petik tunggal (') di awal agar tidak terpotong oleh Excel."],
-    ["   - Contoh: '04A1B2C3D4"],
+    ["1. IMPORT RFID BARU"],
+    ["   - Kolom yang WAJIB ada: Nama, NISN, NIK, RFID (urutan kolom bebas, boleh ada kolom tambahan lain)."],
+    ["   - Sistem mencocokkan siswa berdasarkan NISN terlebih dahulu, lalu fallback ke NIK jika NISN tidak ditemukan."],
+    ["   - Kolom RFID diisi dengan UID kartu RFID siswa yang bersangkutan. Harus unik dan belum terdaftar di sistem."],
+    ["   - File export data siswa lengkap (mis. dari Dapodik) yang sudah memiliki kolom-kolom di atas BISA langsung diupload tanpa perlu diedit ulang."],
+    ["   - Baris dengan NISN atau RFID kosong akan dilewati dan dicatat sebagai error."],
     [""],
-    ["2. PANDUAN NAMA SISWA"],
-    ["   - Harus diisi sesuai dengan nama lengkap siswa yang terdaftar di sistem."],
-    ["   - Pencarian nama bersifat tidak sensitif huruf besar/kecil (case-insensitive)."],
-    [""],
-    ["3. PANDUAN STATUS AKTIF"],
-    ["   - Isi dengan TRUE untuk mengaktifkan kartu atau FALSE untuk menonaktifkan."],
-    ["   - Default jika dikosongkan adalah TRUE."],
-    [""],
-    ["4. CARA UPDATE DATA RFID"],
-    ["   - UID RFID bertindak sebagai kunci utama (key)."],
+    ["2. CARA UPDATE DATA RFID (fitur terpisah)"],
+    ["   - Gunakan menu 'Update Excel' dengan kolom: UID RFID, Nama Siswa, Status Aktif (TRUE/FALSE)."],
+    ["   - UID RFID bertindak sebagai kunci utama (key) untuk update."],
     ["   - Jangan pernah mengubah UID RFID pada baris data yang ingin di-update."],
     ["   - Anda dapat memindahkan kepemilikan kartu ke Nama Siswa lain atau mengubah Status Aktif."]
   ];
@@ -101,10 +96,10 @@ function getRfidGuideSheet() {
 function downloadExcelTemplate() {
   const ws = XLSX.utils.aoa_to_sheet([
     TEMPLATE_HEADERS,
-    ["04A1B2C3D4", "Budi Santoso", "TRUE"],
-    ["04E5F6A7B8", "Siti Rahayu", "TRUE"],
+    ["Budi Santoso", "0051234001", "3226428948557758", "04A1B2C3D4"],
+    ["Siti Rahayu", "0051234002", "7332251801315270", "04E5F6A7B8"],
   ]);
-  ws["!cols"] = TEMPLATE_HEADERS.map(() => ({ wch: 32 }));
+  ws["!cols"] = TEMPLATE_HEADERS.map(() => ({ wch: 28 }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Template RFID");
   XLSX.utils.book_append_sheet(wb, getRfidGuideSheet(), "Panduan Penggunaan");
@@ -118,13 +113,13 @@ function downloadPdfTemplate() {
   doc.text("Template Import Data RFID", 14, 16);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text("Isi kolom UID RFID, Nama Siswa (harus sama persis dengan data sistem), dan Status Aktif (TRUE atau FALSE).", 14, 23);
+  doc.text("Kolom wajib: Nama, NISN, NIK, RFID. Siswa dicocokkan berdasarkan NISN (fallback NIK).", 14, 23);
   autoTable(doc, {
     startY: 28,
     head: [TEMPLATE_HEADERS],
     body: [
-      ["04A1B2C3D4", "Budi Santoso", "TRUE"],
-      ["04E5F6A7B8", "Siti Rahayu", "TRUE"],
+      ["Budi Santoso", "0051234001", "3226428948557758", "04A1B2C3D4"],
+      ["Siti Rahayu", "0051234002", "7332251801315270", "04E5F6A7B8"],
     ],
     styles: { fontSize: 9 },
     headStyles: { fillColor: [37, 99, 235] },
@@ -466,19 +461,25 @@ function RfidFormModal({ isOpen, onClose, onSubmit, editItem, loading, students 
 }
 
 // ─── Import Modal ─────────────────────────────────────────────────────────────
+// Import sekarang mengirim file Excel APA ADANYA ke backend (POST /rfid/import),
+// yang akan diproses di server oleh xlsx.utils.sheet_to_json dan dicocokkan
+// berdasarkan kolom "NISN" (fallback "NIK") + "RFID". Tidak ada parsing/matching
+// manual di sisi client lagi, jadi file export siswa lengkap (mis. dari Dapodik)
+// yang punya kolom Nama/NISN/NIK/RFID bisa langsung diupload tanpa diedit.
 
-function ImportModal({ onClose, onImportDone, students }) {
-  const [rows, setRows] = useState([]);
-  const [results, setResults] = useState([]);
+function ImportModal({ onClose, onImportDone }) {
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState([]);
+  const [previewHeaders, setPreviewHeaders] = useState([]);
+  const [totalRows, setTotalRows] = useState(0);
   const [importing, setImporting] = useState(false);
   const [done, setDone] = useState(false);
-  const [progress, setProgress] = useState({ current: 0, total: 0 });
-  const [previewLimit, setPreviewLimit] = useState(250);
-  const [resultSearch, setResultSearch] = useState("");
-  const [draftSearch, setDraftSearch] = useState("");
+  const [result, setResult] = useState(null); // { inserted, skipped, errors: [{nama,nisn,uid_rfid,reason}] }
+  const [importError, setImportError] = useState("");
+  const [errorSearch, setErrorSearch] = useState("");
   const fileRef = useRef();
 
-  // Cegah user nutup/refresh tab di tengah proses import massal
+  // Cegah user nutup/refresh tab di tengah proses import
   useEffect(() => {
     if (!importing) return;
     const handler = (e) => { e.preventDefault(); e.returnValue = ""; };
@@ -486,125 +487,67 @@ function ImportModal({ onClose, onImportDone, students }) {
     return () => window.removeEventListener("beforeunload", handler);
   }, [importing]);
 
-  const parseFile = (file) => {
+  const parseFile = (f) => {
+    setFile(f);
+    setResult(null);
+    setDone(false);
+    setImportError("");
     const reader = new FileReader();
     reader.onload = (e) => {
-      const wb = XLSX.read(e.target.result, { type: "binary" });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const json = XLSX.utils.sheet_to_json(ws, { defval: "" });
-      setRows(json);
-      setResults([]);
-      setDone(false);
-      setProgress({ current: 0, total: 0 });
-      setPreviewLimit(250);
-      setResultSearch("");
-      setDraftSearch("");
+      try {
+        const wb = XLSX.read(e.target.result, { type: "binary" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(ws, { defval: "" });
+        setTotalRows(json.length);
+        setPreview(json.slice(0, 20));
+        setPreviewHeaders(json.length ? Object.keys(json[0]) : []);
+      } catch (err) {
+        setImportError("Gagal membaca file. Pastikan format .xlsx valid.");
+      }
     };
-    reader.readAsBinaryString(file);
+    reader.readAsBinaryString(f);
   };
 
   const handleFile = (e) => { const f = e.target.files[0]; if (f) parseFile(f); };
   const handleDrop = (e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) parseFile(f); };
 
-  const startImport = async (isRetry = false) => {
-    let currentRows = rows;
-    if (isRetry) {
-      currentRows = rows.filter((_, idx) => !results[idx] || !results[idx].ok);
-      setRows(currentRows);
-    }
-    if (!currentRows.length) return;
-    setImporting(true);
+  const resetFile = () => {
+    setFile(null);
+    setPreview([]);
+    setPreviewHeaders([]);
+    setTotalRows(0);
+    setResult(null);
     setDone(false);
-
-    const newResults = new Array(currentRows.length);
-    const toProcess = [];
-
-    // Pre-pass check
-    const uidCache = new Set();
-
-    currentRows.forEach((row, idx) => {
-      const uid = String(row["UID RFID"] || "").trim();
-      const namaSiswa = String(row["Nama Siswa"] || "").trim();
-      
-      let isActive = true;
-      const rawActive = row["Status Aktif (TRUE/FALSE)"];
-      if (rawActive !== undefined && rawActive !== null && rawActive !== "") {
-        const str = String(rawActive).trim().toUpperCase();
-        if (str === "FALSE" || str === "0" || str === "N" || str === "NONAKTIF") {
-          isActive = false;
-        }
-      }
-
-      if (!uid || !namaSiswa) {
-        newResults[idx] = { uid: uid || "?", nama: "?", ok: false, msg: "UID RFID dan Nama Siswa wajib diisi" };
-        return;
-      }
-      if (uidCache.has(uid)) {
-        newResults[idx] = { uid, nama: "?", ok: false, msg: "UID duplikat dalam file/proses (skip)" };
-        return;
-      }
-      uidCache.add(uid);
-
-      const matched = students.find((s) => s.nama.toLowerCase() === namaSiswa.toLowerCase());
-      if (!matched) {
-        newResults[idx] = { uid, nama: namaSiswa, ok: false, msg: `Siswa "${namaSiswa}" tidak ditemukan` };
-        return;
-      }
-
-      toProcess.push({ idx, uid, siswaId: matched.id, is_active: isActive, studentName: matched.nama });
-    });
-
-    const preDone = currentRows.length - toProcess.length;
-    setProgress({ current: preDone, total: currentRows.length });
-    setResults(newResults.filter(Boolean));
-
-    await runWithConcurrency(
-      toProcess,
-      CONCURRENCY,
-      async ({ idx, uid, siswaId, is_active, studentName }) => {
-        try {
-          const result = await rfidApi.create({ uid_rfid: uid, siswa_id: siswaId, is_active });
-          const entry = { uid, nama: studentName, ok: result?.success ?? false, msg: result?.message || "" };
-          newResults[idx] = entry;
-          return entry;
-        } catch (err) {
-          const entry = { uid, nama: studentName, ok: false, msg: err.message };
-          newResults[idx] = entry;
-          return entry;
-        }
-      },
-      (doneCount) => {
-        setProgress({ current: preDone + doneCount, total: currentRows.length });
-        setResults(newResults.filter(Boolean));
-      }
-    );
-
-    setImporting(false);
-    setDone(true);
-    onImportDone();
+    setImportError("");
+    setErrorSearch("");
   };
 
-  const successCount = results.filter((r) => r.ok).length;
-  const failCount = results.filter((r) => !r.ok).length;
+  const startImport = async () => {
+    if (!file) return;
+    setImporting(true);
+    setDone(false);
+    setImportError("");
+    try {
+      const res = await rfidApi.importFile(file);
+      if (!res?.success) throw new Error(res?.message || "Import gagal diproses server.");
+      setResult(res.data || { inserted: 0, skipped: 0, errors: [] });
+      onImportDone();
+    } catch (err) {
+      setImportError(err.message || "Terjadi kesalahan saat mengimport file.");
+    } finally {
+      setImporting(false);
+      setDone(true);
+    }
+  };
 
-  const filteredRows = useMemo(() => {
-    if (!draftSearch.trim()) return rows;
-    const q = draftSearch.toLowerCase().trim();
-    return rows.filter((row) =>
-      Object.values(row).some((val) => String(val).toLowerCase().includes(q))
+  const filteredErrors = useMemo(() => {
+    const errors = result?.errors || [];
+    if (!errorSearch.trim()) return errors;
+    const q = errorSearch.toLowerCase().trim();
+    return errors.filter((r) =>
+      [r.nama, r.nisn, r.uid_rfid, r.reason].filter(Boolean).some((v) => String(v).toLowerCase().includes(q))
     );
-  }, [rows, draftSearch]);
-
-  const filteredResults = useMemo(() => {
-    if (!resultSearch.trim()) return results;
-    const q = resultSearch.toLowerCase().trim();
-    return results.filter(
-      (r) =>
-        r.nama?.toLowerCase().includes(q) ||
-        r.uid?.toLowerCase().includes(q) ||
-        r.msg?.toLowerCase().includes(q)
-    );
-  }, [results, resultSearch]);
+  }, [result, errorSearch]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -612,7 +555,7 @@ function ImportModal({ onClose, onImportDone, students }) {
         <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 flex items-center justify-between">
           <div>
             <h2 className="text-white font-semibold text-lg">Import Data RFID</h2>
-            <p className="text-blue-200 text-xs mt-0.5">Upload file Excel (.xlsx) — kolom: UID RFID, Nama Siswa, Status Aktif</p>
+            <p className="text-blue-200 text-xs mt-0.5">Upload file Excel (.xlsx) — wajib ada kolom: Nama, NISN, NIK, RFID</p>
           </div>
           <button
             onClick={onClose}
@@ -624,46 +567,37 @@ function ImportModal({ onClose, onImportDone, students }) {
         </div>
 
         <div className="p-6 space-y-5">
-          {!rows.length && (
+          {!file && (
             <div onDrop={handleDrop} onDragOver={(e) => e.preventDefault()} onClick={() => fileRef.current.click()}
               className="border-2 border-dashed border-blue-200 rounded-xl p-10 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all group">
               <div className="flex justify-center mb-3 text-blue-400 group-hover:text-blue-600 transition-colors">
                 <Upload className="h-8 w-8" />
               </div>
               <p className="text-sm font-medium text-gray-700">Drop file Excel di sini atau <span className="text-blue-600 underline">pilih file</span></p>
-              <p className="text-xs text-gray-400 mt-1">Hanya file .xlsx yang didukung</p>
+              <p className="text-xs text-gray-400 mt-1">Hanya file .xlsx yang didukung. File export data siswa lengkap juga bisa langsung diupload.</p>
               <input ref={fileRef} type="file" accept=".xlsx" className="hidden" onChange={handleFile} />
             </div>
           )}
 
-          {rows.length > 0 && !done && !importing && (
+          {file && !done && !importing && (
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-semibold text-gray-700">{filteredRows.length} dari {rows.length} baris ditemukan</p>
-                <button onClick={() => { setRows([]); setResults([]); setPreviewLimit(250); setResultSearch(""); setDraftSearch(""); }} className="text-xs text-red-500 hover:underline">Ganti file</button>
-              </div>
-              <div className="mb-3">
-                <input
-                  type="text"
-                  value={draftSearch}
-                  onChange={(e) => { setDraftSearch(e.target.value); setPreviewLimit(250); }}
-                  placeholder="Cari di data draft Excel..."
-                  className="w-full text-xs px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
+                <p className="text-sm font-semibold text-gray-700">{file.name} · {totalRows} baris terdeteksi</p>
+                <button onClick={resetFile} className="text-xs text-red-500 hover:underline">Ganti file</button>
               </div>
               <div className="overflow-auto max-h-48 border border-gray-200 rounded-lg">
                 <table className="w-full text-xs">
                   <thead className="bg-gray-50 sticky top-0">
                     <tr>
-                      {TEMPLATE_HEADERS.map((k) => (
-                        <th key={k} className="px-3 py-2 text-left font-semibold text-gray-600 whitespace-nowrap">{k}</th>
+                      {previewHeaders.map((h) => (
+                        <th key={h} className="px-3 py-2 text-left font-semibold text-gray-600 whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {filteredRows.slice(0, previewLimit).map((r, i) => (
+                    {preview.map((r, i) => (
                       <tr key={i}>
-                        {TEMPLATE_HEADERS.map((h) => (
+                        {previewHeaders.map((h) => (
                           <td key={h} className="px-3 py-2 text-gray-700 whitespace-nowrap font-mono">{String(r[h] ?? "")}</td>
                         ))}
                       </tr>
@@ -671,55 +605,65 @@ function ImportModal({ onClose, onImportDone, students }) {
                   </tbody>
                 </table>
               </div>
-              {filteredRows.length > previewLimit && (
-                <div className="text-center py-2 bg-gray-50 border-t border-gray-100 flex flex-col items-center justify-center">
-                  <button
-                    type="button"
-                    onClick={() => setPreviewLimit((prev) => prev + 250)}
-                    className="text-xs text-blue-600 font-semibold hover:underline"
-                  >
-                    Tampilkan lebih banyak (+250 data) ...
-                  </button>
-                  <p className="text-[10px] text-gray-400 mt-0.5">Menampilkan {Math.min(previewLimit, filteredRows.length)} dari {filteredRows.length} baris</p>
-                </div>
+              {totalRows > preview.length && (
+                <p className="text-[11px] text-gray-400 mt-1.5 text-center">Menampilkan {preview.length} dari {totalRows} baris (pratinjau saja, seluruh baris akan diproses saat import)</p>
               )}
+              {importError ? (
+                <div className="mt-3 flex items-center gap-2 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />{importError}
+                </div>
+              ) : null}
             </div>
           )}
 
           {(importing || done) && (
             <div className="space-y-3">
-              {importing && <ProgressBar current={progress.current} total={progress.total} color="blue" />}
+              {importing ? (
+                <div className="flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-4 text-sm text-blue-700">
+                  <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                  Mengupload dan memproses file di server, mohon tunggu...
+                </div>
+              ) : null}
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <InfoStatCard label="Berhasil" value={successCount} helper="Data RFID berhasil disimpan" icon={<CheckCircle2 className="h-5 w-5" />} tone="emerald" />
-                <InfoStatCard label="Gagal" value={failCount} helper="Baris gagal yang perlu dicek lagi" icon={<AlertTriangle className="h-5 w-5" />} tone="red" />
-              </div>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={resultSearch}
-                  onChange={(e) => setResultSearch(e.target.value)}
-                  placeholder="Cari UID, nama, atau status hasil log..."
-                  className="w-full text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-              <div className="overflow-auto max-h-44 border border-gray-200 rounded-lg divide-y divide-gray-100">
-                {filteredResults.map((r, i) => (
-                  <div key={i} className="flex items-center gap-2 px-4 py-2 text-sm">
-                    <span className={r.ok ? "text-green-500" : "text-red-500"}>
-                      {r.ok ? <CheckCircleIcon /> : <XCircleIcon />}
-                    </span>
-                    <span className="font-mono font-medium text-gray-800 shrink-0">{r.uid}</span>
-                    <span className="text-gray-600 flex-1 truncate">{r.nama}</span>
-                    {!r.ok && <span className="text-xs text-red-500 text-right max-w-xs">{r.msg}</span>}
+              {done && importError ? (
+                <div className="flex items-center gap-2 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />{importError}
+                </div>
+              ) : null}
+
+              {done && result ? (
+                <>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <InfoStatCard label="Berhasil" value={result.inserted} helper="Data RFID baru tersimpan" icon={<CheckCircle2 className="h-5 w-5" />} tone="emerald" />
+                    <InfoStatCard label="Dilewati" value={result.skipped} helper="UID RFID sudah terdaftar" icon={<ShieldBan className="h-5 w-5" />} tone="amber" />
+                    <InfoStatCard label="Error" value={result.errors?.length || 0} helper="Baris gagal, perlu dicek" icon={<AlertTriangle className="h-5 w-5" />} tone="red" />
                   </div>
-                ))}
-                {filteredResults.length === 0 && (
-                  <div className="p-4 text-center text-xs text-gray-400">
-                    {importing ? "Menunggu hasil baris pertama..." : "Tidak ada hasil pencarian log yang cocok"}
-                  </div>
-                )}
-              </div>
+                  {result.errors && result.errors.length > 0 ? (
+                    <>
+                      <input
+                        type="text"
+                        value={errorSearch}
+                        onChange={(e) => setErrorSearch(e.target.value)}
+                        placeholder="Cari nama, NISN, UID, atau alasan error..."
+                        className="w-full text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                      <div className="overflow-auto max-h-44 border border-gray-200 rounded-lg divide-y divide-gray-100">
+                        {filteredErrors.map((r, i) => (
+                          <div key={i} className="flex items-center gap-2 px-4 py-2 text-sm">
+                            <span className="text-red-500"><XCircleIcon /></span>
+                            <span className="font-mono font-medium text-gray-800 shrink-0">{r.nisn || "-"}</span>
+                            <span className="text-gray-600 flex-1 truncate">{r.nama || "-"}</span>
+                            <span className="text-xs text-red-500 text-right max-w-xs">{r.reason}</span>
+                          </div>
+                        ))}
+                        {filteredErrors.length === 0 ? (
+                          <div className="p-4 text-center text-xs text-gray-400">Tidak ada hasil pencarian yang cocok</div>
+                        ) : null}
+                      </div>
+                    </>
+                  ) : null}
+                </>
+              ) : null}
             </div>
           )}
 
@@ -731,24 +675,23 @@ function ImportModal({ onClose, onImportDone, students }) {
             >
               {done ? "Tutup" : "Batal"}
             </button>
-            {done && failCount > 0 && (
-              <button
-                onClick={() => startImport(true)}
-                disabled={importing}
-                className="flex-1 px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-2"
-              >
-                Retry Gagal
-              </button>
-            )}
             {!done && (
               <button
-                onClick={() => startImport(false)}
-                disabled={!rows.length || importing}
+                onClick={startImport}
+                disabled={!file || importing}
                 className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-2"
               >
                 {importing ? (
                   <><svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>Mengimport...</>
                 ) : "Mulai Import"}
+              </button>
+            )}
+            {done && (result?.errors?.length > 0) && (
+              <button
+                onClick={resetFile}
+                className="flex-1 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-2"
+              >
+                Upload File Lain
               </button>
             )}
           </div>
@@ -1460,7 +1403,7 @@ export default function RfidManagement() {
                       <div className="flex flex-col items-center gap-3 text-red-500">
                         <div className="rounded-full bg-red-50 p-3"><AlertTriangle className="h-6 w-6" /></div>
                         <p className="text-sm font-medium">{fetchError}</p>
-                        <button type="button" onClick={fetchRfid} className="rounded-xl border border-red-200 px-4 py-2 text-xs text-red-600 hover:bg-red-50">Coba Lagi</button>
+                        <button type="button" onClick={() => fetchPageRfid(page)} className="rounded-xl border border-red-200 px-4 py-2 text-xs text-red-600 hover:bg-red-50">Coba Lagi</button>
                       </div>
                     </td>
                   </tr>
@@ -1559,7 +1502,6 @@ export default function RfidManagement() {
         <ImportModal
           onClose={() => setShowImportModal(false)}
           onImportDone={handleRefresh}
-          students={studentOptions}
         />
       )}
 

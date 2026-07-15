@@ -236,7 +236,24 @@ export const rfid = {
   update: (id: string | number, data: any) => request(`/api/v1/rfid/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   patch: (id: string | number, data: any) => request(`/api/v1/rfid/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   delete: (id: string | number) => request(`/api/v1/rfid/${id}`, { method: 'DELETE' }),
+  importFile: async (file: File) => {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('file', file);  
+    const res = await fetch(`${BASE_URL}/api/v1/rfid/import`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      },
+      credentials: 'include',
+      body: formData,
+    });
+    if (res.status === 401) { redirectToLogin(); return { success: false, message: 'Sesi habis' }; }
+    const text = await res.text();
+    try { return text ? JSON.parse(text) : null; } catch { return text; }
+  },
 };
+ 
 
 export const absensiSiswa = {
   tapIn: (data: any) => request('/api/v1/absensi-siswa/tap-in', { method: 'POST', body: JSON.stringify(data) }),
