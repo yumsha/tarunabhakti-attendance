@@ -385,8 +385,19 @@ export default function SidebarContainer() {
         </a>
       )}
 
-      {/* SUPERADMIN & KESISWAAN */}
+      {/* Manajemen Mapel | SUPERADMIN */}
+      {isSuperAdmin && (
+        <a  
+        href="/dashboard/mapel"
+        data-astro-prefetch
+        className={getLinkClass("/dashboard/mapel")}
+        >
+          <BookOpen width={20} height={20} />
+          Manajemen Mapel
+        </a>
+      )}
 
+      {/* SUPERADMIN & KESISWAAN */}
       {(isSuperAdmin || isKesiswaan) && (
         <a
           href="/dashboard/tambahJadwal"
@@ -402,19 +413,6 @@ export default function SidebarContainer() {
             />
           </svg>
           Jadwal
-        </a>
-      )}
-
-
-      {/* Manajemen Mapel | SUPERADMIN */}
-      {isSuperAdmin && (
-        <a  
-          href="/dashboard/mapel"
-          data-astro-prefetch
-          className={getLinkClass("/dashboard/mapel")}
-        >
-          <BookOpen width={20} height={20} />
-          Manajemen Mapel
         </a>
       )}
 

@@ -356,25 +356,35 @@ function SearchableSelectKelas({ value, onChange, kelasOptions, disabled }) {
         disabled={disabled}
         onClick={() => !disabled && setOpen((prev) => !prev)}
         className={
-          "flex w-full items-center justify-between gap-2 rounded-xl border bg-gray-50 px-4 py-2.5 text-sm transition " +
+          "flex w-full items-start justify-between gap-2 rounded-xl border bg-gray-50 px-3 py-2.5 text-sm transition " +
           (open
             ? "border-transparent ring-2 ring-blue-500"
             : "border-gray-200 hover:border-gray-300") +
           (disabled ? " cursor-not-allowed opacity-60" : " cursor-pointer")
         }
       >
-        <span className={selected ? "text-gray-800" : "text-gray-400"}>
+        <div className={selected ? "text-gray-800 flex flex-col items-start" : "text-gray-400"}>
           {selected ? (
             <>
-              <span className="font-medium">{getClassLabel(selected)}</span>
-              {selected.tahun?.tahun_ajaran ? (
-                <span className="ml-1.5 text-xs text-gray-400">({selected.tahun.tahun_ajaran})</span>
-              ) : null}
+              <div>
+                <span className="font-medium">{getClassLabel(selected)}</span>
+                {selected.tahun?.tahun_ajaran && (
+                  <span className="ml-1.5 text-xs text-gray-400">
+                    ({selected.tahun.tahun_ajaran})
+                  </span>
+                )}
+              </div>
+
+              {selected.walasState?.isAssigned && (
+                <span className="text-xs font-medium text-amber-600">
+                  Walas: {selected.walasState.walasGuru?.nama}
+                </span>
+              )}
             </>
           ) : (
             "Pilih kelas"
           )}
-        </span>
+        </div>
         <span className="flex shrink-0 items-center gap-1">
           {selected && !disabled ? (
             <span
@@ -453,12 +463,23 @@ function SearchableSelectKelas({ value, onChange, kelasOptions, disabled }) {
                         : "text-gray-700 hover:bg-gray-50")
                     }
                   >
-                    <span>
-                      <span className="font-medium">{getClassLabel(kls)}</span>
-                      {kls.tahun?.tahun_ajaran ? (
-                        <span className="ml-1.5 text-xs text-gray-400">{kls.tahun.tahun_ajaran}</span>
-                      ) : null}
-                    </span>
+                    <div className="flex flex-col">
+                      <div>
+                        <span className="font-medium">{getClassLabel(kls)}</span>
+                        {kls.tahun?.tahun_ajaran ? (
+                          <span className="ml-1.5 text-xs text-gray-400">{kls.tahun.tahun_ajaran}</span>
+                        ) : null}
+                      </div>
+                      {kls.walasState?.isAssigned ? (
+                        <span className="text-[11px] text-amber-600 mt-0.5">
+                          Terisi: {kls.walasState.walasGuru?.nama}
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-emerald-600 mt-0.5">
+                          Tersedia (Belum ada walas)
+                        </span>
+                      )}
+                    </div>
                     {isSelected ? (
                       <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-blue-500" />
                     ) : null}
@@ -594,6 +615,11 @@ function AssignWalasModal({
                   <p className="text-sm font-semibold text-gray-800">
                     {selectedKelas ? getClassLabel(selectedKelas) : "-"}
                   </p>
+                  {selectedKelas?.walasState?.isAssigned ? (
+                    <p className="mt-1 text-xs font-medium text-amber-600">
+                      Walas Saat Ini: {selectedKelas.walasState.walasGuru?.nama}
+                    </p>
+                  ) : null}
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -1138,7 +1164,7 @@ const handleRemoveWalas = async () => {
         }}
         onSubmit={handleSubmitAssign}
         submitting={submitLoading}
-        kelasOptions={sortedKelas}
+        kelasOptions={kelasRows}
         guruOptions={walasUsers}
         initialData={editingRow}
       />
