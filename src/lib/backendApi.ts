@@ -354,6 +354,7 @@ export const finalAbsensi = {
   finalisasiSiswa: (data: any) => request('/api/v1/final-absensi/siswa', { method: 'POST', body: JSON.stringify(data) }),
   finalisasiKelas: (kelasId: string | number, data: any) => request(`/api/v1/final-absensi/kelas/${kelasId}`, { method: 'POST', body: JSON.stringify(data) }),
   finalisasiSemuaKelas: (data: any) => request('/api/v1/final-absensi/semua-kelas', { method: 'POST', body: JSON.stringify(data) }),
+  finalisasiSemuaSiswa: (data: { tanggal: string }) => request('/api/v1/final-absensi/all', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 export default { siswa, tahunAjaran, mapel, guru, orangTua, kelas, jadwal, rfid, absensiSiswa, detailAbsensi, statusRequest, users, role, auth, finalAbsensi };

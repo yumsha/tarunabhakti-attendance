@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { auth, jadwal } from "../lib/backendApi";
 
-import { UserStarIcon, UserCog, ClipboardList, School, Upload, ShieldCheck, BookOpen, GraduationCap, ScanLine } from "lucide-react";
+import { UserStarIcon, UserCog, ClipboardList, School, Upload, ShieldCheck, BookOpen, GraduationCap, ScanLine, CalendarCheck } from "lucide-react";
 
 // mampping hari 
 const HARI_MAP = ["MINGGU", "SENIN", "SELASA", "RABU", "KAMIS", "JUMAT", "SABTU"];
@@ -338,6 +338,17 @@ export default function SidebarContainer() {
         >
           <ScanLine width={20} height={20} />
           Manajemen RFID
+        </a>
+      )}
+
+      {(isAdmin || isSuperAdmin) && (
+        <a
+          href="/dashboard/finalAbsensi"
+          data-astro-prefetch
+          className={getLinkClass("/dashboard/finalAbsensi")}
+        >
+          <CalendarCheck width={20} height={20} />
+          Finalisasi Absensi
         </a>
       )}
 
