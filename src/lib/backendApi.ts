@@ -314,6 +314,38 @@ export const statusRequest = {
     request(`/api/v1/status-request/${id}/respond`, { method: 'PATCH', body: JSON.stringify(data) }),
 };
 
+export const exportApi = {
+  downloadBlob: async (path: string): Promise<Blob | null> => {
+    const token = getToken();
+    try {
+      const res = await fetch(`${BASE_URL}${path}`, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        if (res.status === 401) redirectToLogin();
+        return null;
+      }
+      return await res.blob();
+    } catch {
+      return null;
+    }
+  },
+  rekapKelasHarian: (kelasId: string | number, tanggal: string) =>
+    `/api/v1/export/rekap/kelas/harian/excel?kelas_id=${kelasId}&tanggal=${tanggal}`,
+  rekapKelasBulanan: (kelasId: string | number, bulan: number, tahun: number) =>
+    `/api/v1/export/rekap/kelas/bulanan/excel?kelas_id=${kelasId}&bulan=${bulan}&tahun=${tahun}`,
+  rekapKelasSemester: (kelasId: string | number, tahun: number, semester: number) =>
+    `/api/v1/export/rekap/kelas/semester/excel?kelas_id=${kelasId}&tahun=${tahun}&semester=${semester}`,
+  rekapKelasTahunan: (kelasId: string | number, tahun: number) =>
+    `/api/v1/export/rekap/kelas/tahunan/excel?kelas_id=${kelasId}&tahun=${tahun}`,
+  // WALAS-specific endpoint (requires WALAS role + wali verification)
+  walasRekapKelasHarian: (kelasId: string | number, tanggal: string) =>
+    `/api/v1/walas-export/rekap/kelas/harian/excel?kelas_id=${kelasId}&tanggal=${tanggal}`,
+};
+
 export const finalAbsensi = {
   // noCache: true — data kehadiran selalu di-fetch fresh karena filternya sangat dinamis.
   // Cache 60 detik lama sebelumnya bisa menyebabkan filter baru mengembalikan data filter lama.

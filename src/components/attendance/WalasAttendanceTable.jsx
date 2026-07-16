@@ -10,7 +10,7 @@ import {
   XCircle,
   Clock,
 } from "lucide-react";
-import { detailAbsensi, statusRequest } from "../../lib/backendApi";
+import { detailAbsensi, statusRequest, exportApi } from "../../lib/backendApi";
 import Pagination from "../layout/Pagination.jsx";
 
 function getTodayWIB() {
@@ -54,17 +54,6 @@ const formatDateTitle = (dateStr) =>
     month: "long",
     year: "numeric",
   });
-
-const buildExportRows = (data) =>
-  data.map((item, i) => ({
-    No: i + 1,
-    "Nama Siswa": item.siswa?.nama || "-",
-    "Waktu Masuk": item.tap_in || "-",
-    "Waktu Keluar": item.tap_out || "-",
-    "Status Tap": getStatusText(item.status_tapin),
-    "Status Absensi Walas": item.walasStatus || "-",
-    Keterangan: item.walasKeterangan || "-",
-  }));
 
 export default function WalasAttendanceTable({ kelasId, kelasName, walasId }) {
   const pageSize = 10;
@@ -258,27 +247,22 @@ export default function WalasAttendanceTable({ kelasId, kelasName, walasId }) {
   };
 
   const handleExportExcel = async () => {
-    if (filteredData.length === 0) return;
+    if (!kelasId || !filterDate) return;
     setExporting("excel");
     try {
-      const XLSX = await import("xlsx");
-      const rows = buildExportRows(filteredData);
-      const ws = XLSX.utils.json_to_sheet(rows);
-      ws["!cols"] = [
-        { wch: 5 },
-        { wch: 30 },
-        { wch: 18 },
-        { wch: 18 },
-        { wch: 18 },
-        { wch: 22 },
-        { wch: 25 },
-      ];
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Kehadiran");
-      XLSX.writeFile(
-        wb,
-        `Kehadiran_${kelasName || "Kelas"}_${formatFileDate(filterDate)}.xlsx`
-      );
+      const url = exportApi.rekapKelasHarian(kelasId, filterDate);
+      const blob = await exportApi.downloadBlob(url);
+      if (!blob) {
+        console.error("Excel export failed: no blob returned");
+        return;
+      }
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `Rekap_Harian_${kelasName || "Kelas"}_${formatFileDate(filterDate)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(a.href);
     } catch (err) {
       console.error("Excel export failed:", err);
     } finally {
