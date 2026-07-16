@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { Search, X, CheckCircle2 } from "lucide-react";
 import { kelas, tahunAjaran, finalAbsensi } from "../../lib/backendApi";
 import PageHeader from "../layout/PageHeader.jsx";
 import Pagination from "../layout/Pagination.jsx";
@@ -73,6 +74,135 @@ function SkeletonRow() {
   );
 }
 
+function SearchableDropdown({
+  value,
+  onChange,
+  options,
+  placeholder = "Pilih",
+  searchPlaceholder = "Cari...",
+  disabled = false,
+  allowClear = true,
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const containerRef = useRef(null);
+  const searchInputRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false);
+        setQuery("");
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  useEffect(() => {
+    if (open) setTimeout(() => searchInputRef.current?.focus(), 50);
+  }, [open]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return options;
+    return options.filter((o) => o.label.toLowerCase().includes(q));
+  }, [options, query]);
+
+  // Treat the "Semua ..." (value === "") option as "nothing meaningfully selected"
+  // so the trigger falls back to the placeholder instead of showing an empty pill.
+  const selected = options.find((o) => String(o.value) === String(value) && o.value !== "");
+
+  return (
+    <div ref={containerRef} className="relative w-full">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => !disabled && setOpen((prev) => !prev)}
+        className={
+          "flex w-full items-center justify-between gap-2 rounded-lg border bg-gray-50 px-3 py-2 text-sm transition " +
+          (open ? "border-transparent ring-2 ring-blue-500" : "border-gray-200 hover:border-gray-300") +
+          (disabled ? " cursor-not-allowed opacity-60" : " cursor-pointer")
+        }
+      >
+        <span className={selected ? "text-gray-700" : "text-gray-400"}>
+          {selected ? selected.label : placeholder}
+        </span>
+        <span className="flex items-center gap-1 shrink-0">
+          {selected && allowClear && !disabled ? (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(e) => { e.stopPropagation(); onChange(""); setQuery(""); }}
+              className="rounded p-0.5 text-gray-400 hover:text-gray-600"
+            >
+              <X className="h-3.5 w-3.5" />
+            </span>
+          ) : null}
+          <svg
+            className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </span>
+      </button>
+
+      {open ? (
+        <div className="absolute z-50 mt-1.5 w-full overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
+          <div className="border-b border-gray-100 px-3 py-2.5">
+            <div className="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-1.5">
+              <Search className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={searchPlaceholder}
+                className="w-full bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
+              />
+              {query ? (
+                <button type="button" onClick={() => setQuery("")} className="text-gray-400 hover:text-gray-600">
+                  <X className="h-3 w-3" />
+                </button>
+              ) : null}
+            </div>
+          </div>
+          <ul className="max-h-64 overflow-y-auto py-1">
+            {filtered.length === 0 ? (
+              <li className="px-4 py-8 text-center text-sm text-gray-400">Tidak ditemukan</li>
+            ) : (
+              filtered.map((opt) => {
+                const isSelected = String(opt.value) === String(value);
+                return (
+                  <li
+                    key={String(opt.value) || "__all__"}
+                    onClick={() => { onChange(String(opt.value)); setOpen(false); setQuery(""); }}
+                    className={
+                      "flex cursor-pointer items-center justify-between px-4 py-2.5 text-sm transition " +
+                      (isSelected ? "bg-blue-50 text-blue-700" : "text-gray-700 hover:bg-gray-50")
+                    }
+                  >
+                    <span>{opt.label}</span>
+                    {isSelected ? <CheckCircle2 className="h-3.5 w-3.5 text-blue-500" /> : null}
+                  </li>
+                );
+              })
+            )}
+          </ul>
+          <div className="border-t border-gray-100 px-3 py-2 text-[11px] text-gray-400">
+            {filtered.length} opsi ditampilkan · ketik untuk memfilter
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 // Normalize kelas data — handle nested { kelas: { id, kelas, jurusan } } or flat { id, kelas, jurusan }
 function normalizeKelas(data) {
   if (!Array.isArray(data)) return [];
@@ -83,7 +213,11 @@ function normalizeKelas(data) {
           id: item.kelas.id,
           kelas: item.kelas.kelas,
           jurusan: item.kelas.jurusan || item.jurusan || "",
+          tahun_ajaran_id: item.kelas.tahun_ajaran_id || item.kelas.tahun_id || item.kelas.tahun?.id || null,
           tahun_id: item.kelas.tahun_ajaran_id || item.kelas.tahun_id || item.kelas.tahun?.id || null,
+          walas_id: item.kelas.walas_id || item.kelas.walas?.id || null,
+          telegram_group_id: item.kelas.telegram_group_id || null,
+          status_kelas: item.kelas.status_kelas || "Active",
           tahun: item.kelas.tahun || null,
           walas: item.kelas.walas || null,
         };
@@ -92,7 +226,11 @@ function normalizeKelas(data) {
         id: item.id,
         kelas: item.kelas || item.nama_kelas || "",
         jurusan: item.jurusan || "",
+        tahun_ajaran_id: item.tahun_ajaran_id || item.tahun_id || item.tahun?.id || null,
         tahun_id: item.tahun_ajaran_id || item.tahun_id || item.tahun?.id || null,
+        walas_id: item.walas_id || item.walas?.id || null,
+        telegram_group_id: item.telegram_group_id || null,
+        status_kelas: item.status_kelas || "Active",
         tahun: item.tahun || null,
         walas: item.walas || null,
       };
@@ -105,7 +243,7 @@ function normalizeTahun(data) {
   return Array.isArray(data) ? data : [];
 }
 
-// ---- Date filter mode ----
+//  Date filter mode 
 // Consolidating "single date" and "date range" into one explicit toggle instead of
 // two always-visible input groups avoids the old bug where typing into one group
 // silently cleared the other and the table appeared to lose its data mid-edit.
@@ -125,10 +263,11 @@ export default function ExportKehadiranMain() {
   const [tanggalMulai, setTanggalMulai] = useState("");
   const [tanggalAkhir, setTanggalAkhir] = useState("");
   const [selectedJurusan, setSelectedJurusan] = useState("");
+  const [selectedTingkat, setSelectedTingkat] = useState("");
   const [selectedKelas, setSelectedKelas] = useState("");
   const [selectedTahun, setSelectedTahun] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -166,11 +305,7 @@ export default function ExportKehadiranMain() {
     loadInitialData();
   }, []);
 
-  // Debounce search input so typing doesn't fire a full (paginated) refetch per keystroke
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(searchTerm), 400);
-    return () => clearTimeout(t);
-  }, [searchTerm]);
+  // Client-side filtering is used for instantaneous search-as-you-type and status filter
 
   // Get unique jurusan values
   const jurusanList = useMemo(() => {
@@ -181,14 +316,114 @@ export default function ExportKehadiranMain() {
     return Array.from(set).sort();
   }, [classList]);
 
-  // Filter kelas based on selected filters
+  // Filter kelas based on selected filters (hierarchical filtering)
   const filteredKelasList = useMemo(() => {
     return classList.filter((k) => {
       if (selectedJurusan && k.jurusan !== selectedJurusan) return false;
-      if (selectedTahun && String(k.tahun_id || k.tahun?.id) !== selectedTahun) return false;
+      if (selectedTahun && String(k.tahun_ajaran_id) !== selectedTahun) return false;
+      if (selectedTingkat) {
+        // Match tingkat (X, XI, XII) from the start of kelas name
+        const namaKelas = String(k.kelas || "").trim().toUpperCase();
+        const tingkat = selectedTingkat.toUpperCase();
+        // e.g. "XI IPA 1" starts with "XI", not "X"
+        const afterTingkat = namaKelas.slice(tingkat.length);
+        if (!namaKelas.startsWith(tingkat) || (afterTingkat !== "" && !/^[^A-Z0-9]|^\s/.test(afterTingkat) && /^[A-Z]/.test(afterTingkat))) return false;
+      }
       return true;
     });
-  }, [classList, selectedJurusan, selectedTahun]);
+  }, [classList, selectedJurusan, selectedTahun, selectedTingkat]);
+
+  // Options for the searchable dropdowns (mirrors the old <option> lists)
+  const jurusanOptions = useMemo(
+    () => [
+      { value: "", label: "Semua Jurusan" },
+      ...jurusanList.map((j) => ({ value: j, label: j })),
+    ],
+    [jurusanList]
+  );
+
+  const kelasOptions = useMemo(
+    () => [
+      { value: "", label: "Semua Kelas" },
+      ...filteredKelasList.map((k) => ({
+        value: k.id,
+        label: `${k.kelas}${k.jurusan ? ` - ${k.jurusan}` : ""}`,
+      })),
+    ],
+    [filteredKelasList]
+  );
+
+  const tahunOptions = useMemo(
+    () => [
+      { value: "", label: "Semua Tahun Ajaran" },
+      ...tahunList.map((t) => ({ value: t.id, label: t.tahun_ajaran })),
+    ],
+    [tahunList]
+  );
+
+  const tingkatOptions = useMemo(
+    () => [
+      { value: "", label: "Semua Tingkat" },
+      { value: "X", label: "Kelas X" },
+      { value: "XI", label: "Kelas XI" },
+      { value: "XII", label: "Kelas XII" },
+    ],
+    []
+  );
+
+  const statusOptions = useMemo(
+    () => [
+      { value: "", label: "Semua Status" },
+      { value: "Hadir", label: "Hadir" },
+      { value: "Izin", label: "Izin" },
+      { value: "Sakit", label: "Sakit" },
+      { value: "Alpha", label: "Alpha" },
+    ],
+    []
+  );
+
+  // Simple filter handlers — selecting a class doesn't auto-lock Jurusan/Tahun
+  const handleKelasChange = useCallback((kelasId) => {
+    setSelectedKelas(kelasId);
+  }, []);
+
+  const handleJurusanChange = useCallback((jurusan) => {
+    setSelectedJurusan(jurusan);
+    // If current selected class doesn't belong to the new jurusan, clear it
+    if (selectedKelas && jurusan) {
+      const kelasObj = classList.find((k) => String(k.id) === String(selectedKelas));
+      if (kelasObj && kelasObj.jurusan !== jurusan) {
+        setSelectedKelas("");
+      }
+    }
+  }, [selectedKelas, classList]);
+
+  const handleTingkatChange = useCallback((tingkat) => {
+    setSelectedTingkat(tingkat);
+    // If current selected class doesn't match the new tingkat, clear it
+    if (selectedKelas && tingkat) {
+      const kelasObj = classList.find((k) => String(k.id) === String(selectedKelas));
+      if (kelasObj) {
+        const namaKelas = String(kelasObj.kelas || "").trim().toUpperCase();
+        const t = tingkat.toUpperCase();
+        const afterTingkat = namaKelas.slice(t.length);
+        if (!namaKelas.startsWith(t) || (afterTingkat !== "" && !/^[^A-Z0-9]|^\s/.test(afterTingkat) && /^[A-Z]/.test(afterTingkat))) {
+          setSelectedKelas("");
+        }
+      }
+    }
+  }, [selectedKelas, classList]);
+
+  const handleTahunChange = useCallback((tahunId) => {
+    setSelectedTahun(tahunId);
+    // If current selected class doesn't belong to the new tahun, clear it
+    if (selectedKelas && tahunId) {
+      const kelasObj = classList.find((k) => String(k.id) === String(selectedKelas));
+      if (kelasObj && String(kelasObj.tahun_ajaran_id) !== String(tahunId)) {
+        setSelectedKelas("");
+      }
+    }
+  }, [selectedKelas, classList]);
 
   // Is the currently-active date mode "complete" enough to query?
   const isRangeIncomplete =
@@ -207,10 +442,13 @@ export default function ExportKehadiranMain() {
         params.set("tanggal_mulai", tanggalMulai);
         params.set("tanggal_akhir", tanggalAkhir);
       }
-      if (selectedJurusan) params.set("jurusan", selectedJurusan);
-      if (selectedKelas) params.set("kelas_id", selectedKelas);
-      if (selectedTahun) params.set("tahun_ajaran_id", selectedTahun);
-      if (debouncedSearch) params.set("search", debouncedSearch);
+      
+      if (selectedKelas) {
+        params.set("kelas_id", selectedKelas);
+      } else {
+        if (selectedJurusan) params.set("jurusan", selectedJurusan);
+        if (selectedTahun) params.set("tahun_ajaran_id", selectedTahun);
+      }
 
       const rows = [];
       let currentPage = 1;
@@ -242,11 +480,9 @@ export default function ExportKehadiranMain() {
     } finally {
       setFetchingAttendance(false);
     }
-  }, [dateMode, tanggal, tanggalMulai, tanggalAkhir, selectedJurusan, selectedKelas, selectedTahun, debouncedSearch]);
+  }, [dateMode, tanggal, tanggalMulai, tanggalAkhir, selectedJurusan, selectedKelas, selectedTahun]);
 
-  // Auto-fetch when filters change — only once the active mode's date filter is complete.
-  // While incomplete (e.g. only "Dari" filled in range mode) we deliberately do NOT touch
-  // attendanceData, so the table doesn't flash empty mid-selection.
+  // Auto-fetch when filters change
   useEffect(() => {
     if (hasDateFilter) {
       fetchAttendance();
@@ -255,7 +491,43 @@ export default function ExportKehadiranMain() {
     }
   }, [hasDateFilter, tanggal, tanggalMulai, tanggalAkhir, fetchAttendance]);
 
-  const mergedData = hasDateFilter ? attendanceData : [];
+  const mergedData = useMemo(() => {
+    if (!hasDateFilter) return [];
+    return attendanceData.filter((row) => {
+      // Filter by name or NISN (case-insensitive)
+      if (searchTerm) {
+        const query = searchTerm.toLowerCase();
+        const nama = (row.nama || "").toLowerCase();
+        const nisn = (row.NISN || "").toLowerCase();
+        if (!nama.includes(query) && !nisn.includes(query)) return false;
+      }
+      // Filter by status (case-insensitive)
+      if (selectedStatus) {
+        const rowStatus = String(row.status_saat_ini || "").toUpperCase();
+        if (rowStatus !== selectedStatus.toUpperCase()) return false;
+      }
+      // Client-side jurusan guard
+      if (selectedJurusan) {
+        if ((row.jurusan || "") !== selectedJurusan) return false;
+      }
+      // Client-side tingkat guard (X, XI, XII)
+      if (selectedTingkat) {
+        const namaKelas = String(row.kelas_nama || "").trim().toUpperCase();
+        const t = selectedTingkat.toUpperCase();
+        const afterTingkat = namaKelas.slice(t.length);
+        if (!namaKelas.startsWith(t) || (afterTingkat !== "" && !/^[^A-Z0-9]|^\s/.test(afterTingkat) && /^[A-Z]/.test(afterTingkat))) return false;
+      }
+      // Client-side kelas guard: match both kelas and jurusan precisely
+      if (selectedKelas) {
+        const kelasObj = classList.find((k) => String(k.id) === String(selectedKelas));
+        if (kelasObj) {
+          if ((row.kelas_nama || "") !== kelasObj.kelas) return false;
+          if ((row.jurusan || "") !== kelasObj.jurusan) return false;
+        }
+      }
+      return true;
+    });
+  }, [hasDateFilter, attendanceData, searchTerm, selectedStatus, selectedJurusan, selectedTingkat, selectedKelas, classList]);
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(mergedData.length / pageSize));
@@ -268,7 +540,7 @@ export default function ExportKehadiranMain() {
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, selectedJurusan, selectedKelas, selectedTahun, tanggal, tanggalMulai, tanggalAkhir, dateMode]);
+  }, [searchTerm, selectedStatus, selectedJurusan, selectedTingkat, selectedKelas, selectedTahun, tanggal, tanggalMulai, tanggalAkhir, dateMode]);
 
   // Switch date mode: clear both sets of date values explicitly so there's never
   // a moment where stale values from the other mode silently affect the query.
@@ -452,8 +724,8 @@ export default function ExportKehadiranMain() {
       headStyles: { fillColor: [200, 200, 200], textColor: [0, 0, 0], lineWidth: 0.1, lineColor: [150, 150, 150] },
       footStyles: { fillColor: [230, 230, 230], textColor: [0, 0, 0] },
       columnStyles: {
-        0: { halign: 'center' }, // No
-        2: { halign: 'left' },   // Nama
+        0: { halign: 'center' },
+        2: { halign: 'left' },
       },
       didParseCell: function (data) {
         if (data.section === 'body' && data.column.index >= baseColCount) {
@@ -505,16 +777,16 @@ export default function ExportKehadiranMain() {
       periodeLabel, infoLeft
     } = data;
 
-    const FILL_A = "FFF2CC"; // light yellow — odd month
-    const FILL_B = "D9EAD3"; // light green — even month
-    const FILL_TOTAL = "D9D9D9"; // grand-total column
-    const FILL_JUMLAH = "A5A5A5"; // footer row
+    const FILL_A = "FFF2CC";
+    const FILL_B = "D9EAD3";
+    const FILL_TOTAL = "D9D9D9";
+    const FILL_JUMLAH = "A5A5A5";
 
     const rows = [];
-    rows.push(["REKAP KEHADIRAN SISWA"]);                 // row 1 (title)
-    rows.push([periodeLabel]);                            // row 2 (date range)
-    rows.push([infoLeft]);                                // row 3 (active filters)
-    rows.push([]);                                        // row 4 (spacer)
+    rows.push(["REKAP KEHADIRAN SISWA"]);
+    rows.push([periodeLabel]);
+    rows.push([infoLeft]);
+    rows.push([]);
 
     const headRow1 = new Array(totalColCount).fill(null);
     const headRow2 = new Array(totalColCount).fill(null);
@@ -528,8 +800,8 @@ export default function ExportKehadiranMain() {
     headRow1[totalStart] = "TOTAL ABSENSI";
     headRow2[totalStart] = "S"; headRow2[totalStart + 1] = "I"; headRow2[totalStart + 2] = "A";
     headRow1[lastColIdx] = "T";
-    rows.push(headRow1);                                  // header row A
-    rows.push(headRow2);                                  // header row B
+    rows.push(headRow1);
+    rows.push(headRow2);
     const headerRow1Idx = rows.length - 2; 
     const headerRow2Idx = rows.length - 1;
 
@@ -675,6 +947,7 @@ export default function ExportKehadiranMain() {
     setSelectedJurusan("");
     setSelectedKelas("");
     setSelectedTahun("");
+    setSelectedStatus("");
     setSearchTerm("");
   };
 
@@ -791,49 +1064,45 @@ export default function ExportKehadiranMain() {
               </div>
             )}
 
-            {/* Jurusan */}
-            <select
+            <SearchableDropdown
               value={selectedJurusan}
-              onChange={(e) => {
-                setSelectedJurusan(e.target.value);
-                setSelectedKelas("");
-              }}
-              className="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-gray-50"
-            >
-              <option value="">Semua Jurusan</option>
-              {jurusanList.map((j) => (
-                <option key={j} value={j}>{j}</option>
-              ))}
-            </select>
+              onChange={handleJurusanChange}
+              options={jurusanOptions}
+              placeholder="Semua Jurusan"
+              searchPlaceholder="Cari jurusan..."
+            />
 
-            {/* Kelas */}
-            <select
+            <SearchableDropdown
+              value={selectedTingkat}
+              onChange={handleTingkatChange}
+              options={tingkatOptions}
+              placeholder="Semua Tingkat"
+              searchPlaceholder="Cari tingkat..."
+            />
+
+            <SearchableDropdown
               value={selectedKelas}
-              onChange={(e) => setSelectedKelas(e.target.value)}
-              className="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-gray-50"
-            >
-              <option value="">Semua Kelas</option>
-              {filteredKelasList.map((k) => (
-                <option key={k.id} value={k.id}>
-                  {k.kelas} {k.jurusan ? `- ${k.jurusan}` : ""}
-                </option>
-              ))}
-            </select>
+              onChange={handleKelasChange}
+              options={kelasOptions}
+              placeholder="Semua Kelas"
+              searchPlaceholder="Cari kelas..."
+            />
 
-            {/* Tahun Ajaran */}
-            <select
+            <SearchableDropdown
               value={selectedTahun}
-              onChange={(e) => {
-                setSelectedTahun(e.target.value);
-                setSelectedKelas("");
-              }}
-              className="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-gray-50"
-            >
-              <option value="">Semua Tahun Ajaran</option>
-              {tahunList.map((t) => (
-                <option key={t.id} value={t.id}>{t.tahun_ajaran}</option>
-              ))}
-            </select>
+              onChange={handleTahunChange}
+              options={tahunOptions}
+              placeholder="Semua Tahun Ajaran"
+              searchPlaceholder="Cari tahun ajaran..."
+            />
+
+            <SearchableDropdown
+              value={selectedStatus}
+              onChange={setSelectedStatus}
+              options={statusOptions}
+              placeholder="Semua Status"
+              searchPlaceholder="Cari status..."
+            />
           </div>
 
           {isRangeIncomplete && (
@@ -919,7 +1188,7 @@ export default function ExportKehadiranMain() {
                             ? dateMode === DATE_MODE.SINGLE
                               ? "Pilih tanggal untuk menampilkan data kehadiran."
                               : "Pilih tanggal mulai dan akhir untuk menampilkan data kehadiran."
-                            : searchTerm || selectedJurusan || selectedKelas || selectedTahun
+                            : searchTerm || selectedStatus || selectedJurusan || selectedKelas || selectedTahun
                             ? `Tidak ada data kehadiran yang cocok dengan filter yang dipilih.`
                             : "Tidak ada data kehadiran untuk tanggal ini."}
                         </p>

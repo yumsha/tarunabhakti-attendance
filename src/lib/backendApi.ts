@@ -1,6 +1,8 @@
 const BASE_URL = (import.meta as any).env?.PUBLIC_API_BASE_URL || 'http://localhost:3000';
 const API_CACHE_PREFIX = 'tb_api_cache:';
-const API_CACHE_TTL_MS = 60_000;
+// Cache TTL: 5 menit untuk data statis (kelas, tahun, guru, dll).
+// Data kehadiran (finalAbsensi) di-fetch tanpa cache karena filternya dinamis.
+const API_CACHE_TTL_MS = 5 * 60_000;
 const apiCacheMemory = new Map<string, { at: number; body: any }>();
 
 function getToken(): string | null {
@@ -86,17 +88,18 @@ function redirectToLogin() {
   }
 }
 
-async function request(path: string, options: RequestInit & { skipAuthRedirect?: boolean } = {}): Promise<any> {
+async function request(path: string, options: RequestInit & { skipAuthRedirect?: boolean; noCache?: boolean } = {}): Promise<any> {
   const token = getToken();
-  const { headers: customHeaders, skipAuthRedirect, ...restOptions } = options as any;
+  const { headers: customHeaders, skipAuthRedirect, noCache, ...restOptions } = options as any;
   const method = String((restOptions.method || 'GET')).toUpperCase();
   const headerMap = {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(customHeaders || {}),
   } as Record<string, string>;
-  const cacheKey = method === 'GET' ? buildApiCacheKey(path, method, headerMap) : '';
+  // Skip cache jika noCache=true atau bukan GET request
+  const cacheKey = (method === 'GET' && !noCache) ? buildApiCacheKey(path, method, headerMap) : '';
 
-  if (method === 'GET') {
+  if (cacheKey) {
     const cached = readCachedResponse(cacheKey);
     if (cached !== null) return cached;
   }
@@ -136,7 +139,7 @@ async function request(path: string, options: RequestInit & { skipAuthRedirect?:
     clearApiCache();
   }
 
-  if (method === 'GET' && res.ok) {
+  if (cacheKey && res.ok) {
     writeCachedResponse(cacheKey, body);
   }
 
@@ -312,7 +315,9 @@ export const statusRequest = {
 };
 
 export const finalAbsensi = {
-  list: (params?: string) => request(`/api/v1/final-absensi${params ? `?${params}` : ''}`),
+  // noCache: true — data kehadiran selalu di-fetch fresh karena filternya sangat dinamis.
+  // Cache 60 detik lama sebelumnya bisa menyebabkan filter baru mengembalikan data filter lama.
+  list: (params?: string) => request(`/api/v1/final-absensi${params ? `?${params}` : ''}`, { noCache: true } as any),
   filters: () => request('/api/v1/final-absensi/filters'),
   finalisasiSiswa: (data: any) => request('/api/v1/final-absensi/siswa', { method: 'POST', body: JSON.stringify(data) }),
   finalisasiKelas: (kelasId: string | number, data: any) => request(`/api/v1/final-absensi/kelas/${kelasId}`, { method: 'POST', body: JSON.stringify(data) }),
