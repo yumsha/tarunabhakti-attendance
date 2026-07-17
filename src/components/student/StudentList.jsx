@@ -36,8 +36,26 @@ const downloadBlob = (blob, filename) => {
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
+  document.body.appendChild(a);
   a.click();
+  a.remove();
   URL.revokeObjectURL(url);
+};
+
+// Ambil no telp ortu dari berbagai kemungkinan bentuk field
+const getNoTelpOrtu = (student) => {
+  return (
+    student?.orang_tua?.nomor_telepon ||
+    "-"
+  );
+};
+
+const getNamaOrtu = (student) => {
+  return (
+    student?.orang_tua?.nama_orangtua ||
+    student?.orangTua?.nama_orangtua ||
+    "-"
+  );
 };
 
 // -----------------------------------------------------------------------
@@ -65,7 +83,6 @@ export default function StudentList() {
     if (!roles) return { isWalas: false, canSeeAllKelas: false };
     return {
       isWalas: roles.includes("WALAS"),
-      // Admin & Kesiswaan: lihat semua kelas + tampilkan dropdown filter
       canSeeAllKelas: roles.includes("ADMIN") || roles.includes("KESISWAAN"),
     };
   }, [roles]);
@@ -110,20 +127,24 @@ export default function StudentList() {
     fetchKelas();
   }, [roles, canSeeAllKelas]);
 
-  // -----------------------------------------------------------------------
+  // Set default filter based on roles
+
+  useEffect(() => {
+    if (roles && selectedKelas === "") {
+      setSelectedKelas(roles.includes("WALAS") ? "walas" : "all");
+    }
+  }, [roles]);
+
   // Reset page saat filter kelas berubah
-  // -----------------------------------------------------------------------
 
   useEffect(() => {
     setPage(1);
   }, [selectedKelas]);
 
-  // -----------------------------------------------------------------------
   // Fetch siswa
-  // -----------------------------------------------------------------------
 
   useEffect(() => {
-    if (!roles || !userData) return;
+    if (!roles || !userData || !selectedKelas) return;
 
     const fetchStudents = async () => {
       setLoading(true);
@@ -131,11 +152,9 @@ export default function StudentList() {
       try {
         const queryParams = { page: page.toString(), limit: "10" };
 
-        if (isWalas && userData?.guru?.id) {
-          // Walas: otomatis filter berdasarkan walas_id, tidak perlu dropdown
+        if (selectedKelas === "walas" && userData?.guru?.id) {
           queryParams.walas_id = userData.guru.id.toString();
-        } else if (canSeeAllKelas && selectedKelas) {
-          // Admin & Kesiswaan: filter berdasarkan pilihan dropdown
+        } else if (selectedKelas !== "all" && selectedKelas !== "walas") {
           queryParams.kelas_id = selectedKelas;
         }
 
@@ -158,26 +177,151 @@ export default function StudentList() {
     fetchStudents();
   }, [page, selectedKelas, roles, userData]);
 
-  // -----------------------------------------------------------------------
-  // Export
-  // -----------------------------------------------------------------------
-
+  // Export helpers
   const buildExportParams = () => {
     const params = new URLSearchParams();
-    if (isWalas && userData?.guru?.id) {
+    if (selectedKelas === "walas" && userData?.guru?.id) {
       params.set("walas_id", userData.guru.id.toString());
-    } else if (canSeeAllKelas && selectedKelas) {
+    } else if (selectedKelas !== "all" && selectedKelas !== "walas") {
       params.set("kelas_id", selectedKelas);
     }
     return params.toString();
   };
 
   const getFileSuffix = () => {
-    if (!selectedKelas || !canSeeAllKelas) return "";
+    if (selectedKelas === "walas") return "_Kelas_Saya";
+    if (selectedKelas === "all") return "_Semua_Kelas";
     const found = kelasList.find((k) => k.id.toString() === selectedKelas);
     return found
       ? `_${found.kelas}${found.jurusan ? `_${found.jurusan}` : ""}`
       : `_${selectedKelas}`;
+  };
+
+  // Ambil SEMUA data siswa sesuai filter aktif (bukan cuma 1 halaman) untuk keperluan export
+  const fetchAllStudentsForExport = async () => {
+    const queryParams = { page: "1", limit: "10000" };
+    if (selectedKelas === "walas" && userData?.guru?.id) {
+      queryParams.walas_id = userData.guru.id.toString();
+    } else if (selectedKelas !== "all" && selectedKelas !== "walas") {
+      queryParams.kelas_id = selectedKelas;
+    }
+    const res = await siswa.list(new URLSearchParams(queryParams).toString());
+    if (!res?.success) {
+      throw new Error(res?.message || "Gagal memuat data siswa untuk export");
+    }
+    return res.data || [];
+  };
+
+  const toExportRows = (data) =>
+    data.map((s) => ({
+      Nama: s.nama || "-",
+      Kelas: s.kelas ? `${s.kelas.kelas} ${s.kelas.jurusan ?? ""}`.trim() : "-",
+      NIPD: s.nipd || s.NIPD || "-",
+      NISN: s.nisn || s.NISN || "-",
+      NIK: s.nik || s.NIK || "-",
+      "Nama Orang Tua": getNamaOrtu(s),
+      "No Telp Ortu": getNoTelpOrtu(s),
+    }));
+
+  // Export Excel di sisi client (browser), tidak butuh backend
+  const exportExcelClientSide = async (data) => {
+    const XLSX = await import("xlsx");
+    const rows = toExportRows(data);
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+
+    // Lebar kolom otomatis biar rapi
+    worksheet["!cols"] = [
+      { wch: 25 }, // Nama
+      { wch: 15 }, // Kelas
+      { wch: 12 }, // NIPD
+      { wch: 12 }, // NISN
+      { wch: 18 }, // NIK
+      { wch: 25 }, // Nama Orang Tua
+      { wch: 18 }, // No Telp Ortu
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Data Siswa");
+
+    const buffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    const date = new Date().toISOString().split("T")[0];
+    downloadBlob(blob, `Data_Siswa${getFileSuffix()}_${date}.xlsx`);
+  };
+
+  // Export PDF di sisi client (browser), tidak butuh backend
+  const exportPdfClientSide = async (data) => {
+    const { jsPDF } = await import("jspdf");
+    const autoTable = (await import("jspdf-autotable")).default;
+
+    const doc = new jsPDF({ orientation: "landscape", unit: "pt" });
+
+    doc.setFontSize(14);
+    doc.text("Data Siswa", 40, 40);
+
+    doc.setFontSize(10);
+    const date = new Date().toISOString().split("T")[0];
+    doc.text(`Tanggal export: ${date}`, 40, 58);
+
+    autoTable(doc, {
+      startY: 75,
+      head: [["Nama", "Kelas", "NIPD", "NISN", "NIK", "Nama Orang Tua", "No Telp Ortu"]],
+      body: data.map((s) => [
+        s.nama || "-",
+        s.kelas ? `${s.kelas.kelas} ${s.kelas.jurusan ?? ""}`.trim() : "-",
+        s.nipd || s.NIPD || "-",
+        s.nisn || s.NISN || "-",
+        s.nik || s.NIK || "-",
+        getNamaOrtu(s),
+        getNoTelpOrtu(s),
+      ]),
+      styles: { fontSize: 8, cellPadding: 4 },
+      headStyles: { fillColor: [37, 99, 235] },
+      margin: { left: 40, right: 40 },
+    });
+
+    doc.save(`Data_Siswa${getFileSuffix()}_${date}.pdf`);
+  };
+
+  // Coba backend dulu, kalau 404 / gagal diakses -> fallback ke client-side
+  const tryBackendExport = async (endpoint, token, query) => {
+    const apiUrl = import.meta.env.VITE_API_URL;
+    if (!apiUrl) {
+      // Tidak ada base URL dikonfigurasi, langsung anggap backend tidak tersedia
+      return { ok: false, notAvailable: true };
+    }
+
+    try {
+      const res = await fetch(
+        `${apiUrl}/export/siswa/${endpoint}${query ? `?${query}` : ""}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (res.status === 404) {
+        // Endpoint memang belum ada di backend
+        return { ok: false, notAvailable: true };
+      }
+
+      if (!res.ok) {
+        // Endpoint ada tapi error asli (401/403/500/dll) -> jangan disembunyikan
+        const text = await res.text().catch(() => "");
+        throw new Error(`Export dari server gagal (status ${res.status}) ${text}`.trim());
+      }
+
+      const blob = await res.blob();
+      return { ok: true, blob };
+    } catch (err) {
+      if (err instanceof TypeError) {
+        // Network error / CORS / server mati -> anggap backend tidak tersedia, fallback
+        console.warn("Backend export tidak dapat diakses, fallback ke client-side:", err);
+        return { ok: false, notAvailable: true };
+      }
+      // Error asli dari server (bukan network) -> lempar supaya user tahu
+      throw err;
+    }
   };
 
   const handleExport = async (type) => {
@@ -188,26 +332,37 @@ export default function StudentList() {
       const token = localStorage.getItem("accessToken");
       const query = buildExportParams();
       const endpoint = isExcel ? "excel" : "pdf";
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/export/siswa/${endpoint}${query ? `?${query}` : ""}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (!res.ok) throw new Error("Export gagal");
-      const blob = await res.blob();
-      const date = new Date().toISOString().split("T")[0];
-      const ext = isExcel ? "xlsx" : "pdf";
-      downloadBlob(blob, `Data_Siswa${getFileSuffix()}_${date}.${ext}`);
+
+      const result = await tryBackendExport(endpoint, token, query);
+
+      if (result.ok) {
+        const date = new Date().toISOString().split("T")[0];
+        const ext = isExcel ? "xlsx" : "pdf";
+        downloadBlob(result.blob, `Data_Siswa${getFileSuffix()}_${date}.${ext}`);
+      } else {
+        // Fallback: generate file langsung di browser
+        const allData = await fetchAllStudentsForExport();
+        if (allData.length === 0) {
+          setError("Tidak ada data siswa untuk diexport pada filter ini");
+          return;
+        }
+        if (isExcel) {
+          await exportExcelClientSide(allData);
+        } else {
+          await exportPdfClientSide(allData);
+        }
+      }
     } catch (err) {
       console.error(`Export ${type} error:`, err);
-      setError(`Gagal mengekspor ${isExcel ? "Excel" : "PDF"}`);
+      setError(`Gagal mengekspor ${isExcel ? "Excel" : "PDF"}: ${err.message || ""}`);
     } finally {
       setExporting((prev) => ({ ...prev, [type]: false }));
     }
   };
 
-  // -----------------------------------------------------------------------
+  //
   // Render: belum load roles
-  // -----------------------------------------------------------------------
+  //
 
   if (roles === null) {
     return (
@@ -217,10 +372,7 @@ export default function StudentList() {
     );
   }
 
-  // -----------------------------------------------------------------------
   // Render utama
-  // -----------------------------------------------------------------------
-
   return (
     <div className="bg-white rounded-lg shadow-sm overflow-hidden">
       {error && (
@@ -243,7 +395,8 @@ export default function StudentList() {
               onChange={(e) => setSelectedKelas(e.target.value)}
               className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[180px]"
             >
-              <option value="">Semua Kelas</option>
+              {isWalas && <option value="walas">Kelas Saya (Walas)</option>}
+              <option value="all">Semua Kelas</option>
               {kelasList.map((k) => (
                 <option key={k.id} value={k.id.toString()}>
                   {k.kelas} {k.jurusan}
@@ -254,7 +407,7 @@ export default function StudentList() {
         )}
 
         {/* Spacer jika walas (tidak ada dropdown, export tetap di kanan) */}
-        {isWalas && <div />}
+        {isWalas && !canSeeAllKelas && <div />}
 
         {/* Export Buttons */}
         <div className="flex items-center gap-3">
@@ -299,10 +452,11 @@ export default function StudentList() {
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Nama</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Kelas</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">No Telp</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">NIPD</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">NISN</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">NIK</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Nama Orang Tua</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">No Telp Ortu</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
@@ -311,10 +465,11 @@ export default function StudentList() {
                 <tr key={i} className="animate-pulse">
                   <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-32" /></td>
                   <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-16" /></td>
+                  <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-20" /></td>
+                  <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-20" /></td>
                   <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-24" /></td>
-                  <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-20" /></td>
-                  <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-20" /></td>
                   <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-28" /></td>
+                  <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-24" /></td>
                 </tr>
               ))
             ) : students.length > 0 ? (
@@ -326,18 +481,17 @@ export default function StudentList() {
                       ? `${student.kelas.kelas} ${student.kelas.jurusan ?? ""}`.trim()
                       : "-"}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">{student.nomor_telepon}</td>
-                  <td className="px-6 py-4 text-sm text-gray-900">{student.NIPD}</td>
-                  <td className="px-6 py-4 text-sm text-gray-900">{student.NISN}</td>
-                  <td className="px-6 py-4 text-sm text-gray-900">
-                    {student.orang_tua?.nama_orangtua || "-"}
-                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-900">{student.nipd || student.NIPD || "-"}</td>
+                  <td className="px-6 py-4 text-sm text-gray-900">{student.nisn || student.NISN || "-"}</td>
+                  <td className="px-6 py-4 text-sm text-gray-900">{student.nik || student.NIK || "-"}</td>
+                  <td className="px-6 py-4 text-sm text-gray-900">{getNamaOrtu(student)}</td>
+                  <td className="px-6 py-4 text-sm text-gray-900">{getNoTelpOrtu(student)}</td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
-                  Tidak ada data siswa{selectedKelas ? " untuk kelas ini" : ""}.
+                <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
+                  Tidak ada data siswa{selectedKelas && selectedKelas !== "all" ? " untuk filter ini" : ""}.
                 </td>
               </tr>
             )}
