@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { jadwal, guru, kelas, mapel, auth } from "../../lib/backendApi";
 import PageHeader from "../layout/PageHeader";
 
@@ -100,6 +100,145 @@ const applyDataStyle = (cell, bgHex = "FFFFFF", alignH = "left") => {
   cell.border = borderStyle;
 };
 
+function SearchableSelect({ value, onChange, options, placeholder, disabled, renderLabel, getSearchText, activeBlue = false }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const containerRef = useRef(null);
+  const searchInputRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false);
+        setQuery("");
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  useEffect(() => {
+    if (open) setTimeout(() => searchInputRef.current?.focus(), 50);
+  }, [open]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return options;
+    return options.filter((item) => getSearchText(item).toLowerCase().includes(q));
+  }, [options, query, getSearchText]);
+
+  const selected = options.find((item) => String(item.id || item.value || item) === String(value));
+
+  return (
+    <div ref={containerRef} className="relative w-full">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => !disabled && setOpen((prev) => !prev)}
+        className={
+          "flex w-full items-center justify-between gap-2 rounded-xl border px-4 py-2 text-sm transition " +
+          (open
+            ? "border-transparent ring-2 ring-blue-500 bg-white"
+            : selected && !disabled && activeBlue
+            ? "border-blue-500 bg-blue-50 ring-1 ring-blue-500"
+            : "border-gray-200 bg-gray-50 hover:border-gray-300") +
+          (disabled ? " cursor-not-allowed opacity-60" : " cursor-pointer")
+        }
+      >
+        <span className={selected ? (activeBlue && !disabled ? "text-blue-700 font-semibold" : "text-gray-800") : "text-gray-400"}>
+          {selected ? renderLabel(selected) : placeholder}
+        </span>
+        <span className="flex shrink-0 items-center gap-1">
+          {selected && !disabled ? (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(e) => {
+                e.stopPropagation();
+                onChange("");
+                setQuery("");
+              }}
+              className={`rounded p-0.5 ${activeBlue ? "text-blue-400 hover:text-blue-600 hover:bg-blue-100" : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"}`}
+            >
+              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </span>
+          ) : null}
+          <svg
+            className={`h-4 w-4 transition-transform duration-200 ${open ? "rotate-180" : ""} ${selected && activeBlue && !disabled ? "text-blue-500" : "text-gray-400"}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </span>
+      </button>
+
+      {open ? (
+        <div className="absolute z-50 mt-1.5 w-full overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
+          <div className="border-b border-gray-100 px-3 py-2.5">
+            <div className="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-1.5">
+              <svg className="h-3.5 w-3.5 shrink-0 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Cari..."
+                className="w-full bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
+              />
+              {query ? (
+                <button
+                  type="button"
+                  onClick={() => setQuery("")}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+              ) : null}
+            </div>
+          </div>
+          <ul className="max-h-64 overflow-y-auto py-1">
+            {filtered.length === 0 ? (
+              <li className="px-4 py-8 text-center text-sm text-gray-400">
+                Tidak ada data
+              </li>
+            ) : (
+              filtered.map((item) => {
+                const itemValue = String(item.id || item.value || item);
+                const isSelected = itemValue === String(value);
+                return (
+                  <li
+                    key={itemValue}
+                    onClick={() => {
+                      onChange(itemValue);
+                      setOpen(false);
+                      setQuery("");
+                    }}
+                    className={
+                      "flex cursor-pointer items-center justify-between px-4 py-2.5 text-sm transition " +
+                      (isSelected
+                        ? "bg-blue-50 text-blue-700"
+                        : "text-gray-700 hover:bg-gray-50")
+                    }
+                  >
+                    <span>{renderLabel(item)}</span>
+                    {isSelected ? (
+                      <svg className="h-3.5 w-3.5 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                    ) : null}
+                  </li>
+                );
+              })
+            )}
+          </ul>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function DaftarJadwal() {
   const [jadwalList, setJadwalList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -141,7 +280,7 @@ export default function DaftarJadwal() {
         if (res?.success && res?.data?.roles) {
           const roles = res.data.roles.map((r) => r.name.toUpperCase());
           const hasAccess = roles.some((r) =>
-            ["SUPER_ADMIN"].includes(r)
+            ["SUPER_ADMIN", "KESISWAAN"].includes(r)
           );
           setCanManageJadwal(hasAccess);
         }
@@ -528,7 +667,7 @@ export default function DaftarJadwal() {
       item.guru?.nama?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchKelas = selectedKelasFilter
-      ? String(item.kelas?.id) === selectedKelasFilter
+      ? String(item.kelas?.id) === String(selectedKelasFilter)
       : true;
 
     return matchSearch && matchKelas;
@@ -691,30 +830,16 @@ export default function DaftarJadwal() {
               </div>
 
               {/* Dropdown Filter Kelas */}
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 pointer-events-none">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                      d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                  </svg>
-                </span>
-                <select
+              <div className="w-56">
+                <SearchableSelect
                   value={selectedKelasFilter}
-                  onChange={(e) => setSelectedKelasFilter(e.target.value)}
-                  className="pl-9 pr-8 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-sm appearance-none cursor-pointer text-gray-700 w-48"
-                >
-                  <option value="">Semua Kelas</option>
-                  {kelasList.map((k) => (
-                    <option key={k.id} value={String(k.id)}>
-                      {k.kelas} {k.jurusan}
-                    </option>
-                  ))}
-                </select>
-                <span className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 pointer-events-none">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </span>
+                  onChange={setSelectedKelasFilter}
+                  options={kelasList}
+                  placeholder="Semua Kelas"
+                  activeBlue={true}
+                  renderLabel={(item) => `${item.kelas} ${item.jurusan}`}
+                  getSearchText={(item) => `${item.kelas} ${item.jurusan}`}
+                />
               </div>
 
               {/* Reset filter */}
@@ -878,8 +1003,8 @@ export default function DaftarJadwal() {
         <div className="mt-6 flex items-center justify-between text-xs text-gray-500">
           <p>
             Menampilkan {filteredJadwal.length} sesi jadwal
-            {selectedKelasFilter && kelasList.find(k => String(k.id) === selectedKelasFilter)
-              ? ` — ${kelasList.find(k => String(k.id) === selectedKelasFilter)?.kelas} ${kelasList.find(k => String(k.id) === selectedKelasFilter)?.jurusan}`
+            {selectedKelasFilter && kelasList.find(k => String(k.id) === String(selectedKelasFilter))
+              ? ` — ${kelasList.find(k => String(k.id) === String(selectedKelasFilter))?.kelas} ${kelasList.find(k => String(k.id) === String(selectedKelasFilter))?.jurusan}`
               : ""}.
           </p>
         </div>
@@ -934,8 +1059,8 @@ export default function DaftarJadwal() {
       {/* ── Modal Tambah Jadwal ────────────────────────────────────────────── */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-visible">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50 rounded-t-2xl">
               <h3 className="text-lg font-bold text-gray-900">Tambah Jadwal Pelajaran</h3>
               <button
                 onClick={() => setShowCreateModal(false)}
@@ -948,56 +1073,65 @@ export default function DaftarJadwal() {
               </button>
             </div>
 
-            <div className="p-6 overflow-y-auto max-h-[70vh]">
+            <div className="p-6 overflow-visible pb-32">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5">Hari</label>
-                  <select
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  <SearchableSelect
                     value={newJadwal.hari}
-                    onChange={(e) => setNewJadwal({ ...newJadwal, hari: e.target.value })}
-                  >
-                    {HARI_ORDER.map((h) => <option key={h} value={h}>{h}</option>)}
-                  </select>
+                    onChange={(v) => setNewJadwal({ ...newJadwal, hari: v })}
+                    options={HARI_ORDER}
+                    placeholder="Pilih Hari..."
+                    renderLabel={(item) => <span className="font-medium">{item}</span>}
+                    getSearchText={(item) => item}
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5">Kelas</label>
-                  <select
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  <SearchableSelect
                     value={newJadwal.kelas_id}
-                    onChange={(e) => setNewJadwal({ ...newJadwal, kelas_id: e.target.value })}
-                  >
-                    <option value="">Pilih Kelas...</option>
-                    {kelasList.map((k) => (
-                      <option key={k.id} value={k.id}>{k.kelas} {k.jurusan}</option>
-                    ))}
-                  </select>
+                    onChange={(v) => setNewJadwal({ ...newJadwal, kelas_id: v })}
+                    options={kelasList}
+                    placeholder="Pilih Kelas..."
+                    renderLabel={(item) => (
+                      <>
+                        <span className="font-medium">{item.kelas} {item.jurusan}</span>
+                        {(item.tahun?.tahun_ajaran || item.tahun_ajaran) && (
+                          <span className="ml-1.5 text-xs text-gray-400">
+                            ({item.tahun?.tahun_ajaran || item.tahun_ajaran})
+                          </span>
+                        )}
+                      </>
+                    )}
+                    getSearchText={(item) => `${item.kelas} ${item.jurusan} ${item.tahun?.tahun_ajaran || item.tahun_ajaran || ""}`}
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5">Mata Pelajaran</label>
-                  <select
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  <SearchableSelect
                     value={newJadwal.mapel_id}
-                    onChange={(e) => setNewJadwal({ ...newJadwal, mapel_id: e.target.value })}
-                  >
-                    <option value="">Pilih Mapel...</option>
-                    {mapelList.map((m) => (
-                      <option key={m.id} value={m.id}>{m.nama_mapel}</option>
-                    ))}
-                  </select>
+                    onChange={(v) => setNewJadwal({ ...newJadwal, mapel_id: v })}
+                    options={mapelList}
+                    placeholder="Pilih Mapel..."
+                    renderLabel={(item) => <span className="font-medium">{item.nama_mapel}</span>}
+                    getSearchText={(item) => item.nama_mapel}
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5">Guru Pengampu</label>
-                  <select
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  <SearchableSelect
                     value={newJadwal.guru_id}
-                    onChange={(e) => setNewJadwal({ ...newJadwal, guru_id: e.target.value })}
-                  >
-                    <option value="">Pilih Guru...</option>
-                    {guruList.map((g) => (
-                      <option key={g.id} value={g.id}>{g.nama}</option>
-                    ))}
-                  </select>
+                    onChange={(v) => setNewJadwal({ ...newJadwal, guru_id: v })}
+                    options={guruList}
+                    placeholder="Pilih Guru..."
+                    renderLabel={(item) => (
+                      <>
+                        <span className="font-medium">{item.nama}</span>
+                        {item.NIP ? <span className="ml-1.5 text-xs text-gray-400">({item.NIP})</span> : null}
+                      </>
+                    )}
+                    getSearchText={(item) => `${item.nama} ${item.NIP || ""}`}
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5">Jam Mulai</label>
@@ -1020,7 +1154,7 @@ export default function DaftarJadwal() {
               </div>
             </div>
 
-            <div className="px-6 py-4 bg-gray-50 flex items-center justify-end gap-3">
+            <div className="px-6 py-4 bg-gray-50 flex items-center justify-end gap-3 rounded-b-2xl">
               <button
                 className="px-4 py-2 text-sm font-semibold text-gray-600 hover:text-gray-800 disabled:opacity-50"
                 onClick={() => setShowCreateModal(false)}
