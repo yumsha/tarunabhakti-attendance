@@ -27,8 +27,15 @@ import { rfid as rfidApi, siswa as siswaApi } from "../../lib/backendApi";
 
 // ─── Template & Export Helpers ────────────────────────────────────────────────
 
-const TEMPLATE_HEADERS = ["Nama", "NISN", "NIK", "RFID"];
-const UPDATE_HEADERS = ["UID RFID", "Nama Siswa", "Status Aktif (TRUE/FALSE)"];
+// Format baku seragam: dipakai oleh Template Import, Export Data, dan Template Update
+const UNIFIED_HEADERS = [
+  "No", "Nama", "JK", "Jenis Kelamin", "NISN",
+  "Tempat Lahir", "Tanggal Lahir", "Agama",
+  "Rombel Saat Ini", "RFID", "Status Aktif (TRUE/FALSE)"
+];
+// Alias agar tidak perlu ubah referensi lama
+const TEMPLATE_HEADERS = UNIFIED_HEADERS;
+const REQUIRED_IMPORT_COLS = ["Nama", "NISN", "RFID"]; // kolom wajib saat import baru
 
 const CONCURRENCY = 5;
 
@@ -73,37 +80,48 @@ function ProgressBar({ current, total, color = "blue" }) {
 
 function getRfidGuideSheet() {
   const guideData = [
-    ["PANDUAN PENGGUNAAN - IMPORT & UPDATE RFID SISWA"],
+    ["PANDUAN PENGGUNAAN - FORMAT BAKU RFID SISWA"],
+    [""],
+    ["FORMAT FILE (berlaku untuk Import, Export, dan Update):"],
+    ["No | Nama | JK | Jenis Kelamin | NISN | Tempat Lahir | Tanggal Lahir | Agama | Rombel Saat Ini | RFID | Status Aktif (TRUE/FALSE)"],
     [""],
     ["1. IMPORT RFID BARU"],
-    ["   - Kolom yang WAJIB ada: Nama, NISN, NIK, RFID (urutan kolom bebas, boleh ada kolom tambahan lain)."],
-    ["   - Sistem mencocokkan siswa berdasarkan NISN terlebih dahulu, lalu fallback ke NIK jika NISN tidak ditemukan."],
-    ["   - Kolom RFID diisi dengan UID kartu RFID siswa yang bersangkutan. Harus unik dan belum terdaftar di sistem."],
-    ["   - File export data siswa lengkap (mis. dari Dapodik) yang sudah memiliki kolom-kolom di atas BISA langsung diupload tanpa perlu diedit ulang."],
+    ["   - Kolom WAJIB: Nama, NISN, RFID. Kolom lain boleh ada dan akan diabaikan/dilewati."],
+    ["   - Sistem mencocokkan siswa berdasarkan NISN. Jika tidak ditemukan, akan dicoba fallback ke NIK (jika ada di database)."],
+    ["   - Kolom RFID diisi UID kartu RFID siswa. Harus unik dan belum terdaftar di sistem."],
+    ["   - Kolom Status Aktif DIABAIKAN saat import — semua RFID baru otomatis aktif (TRUE)."],
     ["   - Baris dengan NISN atau RFID kosong akan dilewati dan dicatat sebagai error."],
     [""],
-    ["2. CARA UPDATE DATA RFID (fitur terpisah)"],
-    ["   - Gunakan menu 'Update Excel' dengan kolom: UID RFID, Nama Siswa, Status Aktif (TRUE/FALSE)."],
-    ["   - UID RFID bertindak sebagai kunci utama (key) untuk update."],
-    ["   - Jangan pernah mengubah UID RFID pada baris data yang ingin di-update."],
-    ["   - Anda dapat memindahkan kepemilikan kartu ke Nama Siswa lain atau mengubah Status Aktif."]
+    ["2. EXPORT DATA RFID"],
+    ["   - Hasil export menggunakan format yang SAMA dengan template import."],
+    ["   - File export dapat langsung digunakan sebagai bahan untuk Update Excel."],
+    [""],
+    ["3. UPDATE STATUS RFID"],
+    ["   - Gunakan file hasil Export, lalu ubah nilai kolom Status Aktif (TRUE/FALSE)."],
+    ["   - Kolom RFID bertindak sebagai kunci utama (key) untuk mencari data yang diupdate."],
+    ["   - HANYA kolom Status Aktif yang akan diubah. Kolom lain (Nama, NISN, dll) diabaikan."],
+    ["   - Nilai Status Aktif yang dikenali: TRUE/FALSE, 1/0, Y/N, AKTIF/NONAKTIF."]
   ];
   const ws = XLSX.utils.aoa_to_sheet(guideData);
   ws["!cols"] = [{ wch: 125 }];
   return ws;
 }
 
+
+
+// ─── Sample rows untuk template (format baku seragam) ────────────────────────
+const TEMPLATE_SAMPLE_ROWS = [
+  [1, "Budi Santoso",  "L", "Laki - laki", "0051234001", "Depok",   "2009-05-12", "Islam", "X ANIMASI 1", "3045789786", "TRUE"],
+  [2, "Siti Rahayu",  "P", "Perempuan",   "0051234002", "Jakarta", "2009-08-21", "Islam", "X ANIMASI 1", "3037676682", "TRUE"],
+];
+
 function downloadExcelTemplate() {
-  const ws = XLSX.utils.aoa_to_sheet([
-    TEMPLATE_HEADERS,
-    ["Budi Santoso", "0051234001", "3226428948557758", "04A1B2C3D4"],
-    ["Siti Rahayu", "0051234002", "7332251801315270", "04E5F6A7B8"],
-  ]);
-  ws["!cols"] = TEMPLATE_HEADERS.map(() => ({ wch: 28 }));
+  const ws = XLSX.utils.aoa_to_sheet([UNIFIED_HEADERS, ...TEMPLATE_SAMPLE_ROWS]);
+  ws["!cols"] = UNIFIED_HEADERS.map((h) => ({ wch: h === "Jenis Kelamin" ? 16 : 20 }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Template RFID");
   XLSX.utils.book_append_sheet(wb, getRfidGuideSheet(), "Panduan Penggunaan");
-  XLSX.writeFile(wb, "template_rfid.xlsx");
+  XLSX.writeFile(wb, "template_import_rfid.xlsx");
 }
 
 function downloadPdfTemplate() {
@@ -113,65 +131,78 @@ function downloadPdfTemplate() {
   doc.text("Template Import Data RFID", 14, 16);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text("Kolom wajib: Nama, NISN, NIK, RFID. Siswa dicocokkan berdasarkan NISN (fallback NIK).", 14, 23);
+  doc.text(`Kolom wajib saat import: ${REQUIRED_IMPORT_COLS.join(", ")}. Siswa dicocokkan via NISN. Kolom Status Aktif diabaikan (default TRUE).`, 14, 23);
   autoTable(doc, {
     startY: 28,
-    head: [TEMPLATE_HEADERS],
-    body: [
-      ["Budi Santoso", "0051234001", "3226428948557758", "04A1B2C3D4"],
-      ["Siti Rahayu", "0051234002", "7332251801315270", "04E5F6A7B8"],
-    ],
-    styles: { fontSize: 9 },
+    head: [UNIFIED_HEADERS],
+    body: TEMPLATE_SAMPLE_ROWS,
+    styles: { fontSize: 6.5 },
     headStyles: { fillColor: [37, 99, 235] },
   });
-  doc.save("template_rfid.pdf");
+  doc.save("template_import_rfid.pdf");
 }
 
+// Template Update — format SAMA dengan import/export agar admin tinggal pakai file export
 function downloadUpdateExcelTemplate() {
-  const ws = XLSX.utils.aoa_to_sheet([
-    UPDATE_HEADERS,
-    ["04A1B2C3D4", "Budi Santoso", "TRUE"],
-    ["04E5F6A7B8", "Siti Rahayu", "FALSE"],
-  ]);
-  ws["!cols"] = UPDATE_HEADERS.map(() => ({ wch: 32 }));
+  const ws = XLSX.utils.aoa_to_sheet([UNIFIED_HEADERS, ...TEMPLATE_SAMPLE_ROWS]);
+  ws["!cols"] = UNIFIED_HEADERS.map((h) => ({ wch: h === "Jenis Kelamin" ? 16 : 20 }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Update RFID");
   XLSX.utils.book_append_sheet(wb, getRfidGuideSheet(), "Panduan Penggunaan");
-  XLSX.writeFile(wb, "update_rfid.xlsx");
+  XLSX.writeFile(wb, "template_update_rfid.xlsx");
 }
 
 function downloadUpdatePdfTemplate() {
   const doc = new jsPDF({ orientation: "landscape" });
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
-  doc.text("Template Update Data RFID", 14, 16);
+  doc.text("Template Update Status RFID", 14, 16);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text("UID RFID bertindak sebagai key utama. Ubah Nama Siswa atau Status Aktif.", 14, 23);
+  doc.text("Kolom RFID sebagai key. Hanya kolom Status Aktif (TRUE/FALSE) yang diubah. Bisa gunakan file hasil Export langsung.", 14, 23);
   autoTable(doc, {
     startY: 28,
-    head: [UPDATE_HEADERS],
-    body: [
-      ["04A1B2C3D4", "Budi Santoso", "TRUE"],
-      ["04E5F6A7B8", "Siti Rahayu", "FALSE"],
-    ],
-    styles: { fontSize: 9 },
+    head: [UNIFIED_HEADERS],
+    body: TEMPLATE_SAMPLE_ROWS,
+    styles: { fontSize: 6.5 },
     headStyles: { fillColor: [16, 185, 129] },
   });
-  doc.save("update_rfid.pdf");
+  doc.save("template_update_rfid.pdf");
+}
+
+// Helpers untuk export — mengikuti format baku (UNIFIED_HEADERS)
+function buildExportRow(item, index) {
+  const s = item.siswa || {};
+  const jk = s.jenis_kelamin || "";
+  const kelasLabel = s.kelas
+    ? `${s.kelas.kelas}${s.kelas.jurusan ? ` ${s.kelas.jurusan}` : ""}`.trim()
+    : "-";
+  const tglLahir = s.tgl_lahir
+    ? new Date(s.tgl_lahir).toISOString().split("T")[0]
+    : "-";
+  return [
+    index + 1,
+    s.nama || "-",
+    jk,
+    jk === "L" ? "Laki - laki" : jk === "P" ? "Perempuan" : "-",
+    s.nisn || "-",
+    s.tempat_lahir || "-",
+    tglLahir,
+    s.agama || "-",
+    kelasLabel,
+    item.uid_rfid,
+    item.is_active ? "TRUE" : "FALSE",
+  ];
 }
 
 function exportTableExcel(rows) {
-  const data = rows.map((item) => ({
-    "UID RFID": item.uid_rfid,
-    "Nama Siswa": item.siswa?.nama || "-",
-    "Status Aktif (TRUE/FALSE)": item.is_active ? "TRUE" : "FALSE",
-  }));
-  const ws = XLSX.utils.json_to_sheet(data);
-  ws["!cols"] = Object.keys(data[0] || {}).map(() => ({ wch: 24 }));
+  const body = rows.map((item, i) => buildExportRow(item, i));
+  const ws = XLSX.utils.aoa_to_sheet([UNIFIED_HEADERS, ...body]);
+  ws["!cols"] = UNIFIED_HEADERS.map((h) => ({ wch: h === "Jenis Kelamin" ? 16 : 22 }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Data RFID");
-  XLSX.writeFile(wb, "data_rfid.xlsx");
+  XLSX.utils.book_append_sheet(wb, getRfidGuideSheet(), "Panduan Penggunaan");
+  XLSX.writeFile(wb, `data_rfid_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
 function exportTablePdf(rows) {
@@ -179,18 +210,17 @@ function exportTablePdf(rows) {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
   doc.text("Data RFID Siswa", 14, 16);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.text(`Diekspor: ${new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" })} · Total: ${rows.length} data`, 14, 23);
   autoTable(doc, {
-    startY: 22,
-    head: [["UID RFID", "Nama Siswa", "Status Aktif (TRUE/FALSE)"]],
-    body: rows.map((item) => [
-      item.uid_rfid,
-      item.siswa?.nama || "-",
-      item.is_active ? "TRUE" : "FALSE",
-    ]),
-    styles: { fontSize: 8 },
+    startY: 28,
+    head: [UNIFIED_HEADERS],
+    body: rows.map((item, i) => buildExportRow(item, i)),
+    styles: { fontSize: 6.5 },
     headStyles: { fillColor: [37, 99, 235] },
   });
-  doc.save("data_rfid.pdf");
+  doc.save(`data_rfid_${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
 // ─── Icon Helpers ─────────────────────────────────────────────────────────────
@@ -425,12 +455,12 @@ function RfidFormModal({ isOpen, onClose, onSubmit, editItem, loading, students 
           <form onSubmit={handleSubmit} className="space-y-5 p-6">
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700">UID RFID <span className="text-red-500">*</span></label>
-              <input value={uidRfid} onChange={(e) => setUidRfid(e.target.value)} placeholder="Contoh: 04A1B2C3D4" className={inputClass} disabled={loading} autoFocus />
+              <input value={uidRfid} onChange={(e) => setUidRfid(e.target.value)} placeholder="Contoh: 04A1B2C3D4" className={inputClass} disabled={loading || !!editItem} autoFocus={!editItem} />
             </div>
             <div className="relative">
               <label className="mb-2 block text-sm font-medium text-gray-700">Pilih Siswa <span className="text-red-500">*</span></label>
-              <SearchableSelect value={siswaId} onChange={setSiswaId} students={students} disabled={loading} />
-              <p className="mt-1.5 text-xs text-gray-400">Siswa yang sudah memiliki RFID aktif tidak bisa dipilih untuk data baru.</p>
+              <SearchableSelect value={siswaId} onChange={setSiswaId} students={students} disabled={loading || !!editItem} />
+              {!editItem && <p className="mt-1.5 text-xs text-gray-400">Siswa yang sudah memiliki RFID aktif tidak bisa dipilih untuk data baru.</p>}
             </div>
             {editItem ? (
               <label className="flex items-start gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
@@ -567,6 +597,9 @@ function ImportModal({ onClose, onImportDone }) {
         </div>
 
         <div className="p-6 space-y-5">
+          <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+            <span className="font-semibold">Catatan:</span> Apabila data di file Excel (seperti nama, kelas, dll) berbeda dengan data di sistem, data utama siswa tidak akan berubah. Sistem hanya menggunakan NISN sebagai patokan untuk mencocokkan siswa.
+          </div>
           {!file && (
             <div onDrop={handleDrop} onDragOver={(e) => e.preventDefault()} onClick={() => fileRef.current.click()}
               className="border-2 border-dashed border-blue-200 rounded-xl p-10 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all group">
@@ -756,9 +789,12 @@ function UpdateModal({ onClose, onUpdateDone, students, rfidRows }) {
     const toProcess = [];
 
     currentRows.forEach((row, idx) => {
-      const uid = String(row["UID RFID"] || "").trim();
-      const namaSiswa = String(row["Nama Siswa"] || "").trim();
-      
+      // Kolom "RFID" sebagai key (format baku seragam)
+      const uid = String(row["RFID"] || "").trim();
+      // Nama hanya untuk tampilan log, tidak dipakai untuk reassign
+      const namaSiswa = String(row["Nama"] || row["Nama Siswa"] || "").trim();
+
+      // Parse Status Aktif
       let isActive = true;
       const rawActive = row["Status Aktif (TRUE/FALSE)"];
       if (rawActive !== undefined && rawActive !== null && rawActive !== "") {
@@ -769,39 +805,26 @@ function UpdateModal({ onClose, onUpdateDone, students, rfidRows }) {
       }
 
       if (!uid) {
-        newResults[idx] = { uid: "?", nama: "?", ok: false, msg: "UID RFID wajib diisi sebagai key update" };
+        newResults[idx] = { uid: "?", nama: namaSiswa || "?", ok: false, msg: "Kolom RFID kosong — wajib diisi sebagai key update" };
         return;
       }
 
-      // Cari RFID berdasarkan UID di rfidRows
+      // Cari RFID berdasarkan UID di rfidRows (cache lokal)
       const existingRfid = rfidRows.find((r) => String(r.uid_rfid).toLowerCase() === uid.toLowerCase());
       if (!existingRfid) {
-        newResults[idx] = { uid, nama: namaSiswa || "?", ok: false, msg: `RFID dengan UID "${uid}" tidak ditemukan` };
+        newResults[idx] = { uid, nama: namaSiswa || "?", ok: false, msg: `RFID "${uid}" tidak ditemukan di sistem` };
         return;
       }
 
-      let siswaId = existingRfid.siswa_id;
-      let studentName = existingRfid.siswa?.nama || "Siswa";
-      if (namaSiswa) {
-        const matched = students.find((s) => s.nama.toLowerCase() === namaSiswa.toLowerCase());
-        if (!matched) {
-          newResults[idx] = { uid, nama: namaSiswa, ok: false, msg: `Siswa "${namaSiswa}" tidak ditemukan` };
-          return;
-        }
-        siswaId = matched.id;
-        studentName = matched.nama;
-      }
+      const studentName = existingRfid.siswa?.nama || namaSiswa || "Siswa";
 
-      const hasChanged =
-        existingRfid.siswa_id !== siswaId ||
-        existingRfid.is_active !== isActive;
-
-      if (!hasChanged) {
-        newResults[idx] = { uid, nama: studentName, ok: false, msg: "Data sama dengan sebelumnya (tidak ada perubahan)" };
+      // Hanya update jika Status Aktif berubah
+      if (existingRfid.is_active === isActive) {
+        newResults[idx] = { uid, nama: studentName, ok: false, msg: "Status Aktif sama dengan sebelumnya (tidak ada perubahan)" };
         return;
       }
 
-      toProcess.push({ idx, rfidId: existingRfid.id, uid, siswaId, is_active: isActive, studentName });
+      toProcess.push({ idx, rfidId: existingRfid.id, uid, is_active: isActive, studentName });
     });
 
     const preDone = currentRows.length - toProcess.length;
@@ -811,9 +834,10 @@ function UpdateModal({ onClose, onUpdateDone, students, rfidRows }) {
     await runWithConcurrency(
       toProcess,
       CONCURRENCY,
-      async ({ idx, rfidId, uid, siswaId, is_active, studentName }) => {
+      async ({ idx, rfidId, uid, is_active, studentName }) => {
         try {
-          const result = await rfidApi.update(rfidId, { uid_rfid: uid, siswa_id: siswaId, is_active });
+          // Hanya kirim is_active — tidak ubah uid_rfid atau siswa_id
+          const result = await rfidApi.update(rfidId, { is_active });
           const entry = { uid, nama: studentName, ok: result?.success ?? false, msg: result?.message || "" };
           newResults[idx] = entry;
           return entry;
@@ -861,8 +885,8 @@ function UpdateModal({ onClose, onUpdateDone, students, rfidRows }) {
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden">
         <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-6 py-4 flex items-center justify-between">
           <div>
-            <h2 className="text-white font-semibold text-lg">Update Data RFID</h2>
-            <p className="text-emerald-200 text-xs mt-0.5">Upload file Excel (.xlsx) — UID RFID sebagai key update</p>
+            <h2 className="text-white font-semibold text-lg">Update Status RFID</h2>
+            <p className="text-emerald-200 text-xs mt-0.5">Upload file Excel (.xlsx) — kolom RFID sebagai key, hanya Status Aktif yang diubah (perubahan nama diabaikan)</p>
           </div>
           <button
             onClick={onClose}
@@ -874,6 +898,9 @@ function UpdateModal({ onClose, onUpdateDone, students, rfidRows }) {
         </div>
 
         <div className="p-6 space-y-5">
+          <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            <span className="font-semibold">Catatan:</span> UID RFID dan nama siswa tidak dapat diganti melalui update ini. Anda hanya dapat mengubah Status Aktif (TRUE/FALSE) saja. Perubahan data siswa di Excel akan diabaikan.
+          </div>
           {!rows.length && (
             <div onDrop={handleDrop} onDragOver={(e) => e.preventDefault()} onClick={() => fileRef.current.click()}
               className="border-2 border-dashed border-emerald-200 rounded-xl p-10 text-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 transition-all group">
@@ -905,7 +932,7 @@ function UpdateModal({ onClose, onUpdateDone, students, rfidRows }) {
                 <table className="w-full text-xs">
                   <thead className="bg-gray-50 sticky top-0">
                     <tr>
-                      {UPDATE_HEADERS.map((k) => (
+                      {UNIFIED_HEADERS.map((k) => (
                         <th key={k} className="px-3 py-2 text-left font-semibold text-gray-600 whitespace-nowrap">{k}</th>
                       ))}
                     </tr>
@@ -913,8 +940,16 @@ function UpdateModal({ onClose, onUpdateDone, students, rfidRows }) {
                   <tbody className="divide-y divide-gray-100">
                     {filteredRows.slice(0, previewLimit).map((r, i) => (
                       <tr key={i}>
-                        {UPDATE_HEADERS.map((h) => (
-                          <td key={h} className="px-3 py-2 text-gray-700 whitespace-nowrap font-mono">{String(r[h] ?? "")}</td>
+                        {UNIFIED_HEADERS.map((h) => (
+                          <td key={h} className={`px-3 py-2 whitespace-nowrap font-mono ${
+                            h === "Status Aktif (TRUE/FALSE)"
+                              ? String(r[h]).toUpperCase() === "FALSE" || String(r[h]) === "0"
+                                ? "text-amber-600 font-semibold"
+                                : "text-emerald-600 font-semibold"
+                              : h === "RFID"
+                              ? "text-blue-700 font-semibold"
+                              : "text-gray-700"
+                          }`}>{String(r[h] ?? "")}</td>
                         ))}
                       </tr>
                     ))}
@@ -1058,6 +1093,7 @@ export default function RfidManagement() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [submitLoading, setSubmitLoading] = useState(false);
@@ -1134,31 +1170,38 @@ export default function RfidManagement() {
   }, []);
 
   const filteredRows = useMemo(() => {
-    if (!normalizedSearch) return rfidRows;
-    return rfidRows.filter((item) => {
+    let result = rfidRows;
+    if (statusFilter !== "ALL") {
+      const isActiveFilter = statusFilter === "ACTIVE";
+      result = result.filter((item) => item.is_active === isActiveFilter);
+    }
+    if (!normalizedSearch) return result;
+    return result.filter((item) => {
       const kelasLabel = item.siswa?.kelas
         ? `${item.siswa.kelas.kelas} ${item.siswa.kelas.jurusan || ""}`.trim() : "";
       return [item.uid_rfid, item.siswa?.nama, kelasLabel, item.siswa?.id ? String(item.siswa.id) : ""]
         .filter(Boolean).some((value) => value.toLowerCase().includes(normalizedSearch));
     });
-  }, [rfidRows, normalizedSearch]);
+  }, [rfidRows, normalizedSearch, statusFilter]);
+
+  const isFiltering = !!normalizedSearch || statusFilter !== "ALL";
 
   const pagedRows = useMemo(() => {
-    if (normalizedSearch) {
+    if (isFiltering) {
       const start = (page - 1) * pageSize;
       return filteredRows.slice(start, start + pageSize);
     }
     return pageRfidRows;
-  }, [filteredRows, page, pageRfidRows, normalizedSearch]);
+  }, [filteredRows, page, pageRfidRows, isFiltering]);
 
   const effectivePagination = useMemo(() => {
-    if (normalizedSearch) {
+    if (isFiltering) {
       const total = filteredRows.length;
       const totalPagesVal = Math.max(1, Math.ceil(total / pageSize));
       return { page, limit: pageSize, total, totalPages: totalPagesVal };
     }
     return { page, limit: pageSize, total: totalRecords, totalPages };
-  }, [filteredRows.length, page, totalRecords, totalPages, normalizedSearch]);
+  }, [filteredRows.length, page, totalRecords, totalPages, isFiltering]);
 
   const stats = useMemo(() => {
     const active = rfidRows.filter((item) => item.is_active).length;
@@ -1263,6 +1306,17 @@ export default function RfidManagement() {
                     </button>
                   ) : null}
                 </div>
+
+                {/* Status Filter */}
+                <select
+                  value={statusFilter}
+                  onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+                  className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 transition focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="ALL">Semua Status</option>
+                  <option value="ACTIVE">Aktif</option>
+                  <option value="INACTIVE">Nonaktif</option>
+                </select>
 
                 {/* Template Dropdown */}
                 <div className="relative" ref={templateRef}>
