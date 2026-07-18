@@ -427,8 +427,8 @@ export default function SidebarContainer() {
         </a>
       )}
       
-      {/* SUPERADMIN & KESISWAAN */}
-      {(isKesiswaan) && (
+      {/* SUPERADMIN Export*/}
+      {(isSuperAdmin) && (
         <a
           href="/dashboard/exportDataKehadiran"
           data-astro-prefetch
