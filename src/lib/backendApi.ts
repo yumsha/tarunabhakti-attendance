@@ -227,6 +227,9 @@ export const jadwal = {
       body: formData,
     });
     if (res.status === 401) { redirectToLogin(); return { success: false, message: 'Sesi habis' }; }
+    if (res.ok) {
+      clearApiCache();
+    }
     const text = await res.text();
     try { return text ? JSON.parse(text) : null; } catch { return text; }
   },
@@ -252,6 +255,9 @@ export const rfid = {
       body: formData,
     });
     if (res.status === 401) { redirectToLogin(); return { success: false, message: 'Sesi habis' }; }
+    if (res.ok) {
+      clearApiCache();
+    }
     const text = await res.text();
     try { return text ? JSON.parse(text) : null; } catch { return text; }
   },
@@ -277,7 +283,7 @@ export const detailAbsensi = {
   rekapSiswa: () => request('/api/v1/detail-absensi/rekap-siswa'),
   rekapKelas: (params?: string) => request(`/api/v1/detail-absensi/rekap-kelas${params ? `?${params}` : ''}`),
   rekapJadwal: (params?: string) => request(`/api/v1/detail-absensi/rekap-jadwal${params ? `?${params}` : ''}`),
-  pratinjauWalas: (params?: string) => request(`/api/v1/detail-absensi/pratinjau-walas${params ? `?${params}` : ''}`),
+  pratinjauWalas: (params?: string) => request(`/api/v1/detail-absensi/pratinjau-walas${params ? `?${params}` : ''}`, { noCache: true } as any),
   getRekapAbsensiSemuaKelas: (params?: string) => request(`/api/v1/detail-absensi/rekap-absensi${params ? `?${params}` : ''}`),
   absensiWalas: (data: any) => request('/api/v1/detail-absensi/absensi-walas', { method: 'POST', body: JSON.stringify(data), skipAuthRedirect: true }),
   delete: (id: string | number) => request(`/api/v1/detail-absensi/${id}`, { method: 'DELETE' }),

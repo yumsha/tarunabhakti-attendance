@@ -507,6 +507,7 @@ function ImportModal({ onClose, onImportDone }) {
   const [result, setResult] = useState(null); // { inserted, skipped, errors: [{nama,nisn,uid_rfid,reason}] }
   const [importError, setImportError] = useState("");
   const [errorSearch, setErrorSearch] = useState("");
+  const [previewLimit, setPreviewLimit] = useState(250);
   const fileRef = useRef();
 
   // Cegah user nutup/refresh tab di tengah proses import
@@ -529,7 +530,8 @@ function ImportModal({ onClose, onImportDone }) {
         const ws = wb.Sheets[wb.SheetNames[0]];
         const json = XLSX.utils.sheet_to_json(ws, { defval: "" });
         setTotalRows(json.length);
-        setPreview(json.slice(0, 20));
+        setPreview(json);
+        setPreviewLimit(250);
         setPreviewHeaders(json.length ? Object.keys(json[0]) : []);
       } catch (err) {
         setImportError("Gagal membaca file. Pastikan format .xlsx valid.");
@@ -550,6 +552,7 @@ function ImportModal({ onClose, onImportDone }) {
     setDone(false);
     setImportError("");
     setErrorSearch("");
+    setPreviewLimit(250);
   };
 
   const startImport = async () => {
@@ -564,6 +567,52 @@ function ImportModal({ onClose, onImportDone }) {
       onImportDone();
     } catch (err) {
       setImportError(err.message || "Terjadi kesalahan saat mengimport file.");
+    } finally {
+      setImporting(false);
+      setDone(true);
+    }
+  };
+
+  // retryFailed: generate XLSX in-memory hanya dari baris yang gagal
+  // (match by NISN atau UID RFID dari result.errors), lalu upload ulang ke endpoint yang sama.
+  // Tidak mengubah cara kerja API — cukup kirim subset file ke backend.
+  const retryFailed = async () => {
+    if (!result?.errors?.length || !preview.length) return;
+
+    const errorNisns = new Set(
+      result.errors.map((e) => String(e.nisn || "").trim()).filter(Boolean)
+    );
+    const errorRfids = new Set(
+      result.errors.map((e) => String(e.uid_rfid || "").trim()).filter(Boolean)
+    );
+
+    const failedRows = preview.filter((row) => {
+      const nisn = String(row["NISN"] || "").trim();
+      const rfid = String(row["RFID"] || "").trim();
+      return (nisn && errorNisns.has(nisn)) || (rfid && errorRfids.has(rfid));
+    });
+
+    if (!failedRows.length) return;
+
+    // Generate XLSX in-memory dari baris yang gagal
+    const ws = XLSX.utils.json_to_sheet(failedRows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Retry RFID");
+    const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    const blob = new Blob([wbout], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const retryFile = new File([blob], "retry_rfid.xlsx", { type: blob.type });
+
+    setResult(null);
+    setDone(false);
+    setImportError("");
+    setImporting(true);
+    try {
+      const res = await rfidApi.importFile(retryFile);
+      if (!res?.success) throw new Error(res?.message || "Import gagal diproses server.");
+      setResult(res.data || { inserted: 0, skipped: 0, errors: [] });
+      onImportDone();
+    } catch (err) {
+      setImportError(err.message || "Terjadi kesalahan saat mengimport ulang.");
     } finally {
       setImporting(false);
       setDone(true);
@@ -628,7 +677,7 @@ function ImportModal({ onClose, onImportDone }) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {preview.map((r, i) => (
+                    {preview.slice(0, previewLimit).map((r, i) => (
                       <tr key={i}>
                         {previewHeaders.map((h) => (
                           <td key={h} className="px-3 py-2 text-gray-700 whitespace-nowrap font-mono">{String(r[h] ?? "")}</td>
@@ -638,8 +687,17 @@ function ImportModal({ onClose, onImportDone }) {
                   </tbody>
                 </table>
               </div>
-              {totalRows > preview.length && (
-                <p className="text-[11px] text-gray-400 mt-1.5 text-center">Menampilkan {preview.length} dari {totalRows} baris (pratinjau saja, seluruh baris akan diproses saat import)</p>
+              {preview.length > previewLimit && (
+                <div className="text-center py-2 bg-gray-50 border-t border-gray-100 flex flex-col items-center justify-center">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewLimit((prev) => prev + 250)}
+                    className="text-xs text-blue-600 font-semibold hover:underline"
+                  >
+                    Tampilkan lebih banyak (+250 data) ...
+                  </button>
+                  <p className="text-[10px] text-gray-400 mt-0.5">Menampilkan {Math.min(previewLimit, preview.length)} dari {preview.length} baris (pratinjau saja, seluruh baris akan diproses saat import)</p>
+                </div>
               )}
               {importError ? (
                 <div className="mt-3 flex items-center gap-2 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -721,10 +779,10 @@ function ImportModal({ onClose, onImportDone }) {
             )}
             {done && (result?.errors?.length > 0) && (
               <button
-                onClick={resetFile}
+                onClick={retryFailed}
                 className="flex-1 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-2"
               >
-                Upload File Lain
+                Retry Gagal ({result.errors.length})
               </button>
             )}
           </div>

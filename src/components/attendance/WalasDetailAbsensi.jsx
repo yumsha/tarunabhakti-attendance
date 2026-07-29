@@ -25,9 +25,27 @@ const STATUS_OPTIONS = [
   { value: "ALPHA", label: "Alpha" },
 ];
 
+// Palet warna badge read-only per status
+const STATUS_BADGE_STYLE = {
+  HADIR: "bg-emerald-100 text-emerald-700 border border-emerald-200",
+  IZIN:  "bg-blue-100   text-blue-700   border border-blue-200",
+  SAKIT: "bg-amber-100  text-amber-700  border border-amber-200",
+  ALPHA: "bg-red-100    text-red-700    border border-red-200",
+};
+
+const STATUS_DOT_COLOR = {
+  HADIR: "bg-emerald-500",
+  IZIN:  "bg-blue-500",
+  SAKIT: "bg-amber-500",
+  ALPHA: "bg-red-500",
+};
+
 function getToday() {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
 }
+
+// Tanggal hari ini (WIB) — digunakan sebagai batas max date picker
+const TODAY_WIB = getToday();
 
 function normalizeStatus(s) {
   const v = String(s || "").toUpperCase();
@@ -36,8 +54,32 @@ function normalizeStatus(s) {
 
 function resolveDefaultStatus(siswa) {
   if (siswa.status_saat_ini) return normalizeStatus(siswa.status_saat_ini);
+  // Siswa yang tap in (tepat waktu MAUPUN terlambat) dianggap Hadir.
+  // status_tapin hanya menggambarkan waktu tap, bukan status kehadiran walas.
   if (siswa.tap_in) return "HADIR";
   return "ALPHA";
+}
+
+/**
+ * Badge read-only untuk status absensi.
+ * Status tidak bisa diubah oleh walas karena merupakan rekaman
+ * dari sistem (DetailAbsensiSiswa / tap-in). Walas tetap bisa
+ * menambah/mengubah keterangan tanpa mengubah status kehadiran.
+ */
+function StatusBadge({ status }) {
+  const key   = normalizeStatus(status);
+  const label = STATUS_OPTIONS.find((o) => o.value === key)?.label ?? key;
+  const style = STATUS_BADGE_STYLE[key] ?? "bg-gray-100 text-gray-600 border border-gray-200";
+  const dot   = STATUS_DOT_COLOR[key] ?? "bg-gray-400";
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${style}`}
+    >
+      <span className={`w-1.5 h-1.5 rounded-full ${dot} shrink-0`} />
+      {label}
+    </span>
+  );
 }
 
 export default function WalasDetailAbsensi() {
@@ -134,9 +176,10 @@ export default function WalasDetailAbsensi() {
             sudah_tap: !!s.tap_in,
             sudah_diabsen: !!s.sudah_diabsen,
             detail_id: s.detail_id,
-            status_awal: defaultStatus,
+            // Status tidak bisa diubah — hanya keterangan yang bisa diedit
             status: defaultStatus,
             keterangan: s.keterangan || "",
+            keterangan_awal: s.keterangan || "",
             dirty: false,
           };
         })
@@ -155,6 +198,7 @@ export default function WalasDetailAbsensi() {
   }, [kelasId, tanggal]);
 
   const summary = data?.summary || null;
+  // dirty hanya berlaku untuk perubahan keterangan (status tidak bisa diubah)
   const dirtyCount = useMemo(() => rows.filter((r) => r.dirty).length, [rows]);
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
   const pagedRows = useMemo(
@@ -170,19 +214,13 @@ export default function WalasDetailAbsensi() {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
-  const manualHadirCount = useMemo(
-    () => rows.filter((r) => !r.sudah_tap && r.status === "HADIR").length,
-    [rows]
-  );
-
-  const handleChangeRow = (siswaId, patch) => {
+  // Hanya perubahan keterangan yang bisa di-save — status read-only
+  const handleChangeKeterangan = (siswaId, keterangan) => {
     setRows((prev) =>
       prev.map((r) => {
         if (r.siswa_id !== siswaId) return r;
-        const next = { ...r, ...patch };
-        next.dirty =
-          next.status !== next.status_awal ||
-          String(next.keterangan || "") !== String(r.keterangan || "");
+        const next = { ...r, keterangan };
+        next.dirty = String(next.keterangan || "") !== String(next.keterangan_awal || "");
         return next;
       })
     );
@@ -212,6 +250,7 @@ export default function WalasDetailAbsensi() {
       ALPHA: "Alpha",
     };
 
+    // Hanya kirim baris yang keterangannya berubah (status tidak berubah)
     const payloadRows = rows
       .filter((r) => r.dirty)
       .map((r) => ({
@@ -231,21 +270,13 @@ export default function WalasDetailAbsensi() {
 
       if (!res?.success) throw new Error(res?.message || "Gagal menyimpan absensi");
 
-      setSuccess(
-        `Absensi berhasil disimpan${
-          manualHadirCount > 0
-            ? ` (${manualHadirCount} siswa dihadirkan manual oleh walas)`
-            : ""
-        }`
-      );
+      setSuccess("Keterangan absensi berhasil disimpan");
 
-      // ✅ FIX: Reset dirty rows locally instead of calling fetchDetail().
-      // Calling fetchDetail() after save can return 401 and trigger a redirect
-      // to the login page. Since the save succeeded, we just sync state locally.
+      // Reset dirty rows locally
       setRows((prev) =>
         prev.map((r) => ({
           ...r,
-          status_awal: r.status,   // new baseline = what was just saved
+          keterangan_awal: r.keterangan, // baseline baru = yang baru disimpan
           dirty: false,
         }))
       );
@@ -258,9 +289,24 @@ export default function WalasDetailAbsensi() {
 
   const getTapBadge = (row) => {
     if (row.sudah_tap) {
+      // Normalise ke uppercase untuk menangani variasi casing dari API
+      // ("TERLAMBAT", "Terlambat", "terlambat" semuanya tertangkap)
+      const tapStatus = String(row.status_tapin || "").toUpperCase();
+      const isLate = tapStatus === "TERLAMBAT";
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
-          {row.status_tapin === "TERLAMBAT" ? "Terlambat" : "Tepat Waktu"}
+        <span
+          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+            isLate
+              ? "bg-amber-100 text-amber-700"
+              : "bg-emerald-100 text-emerald-700"
+          }`}
+        >
+          <span
+            className={`w-1.5 h-1.5 rounded-full ${
+              isLate ? "bg-amber-500" : "bg-emerald-500"
+            }`}
+          />
+          {isLate ? "Terlambat" : "Tepat Waktu"}
         </span>
       );
     }
@@ -289,17 +335,6 @@ export default function WalasDetailAbsensi() {
         {success && (
           <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-2xl p-4 text-sm">
             {success}
-          </div>
-        )}
-
-        {manualHadirCount > 0 && (
-          <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl p-4 text-sm flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-amber-500" />
-            <span>
-              <strong>{manualHadirCount} siswa</strong> belum tap in tetapi akan
-              dicatat <strong>Hadir</strong> oleh walas. Pastikan sudah sesuai
-              sebelum menyimpan.
-            </span>
           </div>
         )}
 
@@ -365,14 +400,18 @@ export default function WalasDetailAbsensi() {
                   type="date"
                   className={`${inputClass} w-44`}
                   value={tanggal}
-                  onChange={(e) => setTanggal(e.target.value)}
+                  max={TODAY_WIB}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setTanggal(v > TODAY_WIB ? TODAY_WIB : v);
+                  }}
                 />
               </div>
 
               <div>
                 <button
                   onClick={handleSave}
-                  disabled={saving || loadingData || !kelasId || rows.length === 0}
+                  disabled={saving || loadingData || !kelasId || dirtyCount === 0}
                   className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition"
                 >
                   {saving ? (
@@ -420,15 +459,11 @@ export default function WalasDetailAbsensi() {
                   ))
                 ) : rows.length > 0 ? (
                   pagedRows.map((r, idx) => {
-                    const isManualHadir = !r.sudah_tap && r.status === "HADIR";
-                    const rowClass = isManualHadir
-                      ? "bg-amber-50/60"
-                      : r.dirty
-                        ? "bg-blue-50/30"
-                        : "hover:bg-gray-50/60";
-
                     return (
-                      <tr key={r.siswa_id} className={`transition-colors ${rowClass}`}>
+                      <tr
+                        key={r.siswa_id}
+                        className={`transition-colors ${r.dirty ? "bg-blue-50/30" : "hover:bg-gray-50/60"}`}
+                      >
                         <td className="px-6 py-4 text-sm text-gray-500 font-medium">
                           {(page - 1) * pageSize + idx + 1}
                         </td>
@@ -445,12 +480,6 @@ export default function WalasDetailAbsensi() {
                                 • Tanpa RFID
                               </span>
                             )}
-                            {isManualHadir && (
-                              <span className="inline-flex items-center gap-0.5 text-xs font-medium text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-full">
-                                <AlertCircle className="w-3 h-3" />
-                                Manual walas
-                              </span>
-                            )}
                           </div>
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-600">
@@ -463,41 +492,21 @@ export default function WalasDetailAbsensi() {
                           {r.punya_rfid ? "Ada" : "Tidak"}
                         </td>
                         <td className="px-6 py-4">{getTapBadge(r)}</td>
+
+                        {/* Status Absensi — read-only, tidak bisa diubah walas */}
                         <td className="px-6 py-4">
-                          <select
-                            className={`${inputClass} w-36 ${
-                              isManualHadir
-                                ? "border-amber-300 bg-amber-50 text-amber-800 font-medium"
-                                : ""
-                            }`}
-                            value={r.status}
-                            onChange={(e) =>
-                              handleChangeRow(r.siswa_id, { status: e.target.value })
-                            }
-                          >
-                            {STATUS_OPTIONS.map((o) => (
-                              <option key={o.value} value={o.value}>
-                                {o.label}
-                              </option>
-                            ))}
-                          </select>
+                          <StatusBadge status={r.status} />
                         </td>
+
+                        {/* Keterangan — masih bisa diedit */}
                         <td className="px-6 py-4">
                           <input
-                            className={`${inputClass} w-56 ${
-                              isManualHadir && !r.keterangan
-                                ? "border-amber-300 placeholder:text-amber-400"
-                                : ""
-                            }`}
+                            className={`${inputClass} w-56`}
                             value={r.keterangan}
                             onChange={(e) =>
-                              handleChangeRow(r.siswa_id, {
-                                keterangan: e.target.value,
-                              })
+                              handleChangeKeterangan(r.siswa_id, e.target.value)
                             }
-                            placeholder={
-                              isManualHadir ? "Alasan hadir manual..." : "Opsional"
-                            }
+                            placeholder="Opsional"
                           />
                         </td>
                       </tr>

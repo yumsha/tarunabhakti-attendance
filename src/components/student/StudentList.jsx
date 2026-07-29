@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import { siswa, kelas } from "../../lib/backendApi";
 import Pagination from "../layout/Pagination.jsx";
 
@@ -57,6 +58,180 @@ const getNamaOrtu = (student) => {
     "-"
   );
 };
+
+// -----------------------------------------------------------------------
+// Dropdown Searchable Select Kelas Component
+// -----------------------------------------------------------------------
+
+function SearchableSelectKelas({ value, onChange, kelasList, isWalas, disabled }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [coords, setCoords] = useState({ top: 0, left: 0, width: 220 });
+  const containerRef = useRef(null);
+  const searchInputRef = useRef(null);
+  const dropdownRef = useRef(null);
+
+  const updateCoords = () => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setCoords({
+      top: rect.bottom + 6,
+      left: rect.left,
+      width: Math.max(rect.width, 220),
+    });
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    updateCoords();
+
+    const handleClickOutside = (e) => {
+      if (
+        containerRef.current && !containerRef.current.contains(e.target) &&
+        dropdownRef.current && !dropdownRef.current.contains(e.target)
+      ) {
+        setOpen(false);
+        setQuery("");
+      }
+    };
+    const handleReposition = () => updateCoords();
+
+    document.addEventListener("mousedown", handleClickOutside);
+    window.addEventListener("scroll", handleReposition, true);
+    window.addEventListener("resize", handleReposition);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("scroll", handleReposition, true);
+      window.removeEventListener("resize", handleReposition);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (open) setTimeout(() => searchInputRef.current?.focus(), 50);
+  }, [open]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return kelasList;
+    return kelasList.filter((k) => {
+      const label = `${k.kelas ?? ""} ${k.jurusan ?? ""}`.toLowerCase();
+      return label.includes(q);
+    });
+  }, [kelasList, query]);
+
+  const getSelectedLabel = () => {
+    if (value === "walas") return "Kelas Saya (Walas)";
+    if (value === "all" || !value) return "Semua Kelas";
+    const found = kelasList.find((k) => String(k.id) === String(value));
+    return found ? `${found.kelas} ${found.jurusan ?? ""}` : "Pilih Kelas...";
+  };
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => !disabled && setOpen((prev) => !prev)}
+        className={
+          "flex items-center justify-between gap-2 rounded-lg border bg-gray-50 px-3 py-1.5 text-sm transition min-w-[200px] " +
+          (open
+            ? "border-transparent ring-2 ring-blue-500 bg-white"
+            : "border-gray-200 hover:border-gray-300") +
+          (disabled ? " cursor-not-allowed opacity-60" : " cursor-pointer")
+        }
+      >
+        <span className={value && value !== "all" ? "text-gray-800 font-medium" : "text-gray-500"}>
+          {getSelectedLabel()}
+        </span>
+        <span className="flex shrink-0 items-center gap-1 text-gray-400">
+          <svg
+            className={`h-4 w-4 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </span>
+      </button>
+
+      {open && createPortal(
+        <div
+          ref={dropdownRef}
+          style={{ position: "fixed", top: coords.top, left: coords.left, width: coords.width }}
+          className="z-[999] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl mt-1"
+        >
+          <div className="border-b border-gray-100 px-3 py-2">
+            <div className="flex items-center gap-2 rounded-lg bg-gray-50 px-2 py-1">
+              <svg className="h-4 w-4 shrink-0 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Cari kelas atau jurusan..."
+                className="w-full bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
+              />
+              {query ? (
+                <button type="button" onClick={() => setQuery("")} className="text-gray-400 hover:text-gray-600">
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+              ) : null}
+            </div>
+          </div>
+
+          <ul className="max-h-60 overflow-y-auto py-1">
+            {isWalas && (
+              <li
+                onClick={() => { onChange("walas"); setOpen(false); setQuery(""); }}
+                className={
+                  "flex cursor-pointer items-center justify-between px-4 py-2 text-sm transition " +
+                  (value === "walas" ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-700 hover:bg-gray-50")
+                }
+              >
+                <span>Kelas Saya (Walas)</span>
+                {value === "walas" ? <svg className="h-3.5 w-3.5 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg> : null}
+              </li>
+            )}
+            <li
+              onClick={() => { onChange("all"); setOpen(false); setQuery(""); }}
+              className={
+                "flex cursor-pointer items-center justify-between px-4 py-2 text-sm transition " +
+                (value === "all" || !value ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-700 hover:bg-gray-50")
+              }
+            >
+              <span>Semua Kelas</span>
+              {(value === "all" || !value) ? <svg className="h-3.5 w-3.5 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg> : null}
+            </li>
+
+            {filtered.length === 0 ? (
+              query && <li className="px-4 py-4 text-center text-sm text-gray-400">Kelas tidak ditemukan</li>
+            ) : (
+              filtered.map((kls) => {
+                const isSelected = String(kls.id) === String(value);
+                return (
+                  <li
+                    key={kls.id}
+                    onClick={() => { onChange(String(kls.id)); setOpen(false); setQuery(""); }}
+                    className={
+                      "flex cursor-pointer items-center justify-between px-4 py-2 text-sm transition " +
+                      (isSelected ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-700 hover:bg-gray-50")
+                    }
+                  >
+                    <span>{kls.kelas} {kls.jurusan ?? ""}</span>
+                    {isSelected ? <svg className="h-3.5 w-3.5 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg> : null}
+                  </li>
+                );
+              })
+            )}
+          </ul>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
 
 // -----------------------------------------------------------------------
 // Component
@@ -390,19 +565,12 @@ export default function StudentList() {
             <label className="text-sm text-gray-600 font-medium whitespace-nowrap">
               Filter Kelas:
             </label>
-            <select
+            <SearchableSelectKelas
               value={selectedKelas}
-              onChange={(e) => setSelectedKelas(e.target.value)}
-              className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[180px]"
-            >
-              {isWalas && <option value="walas">Kelas Saya (Walas)</option>}
-              <option value="all">Semua Kelas</option>
-              {kelasList.map((k) => (
-                <option key={k.id} value={k.id.toString()}>
-                  {k.kelas} {k.jurusan}
-                </option>
-              ))}
-            </select>
+              onChange={setSelectedKelas}
+              kelasList={kelasList}
+              isWalas={isWalas}
+            />
           </div>
         )}
 

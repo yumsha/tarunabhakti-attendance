@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { jadwal, guru, kelas, mapel, auth } from "../../lib/backendApi";
 import PageHeader from "../layout/PageHeader";
+import Pagination from "../layout/Pagination";
 
 const formatTime = (timeStr) => {
   if (!timeStr) return "-";
@@ -103,19 +105,44 @@ const applyDataStyle = (cell, bgHex = "FFFFFF", alignH = "left") => {
 function SearchableSelect({ value, onChange, options, placeholder, disabled, renderLabel, getSearchText, activeBlue = false }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [coords, setCoords] = useState({ top: 0, left: 0, width: 288 });
   const containerRef = useRef(null);
   const searchInputRef = useRef(null);
+  const dropdownRef = useRef(null);
+
+  const updateCoords = () => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setCoords({
+      top: rect.bottom + 6,
+      left: rect.left,
+      width: rect.width,
+    });
+  };
 
   useEffect(() => {
     if (!open) return;
-    const handler = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
+    updateCoords();
+
+    const handleClickOutside = (e) => {
+      if (
+        containerRef.current && !containerRef.current.contains(e.target) &&
+        dropdownRef.current && !dropdownRef.current.contains(e.target)
+      ) {
         setOpen(false);
         setQuery("");
       }
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    const handleReposition = () => updateCoords();
+
+    document.addEventListener("mousedown", handleClickOutside);
+    window.addEventListener("scroll", handleReposition, true);
+    window.addEventListener("resize", handleReposition);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("scroll", handleReposition, true);
+      window.removeEventListener("resize", handleReposition);
+    };
   }, [open]);
 
   useEffect(() => {
@@ -176,8 +203,12 @@ function SearchableSelect({ value, onChange, options, placeholder, disabled, ren
         </span>
       </button>
 
-      {open ? (
-        <div className="absolute z-50 mt-1.5 w-full overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
+      {open && createPortal(
+        <div
+          ref={dropdownRef}
+          style={{ position: "fixed", top: coords.top, left: coords.left, width: coords.width }}
+          className="z-[999] mt-1.5 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl"
+        >
           <div className="border-b border-gray-100 px-3 py-2.5">
             <div className="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-1.5">
               <svg className="h-3.5 w-3.5 shrink-0 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
@@ -220,7 +251,7 @@ function SearchableSelect({ value, onChange, options, placeholder, disabled, ren
                     className={
                       "flex cursor-pointer items-center justify-between px-4 py-2.5 text-sm transition " +
                       (isSelected
-                        ? "bg-blue-50 text-blue-700"
+                        ? "bg-blue-50 text-blue-700 font-medium"
                         : "text-gray-700 hover:bg-gray-50")
                     }
                   >
@@ -233,8 +264,9 @@ function SearchableSelect({ value, onChange, options, placeholder, disabled, ren
               })
             )}
           </ul>
-        </div>
-      ) : null}
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
@@ -244,6 +276,8 @@ export default function DaftarJadwal() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedKelasFilter, setSelectedKelasFilter] = useState("");
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 10;
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -673,6 +707,16 @@ export default function DaftarJadwal() {
     return matchSearch && matchKelas;
   });
 
+  const totalPagesCount = Math.ceil(filteredJadwal.length / itemsPerPage);
+
+  const currentPageData = useMemo(() => {
+    return filteredJadwal.slice((page - 1) * itemsPerPage, page * itemsPerPage);
+  }, [filteredJadwal, page]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, selectedKelasFilter]);
+
   const handleDeleteJadwal = (item) => {
     setSelectedJadwal(item);
     setShowDeleteModal(true);
@@ -937,8 +981,8 @@ export default function DaftarJadwal() {
                     ))}
                   </tr>
                 ))
-              ) : filteredJadwal.length > 0 ? (
-                filteredJadwal.map((item) => (
+              ) : currentPageData.length > 0 ? (
+                currentPageData.map((item) => (
                   <tr key={item.id} className="hover:bg-blue-50/30 transition-colors group">
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${HARI_COLOR[item.hari] || "bg-gray-100 text-gray-700"}`}>
@@ -998,11 +1042,18 @@ export default function DaftarJadwal() {
               )}
             </tbody>
           </table>
+          <Pagination
+            page={page}
+            totalPages={totalPagesCount || 1}
+            onPageChange={setPage}
+            summary={`Halaman ${page} dari ${totalPagesCount || 1} (Menampilkan ${currentPageData.length} dari ${filteredJadwal.length} sesi)`}
+            className="border-t border-gray-100"
+          />
         </div>
 
         <div className="mt-6 flex items-center justify-between text-xs text-gray-500">
           <p>
-            Menampilkan {filteredJadwal.length} sesi jadwal
+            Total {filteredJadwal.length} sesi jadwal ditemukan
             {selectedKelasFilter && kelasList.find(k => String(k.id) === String(selectedKelasFilter))
               ? ` — ${kelasList.find(k => String(k.id) === String(selectedKelasFilter))?.kelas} ${kelasList.find(k => String(k.id) === String(selectedKelasFilter))?.jurusan}`
               : ""}.

@@ -291,7 +291,7 @@ export default function AttendanceComparisonChart() {
             {/* Header */}
             <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-bold text-gray-900">
-                    Grafik Perbandingan Kehadiran
+                    Grafik Kehadiran
                 </h3>
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-3 text-xs text-gray-500">

@@ -17,6 +17,9 @@ function getTodayWIB() {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
 }
 
+// Tanggal hari ini (WIB) — digunakan sebagai batas max date picker
+const TODAY_WIB = getTodayWIB();
+
 const getStatusText = (status) => {
   switch (String(status || "").toUpperCase()) {
     case "TEPAT_WAKTU":
@@ -221,7 +224,11 @@ export default function WalasAttendanceTable({ kelasId, kelasName, walasId }) {
       );
     }
 
-    switch (item.status_tapin) {
+    // Normalise ke uppercase agar tidak sensitif terhadap casing dari API
+    // (misal "Terlambat" vs "TERLAMBAT" keduanya tertangkap dengan benar)
+    const tapStatus = String(item.status_tapin || "").toUpperCase();
+
+    switch (tapStatus) {
       case "TEPAT_WAKTU":
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
@@ -237,6 +244,14 @@ export default function WalasAttendanceTable({ kelasId, kelasName, walasId }) {
           </span>
         );
       default:
+        if (item.tap_in) {
+          return (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              Hadir
+            </span>
+          );
+        }
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
             <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
@@ -519,7 +534,11 @@ export default function WalasAttendanceTable({ kelasId, kelasName, walasId }) {
                 type="date"
                 className="outline-none text-sm text-gray-700 bg-transparent"
                 value={filterDate}
-                onChange={(e) => setFilterDate(e.target.value)}
+                max={TODAY_WIB}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setFilterDate(v > TODAY_WIB ? TODAY_WIB : v);
+                }}
               />
             </div>
           </div>

@@ -7,6 +7,9 @@ import { ChevronDown } from "lucide-react";
 function getTodayWIB() {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
 }
+
+// Tanggal hari ini (WIB) — digunakan sebagai batas max date picker
+const TODAY_WIB = getTodayWIB();
 const HARI_MAP = ["MINGGU", "SENIN", "SELASA", "RABU", "KAMIS", "JUMAT", "SABTU"];
 function getTodayHari() { return HARI_MAP[new Date().getDay()]; }
 function getUserFromStorage() {
@@ -74,6 +77,8 @@ function StatusTapBadge({ status }) {
   const map = {
     TEPAT_WAKTU: { label: "Tepat Waktu", cls: "bg-emerald-100 text-emerald-700" },
     TERLAMBAT:   { label: "Terlambat",   cls: "bg-amber-100 text-amber-700"     },
+    Tepat_Waktu: { label: "Tepat Waktu", cls: "bg-emerald-100 text-emerald-700" },
+    Terlambat:   { label: "Terlambat",   cls: "bg-amber-100 text-amber-700"     },
   };
   const s = map[status] ?? { label: status, cls: "bg-gray-100 text-gray-600" };
   return (
@@ -339,7 +344,13 @@ export default function KehadiranTableV2() {
             </svg>
             <div className="text-sm text-gray-500">Tanggal</div>
             <input
-              type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)}
+              type="date"
+              value={tanggal}
+              max={TODAY_WIB}
+              onChange={(e) => {
+                const v = e.target.value;
+                setTanggal(v > TODAY_WIB ? TODAY_WIB : v);
+              }}
               className="outline-none text-sm text-gray-700 bg-transparent cursor-pointer"
             />
           </div>
@@ -413,7 +424,7 @@ export default function KehadiranTableV2() {
                           <p className="text-sm font-semibold text-gray-900">{row.nama || "-"}</p>
                           {!row.punya_rfid && <span className="text-xs text-orange-400">Tanpa RFID</span>}
                         </td>
-                        <td className="px-4 py-4 text-sm text-gray-600 font-mono">{row.NISN || "-"}</td>
+                        <td className="px-4 py-4 text-sm text-gray-600 font-mono">{row.nisn || row.NISN || "-"}</td>
                         <td className="px-4 py-4 text-sm text-gray-600">{row.nomor_telepon || "-"}</td>
                         <td className="px-4 py-4 text-sm text-gray-700">
                           {row.tap_in

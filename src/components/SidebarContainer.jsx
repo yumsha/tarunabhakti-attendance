@@ -251,6 +251,49 @@ export default function SidebarContainer() {
         </svg>
         Dashboard
       </a>
+      
+            {isSuperAdmin && (
+        <a
+          href="/dashboard/kelas"
+          data-astro-prefetch
+          className={getLinkClass("/dashboard/kelas")}
+        >
+          <School width={20} height={20} />
+          Manajemen Kelas
+        </a>
+      )}
+
+      {/* Manajemen Mapel | SUPERADMIN */}
+      {isSuperAdmin && (
+        <a  
+        href="/dashboard/mapel"
+        data-astro-prefetch
+        className={getLinkClass("/dashboard/mapel")}
+        >
+          <BookOpen width={20} height={20} />
+          Manajemen Mapel
+        </a>
+      )}
+
+      {/* SUPERADMIN & KESISWAAN */}
+      {(isSuperAdmin || isKesiswaan) && (
+        <a
+          href="/dashboard/tambahJadwal"
+          data-astro-prefetch
+          className={getLinkClass("/dashboard/tambahJadwal", false)}
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+            />
+          </svg>
+          Jadwal
+        </a>
+      )}
+
 
       {/* ---- WALAS ---- */}
 
@@ -321,6 +364,17 @@ export default function SidebarContainer() {
 
       {(isAdmin || isSuperAdmin) && (
         <a
+          href="/dashboard/importOrangTua"
+          data-astro-prefetch
+          className={getLinkClass("/dashboard/importOrangTua")}
+        >
+          <Upload width={20} height={20} />
+          Tambah Orang Tua &amp; List Orang Tua
+        </a>
+      )}
+
+      {(isAdmin || isSuperAdmin) && (
+        <a
           href="/dashboard/importSiswa"
           data-astro-prefetch
           className={getLinkClass("/dashboard/importSiswa")}
@@ -352,17 +406,6 @@ export default function SidebarContainer() {
         </a>
       )}
 
-      {/* {(isAdmin || isSuperAdmin) && (
-        <a
-          href="/dashboard/importOrangTua"
-          data-astro-prefetch
-          className={getLinkClass("/dashboard/importOrangTua")}
-        >
-          <Upload width={20} height={20} />
-          Tambah Orang Tua &amp; List Orang Tua
-        </a>
-      )} */}
-
       {(isSuperAdmin) && (
         <a
           href="/dashboard/users"
@@ -385,47 +428,6 @@ export default function SidebarContainer() {
         </a>
       )}
 
-      {isSuperAdmin && (
-        <a
-          href="/dashboard/kelas"
-          data-astro-prefetch
-          className={getLinkClass("/dashboard/kelas")}
-        >
-          <School width={20} height={20} />
-          Manajemen Kelas
-        </a>
-      )}
-
-      {/* Manajemen Mapel | SUPERADMIN */}
-      {isSuperAdmin && (
-        <a  
-        href="/dashboard/mapel"
-        data-astro-prefetch
-        className={getLinkClass("/dashboard/mapel")}
-        >
-          <BookOpen width={20} height={20} />
-          Manajemen Mapel
-        </a>
-      )}
-
-      {/* SUPERADMIN & KESISWAAN */}
-      {(isSuperAdmin || isKesiswaan) && (
-        <a
-          href="/dashboard/tambahJadwal"
-          data-astro-prefetch
-          className={getLinkClass("/dashboard/tambahJadwal", false)}
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
-            />
-          </svg>
-          Jadwal
-        </a>
-      )}
       
       {/* SUPERADMIN & KESISWAAN */}
       {(isKesiswaan) && (

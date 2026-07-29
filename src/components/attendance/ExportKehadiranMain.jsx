@@ -257,6 +257,9 @@ export default function ExportKehadiranMain() {
   const [loading, setLoading] = useState(true);
   const [fetchingAttendance, setFetchingAttendance] = useState(false);
 
+  // Cegah pemilihan tanggal yang belum terlewati (real-time, WIB)
+  const TODAY_WIB = getTodayWIB();
+
   // Filter states
   const [dateMode, setDateMode] = useState(DATE_MODE.SINGLE);
   const [tanggal, setTanggal] = useState("");
@@ -1036,7 +1039,11 @@ export default function ExportKehadiranMain() {
                 <input
                   type="date"
                   value={tanggal}
-                  onChange={(e) => setTanggal(e.target.value)}
+                  max={TODAY_WIB}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setTanggal(v > TODAY_WIB ? TODAY_WIB : v);
+                  }}
                   className="outline-none text-sm text-gray-700 bg-transparent cursor-pointer w-full"
                 />
               </div>
@@ -1051,14 +1058,23 @@ export default function ExportKehadiranMain() {
                 <input
                   type="date"
                   value={tanggalMulai}
-                  onChange={(e) => setTanggalMulai(e.target.value)}
+                  max={tanggalAkhir || TODAY_WIB}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setTanggalMulai(v > TODAY_WIB ? TODAY_WIB : v);
+                  }}
                   className="outline-none text-sm text-gray-700 bg-transparent cursor-pointer"
                 />
                 <span className="text-gray-400 text-xs shrink-0">s/d</span>
                 <input
                   type="date"
                   value={tanggalAkhir}
-                  onChange={(e) => setTanggalAkhir(e.target.value)}
+                  min={tanggalMulai || undefined}
+                  max={TODAY_WIB}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setTanggalAkhir(v > TODAY_WIB ? TODAY_WIB : v);
+                  }}
                   className="outline-none text-sm text-gray-700 bg-transparent cursor-pointer"
                 />
               </div>
