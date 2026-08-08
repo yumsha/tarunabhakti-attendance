@@ -17,7 +17,7 @@ import {
   FileSpreadsheet,
   FileText,
 } from "lucide-react";
-import * as XLSX from "xlsx";
+import XLSX from "xlsx-js-style";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import PageHeader from "../layout/PageHeader";
@@ -104,10 +104,68 @@ function getRfidGuideSheet() {
   ];
   const ws = XLSX.utils.aoa_to_sheet(guideData);
   ws["!cols"] = [{ wch: 125 }];
+
+  // Style Title Row (A1)
+  const titleCell = XLSX.utils.encode_cell({ r: 0, c: 0 });
+  if (ws[titleCell]) {
+    ws[titleCell].s = {
+      fill: { fgColor: { rgb: "1E3A8A" } },
+      font: { name: "Arial", sz: 14, bold: true, color: { rgb: "FFFFFF" } },
+      alignment: { horizontal: "left", vertical: "center" }
+    };
+  }
+
+  // Style Section Headers
+  const sectionRows = [2, 5, 14, 18];
+  sectionRows.forEach((r) => {
+    const cell = XLSX.utils.encode_cell({ r: r, c: 0 });
+    if (ws[cell]) {
+      ws[cell].s = {
+        font: { name: "Arial", sz: 11, bold: true, color: { rgb: "1E3A8A" } }
+      };
+    }
+  });
+
+  // Style Content and Warning Alerts
+  for (let r = 0; r < guideData.length; r++) {
+    if (r === 0 || sectionRows.includes(r)) continue;
+    const cell = XLSX.utils.encode_cell({ r: r, c: 0 });
+    if (ws[cell]) {
+      const val = String(ws[cell].v);
+      let color = "374151";
+      let bold = false;
+      if (val.includes("WAJIB") || val.includes("DIABAIKAN") || val.includes("HANYA") || val.includes("error")) {
+        color = "DC2626";
+        bold = true;
+      }
+      ws[cell].s = {
+        font: { name: "Arial", sz: 10, bold, color: { rgb: color } }
+      };
+    }
+  }
+
   return ws;
 }
 
-
+function styleHeader(ws, headers, mode = "import") {
+  const bgColor = mode === "update" ? "10B981" : mode === "export" ? "F97316" : "2563EB"; // Emerald, Orange, or Blue
+  headers.forEach((h, i) => {
+    const cellRef = XLSX.utils.encode_cell({ r: 0, c: i });
+    if (ws[cellRef]) {
+      ws[cellRef].s = {
+        fill: { fgColor: { rgb: bgColor } },
+        font: { name: "Arial", sz: 11, bold: true, color: { rgb: "FFFFFF" } },
+        alignment: { horizontal: "center", vertical: "center", wrapText: true },
+        border: {
+          top: { style: "thin", color: { rgb: "E5E7EB" } },
+          bottom: { style: "medium", color: { rgb: "9CA3AF" } },
+          left: { style: "thin", color: { rgb: "E5E7EB" } },
+          right: { style: "thin", color: { rgb: "E5E7EB" } }
+        }
+      };
+    }
+  });
+}
 
 // ─── Sample rows untuk template (format baku seragam) ────────────────────────
 const TEMPLATE_SAMPLE_ROWS = [
@@ -118,6 +176,8 @@ const TEMPLATE_SAMPLE_ROWS = [
 function downloadExcelTemplate() {
   const ws = XLSX.utils.aoa_to_sheet([UNIFIED_HEADERS, ...TEMPLATE_SAMPLE_ROWS]);
   ws["!cols"] = UNIFIED_HEADERS.map((h) => ({ wch: h === "Jenis Kelamin" ? 16 : 20 }));
+  styleHeader(ws, UNIFIED_HEADERS, "import");
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Template RFID");
   XLSX.utils.book_append_sheet(wb, getRfidGuideSheet(), "Panduan Penggunaan");
@@ -146,6 +206,8 @@ function downloadPdfTemplate() {
 function downloadUpdateExcelTemplate() {
   const ws = XLSX.utils.aoa_to_sheet([UNIFIED_HEADERS, ...TEMPLATE_SAMPLE_ROWS]);
   ws["!cols"] = UNIFIED_HEADERS.map((h) => ({ wch: h === "Jenis Kelamin" ? 16 : 20 }));
+  styleHeader(ws, UNIFIED_HEADERS, "update");
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Update RFID");
   XLSX.utils.book_append_sheet(wb, getRfidGuideSheet(), "Panduan Penggunaan");
@@ -199,9 +261,10 @@ function exportTableExcel(rows) {
   const body = rows.map((item, i) => buildExportRow(item, i));
   const ws = XLSX.utils.aoa_to_sheet([UNIFIED_HEADERS, ...body]);
   ws["!cols"] = UNIFIED_HEADERS.map((h) => ({ wch: h === "Jenis Kelamin" ? 16 : 22 }));
+  styleHeader(ws, UNIFIED_HEADERS, "export");
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Data RFID");
-  XLSX.utils.book_append_sheet(wb, getRfidGuideSheet(), "Panduan Penggunaan");
   XLSX.writeFile(wb, `data_rfid_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
@@ -497,7 +560,7 @@ function RfidFormModal({ isOpen, onClose, onSubmit, editItem, loading, students 
 // manual di sisi client lagi, jadi file export siswa lengkap (mis. dari Dapodik)
 // yang punya kolom Nama/NISN/NIK/RFID bisa langsung diupload tanpa diedit.
 
-function ImportModal({ onClose, onImportDone }) {
+function ImportModal({ onClose, onImportDone, rfidRows }) {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState([]);
   const [previewHeaders, setPreviewHeaders] = useState([]);
@@ -506,8 +569,10 @@ function ImportModal({ onClose, onImportDone }) {
   const [done, setDone] = useState(false);
   const [result, setResult] = useState(null); // { inserted, skipped, errors: [{nama,nisn,uid_rfid,reason}] }
   const [importError, setImportError] = useState("");
-  const [errorSearch, setErrorSearch] = useState("");
+  const [logSearch, setLogSearch] = useState("");
+  const [logFilter, setLogFilter] = useState("all"); // "all" | "berhasil" | "dilewati" | "gagal"
   const [previewLimit, setPreviewLimit] = useState(250);
+  const [fullLog, setFullLog] = useState([]); // per-row log reconstructed client-side
   const fileRef = useRef();
 
   // Cegah user nutup/refresh tab di tengah proses import
@@ -523,6 +588,7 @@ function ImportModal({ onClose, onImportDone }) {
     setResult(null);
     setDone(false);
     setImportError("");
+    setFullLog([]);
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
@@ -551,19 +617,64 @@ function ImportModal({ onClose, onImportDone }) {
     setResult(null);
     setDone(false);
     setImportError("");
-    setErrorSearch("");
+    setLogSearch("");
+    setLogFilter("all");
     setPreviewLimit(250);
+    setFullLog([]);
   };
 
-  const startImport = async () => {
-    if (!file) return;
+  // Rekonstruksi log per-baris dari preview + result + snapshot rfidRows sebelum import
+  const buildLog = (currentPreview, apiResult, preImportRfidSet) => {
+    const errorMap = new Map();
+    (apiResult.errors || []).forEach((e) => {
+      const nKey = String(e.nisn || "").trim().toLowerCase();
+      const rKey = String(e.uid_rfid || "").trim().toLowerCase();
+      if (nKey) errorMap.set(`n:${nKey}`, e);
+      if (rKey) errorMap.set(`r:${rKey}`, e);
+    });
+
+    return currentPreview.map((row) => {
+      const nisn = String(row["NISN"] || "").trim();
+      const rfid = String(row["RFID"] || "").trim();
+      const nama = String(row["Nama"] || row["Nama Siswa"] || "").trim();
+
+      const errEntry =
+        (nisn && errorMap.get(`n:${nisn.toLowerCase()}`)) ||
+        (rfid && errorMap.get(`r:${rfid.toLowerCase()}`));
+
+      if (errEntry) {
+        return { nisn, uid_rfid: rfid, nama: nama || errEntry.nama || "-", status: "gagal", reason: errEntry.reason || "Gagal diproses" };
+      }
+
+      // Cek apakah RFID sudah ada sebelum import (dilewati/skip dimasukkan ke status gagal)
+      if (rfid && preImportRfidSet.has(rfid.toLowerCase())) {
+        return { nisn, uid_rfid: rfid, nama, status: "gagal", reason: "UID RFID sudah terdaftar di sistem" };
+      }
+
+      return { nisn, uid_rfid: rfid, nama, status: "berhasil", reason: "" };
+    });
+  };
+
+  const startImport = async (currentFile, currentPreview) => {
+    const f = currentFile ?? file;
+    const p = currentPreview ?? preview;
+    if (!f) return;
+
+    // Snapshot RFID yang ada sebelum import
+    const preImportRfidSet = new Set((rfidRows || []).map((r) => String(r.uid_rfid).toLowerCase()));
+
     setImporting(true);
     setDone(false);
     setImportError("");
+    setFullLog([]);
+    setLogSearch("");
+    setLogFilter("all");
     try {
-      const res = await rfidApi.importFile(file);
+      const res = await rfidApi.importFile(f);
       if (!res?.success) throw new Error(res?.message || "Import gagal diproses server.");
-      setResult(res.data || { inserted: 0, skipped: 0, errors: [] });
+      const apiResult = res.data || { inserted: 0, skipped: 0, errors: [] };
+      setResult(apiResult);
+      setFullLog(buildLog(p, apiResult, preImportRfidSet));
       onImportDone();
     } catch (err) {
       setImportError(err.message || "Terjadi kesalahan saat mengimport file.");
@@ -574,27 +685,21 @@ function ImportModal({ onClose, onImportDone }) {
   };
 
   // retryFailed: generate XLSX in-memory hanya dari baris yang gagal
-  // (match by NISN atau UID RFID dari result.errors), lalu upload ulang ke endpoint yang sama.
-  // Tidak mengubah cara kerja API — cukup kirim subset file ke backend.
   const retryFailed = async () => {
-    if (!result?.errors?.length || !preview.length) return;
+    const errorEntries = fullLog.filter((r) => r.status === "gagal");
+    if (!errorEntries.length || !preview.length) return;
 
-    const errorNisns = new Set(
-      result.errors.map((e) => String(e.nisn || "").trim()).filter(Boolean)
-    );
-    const errorRfids = new Set(
-      result.errors.map((e) => String(e.uid_rfid || "").trim()).filter(Boolean)
-    );
+    const errorNisns = new Set(errorEntries.map((e) => String(e.nisn || "").trim().toLowerCase()).filter(Boolean));
+    const errorRfids = new Set(errorEntries.map((e) => String(e.uid_rfid || "").trim().toLowerCase()).filter(Boolean));
 
     const failedRows = preview.filter((row) => {
-      const nisn = String(row["NISN"] || "").trim();
-      const rfid = String(row["RFID"] || "").trim();
+      const nisn = String(row["NISN"] || "").trim().toLowerCase();
+      const rfid = String(row["RFID"] || "").trim().toLowerCase();
       return (nisn && errorNisns.has(nisn)) || (rfid && errorRfids.has(rfid));
     });
 
     if (!failedRows.length) return;
 
-    // Generate XLSX in-memory dari baris yang gagal
     const ws = XLSX.utils.json_to_sheet(failedRows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Retry RFID");
@@ -603,30 +708,24 @@ function ImportModal({ onClose, onImportDone }) {
     const retryFile = new File([blob], "retry_rfid.xlsx", { type: blob.type });
 
     setResult(null);
+    setFullLog([]);
     setDone(false);
-    setImportError("");
-    setImporting(true);
-    try {
-      const res = await rfidApi.importFile(retryFile);
-      if (!res?.success) throw new Error(res?.message || "Import gagal diproses server.");
-      setResult(res.data || { inserted: 0, skipped: 0, errors: [] });
-      onImportDone();
-    } catch (err) {
-      setImportError(err.message || "Terjadi kesalahan saat mengimport ulang.");
-    } finally {
-      setImporting(false);
-      setDone(true);
-    }
+    await startImport(retryFile, failedRows);
   };
 
-  const filteredErrors = useMemo(() => {
-    const errors = result?.errors || [];
-    if (!errorSearch.trim()) return errors;
-    const q = errorSearch.toLowerCase().trim();
-    return errors.filter((r) =>
+  const filteredLog = useMemo(() => {
+    let list = fullLog;
+    if (logFilter !== "all") list = list.filter((r) => r.status === logFilter);
+    if (!logSearch.trim()) return list;
+    const q = logSearch.toLowerCase().trim();
+    return list.filter((r) =>
       [r.nama, r.nisn, r.uid_rfid, r.reason].filter(Boolean).some((v) => String(v).toLowerCase().includes(q))
     );
-  }, [result, errorSearch]);
+  }, [fullLog, logSearch, logFilter]);
+
+  const totalBerhasil = fullLog.filter((r) => r.status === "berhasil").length;
+  const totalGagal = fullLog.filter((r) => r.status === "gagal").length;
+
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -722,37 +821,59 @@ function ImportModal({ onClose, onImportDone }) {
                 </div>
               ) : null}
 
-              {done && result ? (
+              {done && fullLog.length > 0 ? (
                 <>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                    <InfoStatCard label="Berhasil" value={result.inserted} helper="Data RFID baru tersimpan" icon={<CheckCircle2 className="h-5 w-5" />} tone="emerald" />
-                    <InfoStatCard label="Dilewati" value={result.skipped} helper="UID RFID sudah terdaftar" icon={<ShieldBan className="h-5 w-5" />} tone="amber" />
-                    <InfoStatCard label="Error" value={result.errors?.length || 0} helper="Baris gagal, perlu dicek" icon={<AlertTriangle className="h-5 w-5" />} tone="red" />
+                  {/* 2-stat layout: Berhasil, Gagal */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <InfoStatCard label="Berhasil" value={totalBerhasil} helper="RFID baru tersimpan" icon={<CheckCircle2 className="h-5 w-5" />} tone="emerald" />
+                    <InfoStatCard label="Gagal" value={totalGagal} helper="Perlu dicek kembali" icon={<AlertTriangle className="h-5 w-5" />} tone="red" />
                   </div>
-                  {result.errors && result.errors.length > 0 ? (
-                    <>
-                      <input
-                        type="text"
-                        value={errorSearch}
-                        onChange={(e) => setErrorSearch(e.target.value)}
-                        placeholder="Cari nama, NISN, UID, atau alasan error..."
-                        className="w-full text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      />
-                      <div className="overflow-auto max-h-44 border border-gray-200 rounded-lg divide-y divide-gray-100">
-                        {filteredErrors.map((r, i) => (
-                          <div key={i} className="flex items-center gap-2 px-4 py-2 text-sm">
-                            <span className="text-red-500"><XCircleIcon /></span>
-                            <span className="font-mono font-medium text-gray-800 shrink-0">{r.nisn || "-"}</span>
-                            <span className="text-gray-600 flex-1 truncate">{r.nama || "-"}</span>
-                            <span className="text-xs text-red-500 text-right max-w-xs">{r.reason}</span>
-                          </div>
-                        ))}
-                        {filteredErrors.length === 0 ? (
-                          <div className="p-4 text-center text-xs text-gray-400">Tidak ada hasil pencarian yang cocok</div>
-                        ) : null}
+
+                  {/* Filter tabs + search */}
+                  <div className="flex items-center gap-2">
+                    {[["all", "Semua"], ["berhasil", "Berhasil"], ["gagal", "Gagal"]].map(([val, label]) => (
+                      <button
+                        key={val}
+                        onClick={() => setLogFilter(val)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
+                          logFilter === val
+                            ? val === "berhasil" ? "bg-emerald-100 text-emerald-700" : val === "gagal" ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"
+                            : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                    <input
+                      type="text"
+                      value={logSearch}
+                      onChange={(e) => setLogSearch(e.target.value)}
+                      placeholder="Cari nama, NISN, UID..."
+                      className="flex-1 text-xs px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div className="overflow-auto max-h-52 border border-gray-200 rounded-lg divide-y divide-gray-100">
+                    {filteredLog.length === 0 ? (
+                      <div className="p-4 text-center text-xs text-gray-400">Tidak ada hasil yang cocok</div>
+                    ) : filteredLog.map((r, i) => (
+                      <div key={i} className="flex items-start gap-2 px-4 py-2.5 text-sm">
+                        {r.status === "berhasil" ? (
+                          <span className="text-emerald-500 mt-0.5 shrink-0"><CheckCircleIcon /></span>
+                        ) : (
+                          <span className="text-red-500 mt-0.5 shrink-0"><XCircleIcon /></span>
+                        )}
+                        <span className="font-mono font-medium text-gray-800 shrink-0 text-xs">{r.nisn || r.uid_rfid || "-"}</span>
+                        <span className="text-gray-600 flex-1 truncate">{r.nama || "-"}</span>
+                        {r.status !== "berhasil" && (
+                          <span className="text-xs text-right max-w-[180px] shrink-0 text-red-500">{r.reason}</span>
+                        )}
                       </div>
-                    </>
-                  ) : null}
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-gray-400 text-right">
+                    Menampilkan {filteredLog.length} dari {logFilter === "all" ? fullLog.length : fullLog.filter(r => r.status === logFilter).length} baris
+                  </p>
                 </>
               ) : null}
             </div>
@@ -768,7 +889,7 @@ function ImportModal({ onClose, onImportDone }) {
             </button>
             {!done && (
               <button
-                onClick={startImport}
+                onClick={() => startImport()}
                 disabled={!file || importing}
                 className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-2"
               >
@@ -777,12 +898,12 @@ function ImportModal({ onClose, onImportDone }) {
                 ) : "Mulai Import"}
               </button>
             )}
-            {done && (result?.errors?.length > 0) && (
+            {done && totalGagal > 0 && (
               <button
                 onClick={retryFailed}
                 className="flex-1 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-2"
               >
-                Retry Gagal ({result.errors.length})
+                Retry Gagal ({totalGagal})
               </button>
             )}
           </div>
@@ -802,6 +923,7 @@ function UpdateModal({ onClose, onUpdateDone, students, rfidRows }) {
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [previewLimit, setPreviewLimit] = useState(250);
   const [resultSearch, setResultSearch] = useState("");
+  const [resultFilter, setResultFilter] = useState("all"); // "all" | "berhasil" | "gagal"
   const [draftSearch, setDraftSearch] = useState("");
   const fileRef = useRef();
 
@@ -825,6 +947,7 @@ function UpdateModal({ onClose, onUpdateDone, students, rfidRows }) {
       setProgress({ current: 0, total: 0 });
       setPreviewLimit(250);
       setResultSearch("");
+      setResultFilter("all");
       setDraftSearch("");
     };
     reader.readAsBinaryString(file);
@@ -842,6 +965,8 @@ function UpdateModal({ onClose, onUpdateDone, students, rfidRows }) {
     if (!currentRows.length) return;
     setUpdating(true);
     setDone(false);
+    setResultFilter("all");
+    setResultSearch("");
 
     const newResults = new Array(currentRows.length);
     const toProcess = [];
@@ -928,15 +1053,17 @@ function UpdateModal({ onClose, onUpdateDone, students, rfidRows }) {
   }, [rows, draftSearch]);
 
   const filteredResults = useMemo(() => {
-    if (!resultSearch.trim()) return results;
+    let list = results;
+    if (resultFilter !== "all") list = list.filter((r) => (resultFilter === "berhasil" ? r.ok : !r.ok));
+    if (!resultSearch.trim()) return list;
     const q = resultSearch.toLowerCase().trim();
-    return results.filter(
+    return list.filter(
       (r) =>
         r.nama?.toLowerCase().includes(q) ||
         r.uid?.toLowerCase().includes(q) ||
         r.msg?.toLowerCase().includes(q)
     );
-  }, [results, resultSearch]);
+  }, [results, resultSearch, resultFilter]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -1033,36 +1160,62 @@ function UpdateModal({ onClose, onUpdateDone, students, rfidRows }) {
             <div className="space-y-3">
               {updating && <ProgressBar current={progress.current} total={progress.total} color="emerald" />}
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <InfoStatCard label="Berhasil" value={successCount} helper="Data RFID berhasil diupdate" icon={<CheckCircle2 className="h-5 w-5" />} tone="emerald" />
-                <InfoStatCard label="Gagal" value={failCount} helper="Baris gagal yang perlu dicek lagi" icon={<AlertTriangle className="h-5 w-5" />} tone="red" />
-              </div>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={resultSearch}
-                  onChange={(e) => setResultSearch(e.target.value)}
-                  placeholder="Cari UID, nama, atau status hasil log..."
-                  className="w-full text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                />
-              </div>
-              <div className="overflow-auto max-h-44 border border-gray-200 rounded-lg divide-y divide-gray-100">
-                {filteredResults.map((r, i) => (
-                  <div key={i} className="flex items-center gap-2 px-4 py-2 text-sm">
-                    <span className={r.ok ? "text-green-500" : "text-red-500"}>
-                      {r.ok ? <CheckCircleIcon /> : <XCircleIcon />}
-                    </span>
-                    <span className="font-mono font-medium text-gray-800 shrink-0">{r.uid}</span>
-                    <span className="text-gray-600 flex-1 truncate">{r.nama}</span>
-                    {!r.ok && <span className="text-xs text-red-500 text-right max-w-xs">{r.msg}</span>}
+              {done && results.length > 0 ? (
+                <>
+                  {/* 2-stat layout: Berhasil, Gagal */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <InfoStatCard label="Berhasil" value={successCount} helper="Data RFID berhasil diupdate" icon={<CheckCircle2 className="h-5 w-5" />} tone="emerald" />
+                    <InfoStatCard label="Gagal" value={failCount} helper="Baris gagal yang perlu dicek lagi" icon={<AlertTriangle className="h-5 w-5" />} tone="red" />
                   </div>
-                ))}
-                {filteredResults.length === 0 && (
-                  <div className="p-4 text-center text-xs text-gray-400">
-                    {updating ? "Menunggu hasil baris pertama..." : "Tidak ada hasil pencarian log yang cocok"}
+
+                  {/* Filter tabs + search */}
+                  <div className="flex items-center gap-2">
+                    {[["all", "Semua"], ["berhasil", "Berhasil"], ["gagal", "Gagal"]].map(([val, label]) => (
+                      <button
+                        key={val}
+                        onClick={() => setResultFilter(val)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
+                          resultFilter === val
+                            ? val === "berhasil" ? "bg-emerald-100 text-emerald-700" : val === "gagal" ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"
+                            : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                    <input
+                      type="text"
+                      value={resultSearch}
+                      onChange={(e) => setResultSearch(e.target.value)}
+                      placeholder="Cari UID, nama, atau status..."
+                      className="flex-1 text-xs px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    />
                   </div>
-                )}
-              </div>
+
+                  <div className="overflow-auto max-h-44 border border-gray-200 rounded-lg divide-y divide-gray-100">
+                    {filteredResults.length === 0 ? (
+                      <div className="p-4 text-center text-xs text-gray-400">Tidak ada hasil yang cocok</div>
+                    ) : filteredResults.map((r, i) => (
+                      <div key={i} className="flex items-start gap-2 px-4 py-2.5 text-sm">
+                        <span className={r.ok ? "text-emerald-500 mt-0.5 shrink-0" : "text-red-500 mt-0.5 shrink-0"}>
+                          {r.ok ? <CheckCircleIcon /> : <XCircleIcon />}
+                        </span>
+                        <span className="font-mono font-medium text-gray-800 shrink-0 text-xs">{r.uid}</span>
+                        <span className="text-gray-600 flex-1 truncate">{r.nama}</span>
+                        {!r.ok && <span className="text-xs text-right max-w-[180px] shrink-0 text-red-500">{r.msg}</span>}
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-gray-400 text-right">
+                    Menampilkan {filteredResults.length} dari {resultFilter === "all" ? results.length : results.filter(r => (resultFilter === "berhasil" ? r.ok : !r.ok)).length} baris
+                  </p>
+                </>
+              ) : updating ? (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <InfoStatCard label="Berhasil" value={successCount} helper="Data RFID berhasil diupdate" icon={<CheckCircle2 className="h-5 w-5" />} tone="emerald" />
+                  <InfoStatCard label="Gagal" value={failCount} helper="Baris gagal yang perlu dicek lagi" icon={<AlertTriangle className="h-5 w-5" />} tone="red" />
+                </div>
+              ) : null}
             </div>
           )}
 
@@ -1614,6 +1767,7 @@ export default function RfidManagement() {
         <ImportModal
           onClose={() => setShowImportModal(false)}
           onImportDone={handleRefresh}
+          rfidRows={rfidRows}
         />
       )}
 

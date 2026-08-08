@@ -1,6 +1,7 @@
 import PageHeader from "../layout/PageHeader.jsx";
 import Pagination from "../layout/Pagination.jsx";
 import { useState, useEffect, useRef, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { CheckCircle2, AlertTriangle } from "lucide-react";
 import { orangTua } from "../../lib/backendApi.js";
 import InfoStatCard from "../layout/InfoStatCard";
@@ -18,7 +19,7 @@ import InfoStatCard from "../layout/InfoStatCard";
 
 let _xlsxPromise = null;
 function loadXLSX() {
-  if (!_xlsxPromise) _xlsxPromise = import("xlsx");
+  if (!_xlsxPromise) _xlsxPromise = import("xlsx-js-style");
   return _xlsxPromise;
 }
 
@@ -130,11 +131,71 @@ function getOrangTuaGuideSheet(XLSX) {
   ];
   const ws = XLSX.utils.aoa_to_sheet(guideData);
   ws["!cols"] = [{ wch: 110 }];
+
+  // Style Title Row (A1)
+  const titleCell = XLSX.utils.encode_cell({ r: 0, c: 0 });
+  if (ws[titleCell]) {
+    ws[titleCell].s = {
+      fill: { fgColor: { rgb: "1E3A8A" } },
+      font: { name: "Arial", sz: 14, bold: true, color: { rgb: "FFFFFF" } },
+      alignment: { horizontal: "left", vertical: "center" }
+    };
+  }
+
+  // Style Section Headers
+  const sectionRows = [2, 10, 14];
+  sectionRows.forEach((r) => {
+    const cell = XLSX.utils.encode_cell({ r: r, c: 0 });
+    if (ws[cell]) {
+      ws[cell].s = {
+        font: { name: "Arial", sz: 11, bold: true, color: { rgb: "1E3A8A" } }
+      };
+    }
+  });
+
+  // Style Content and Warning Alerts
+  for (let r = 0; r < guideData.length; r++) {
+    if (r === 0 || sectionRows.includes(r)) continue;
+    const cell = XLSX.utils.encode_cell({ r: r, c: 0 });
+    if (ws[cell]) {
+      const val = String(ws[cell].v);
+      let color = "374151";
+      let bold = false;
+      if (val.includes("SANGAT PENTING") || val.includes("PERINGATAN") || val.includes("WAJIB")) {
+        color = "DC2626";
+        bold = true;
+      }
+      ws[cell].s = {
+        font: { name: "Arial", sz: 10, bold, color: { rgb: color } }
+      };
+    }
+  }
+
   return ws;
 }
 
 // Template Downloaders
 // Semua fungsi di bawah sekarang async karena library-nya di-load on-demand.
+
+function styleHeader(XLSX, ws, headers, mode = "import") {
+  const bgColor = mode === "update" ? "10B981" : mode === "export" ? "F97316" : "2563EB"; // Emerald, Orange, or Blue
+  headers.forEach((h, i) => {
+    const cellRef = XLSX.utils.encode_cell({ r: 0, c: i });
+    if (ws[cellRef]) {
+      ws[cellRef].s = {
+        fill: { fgColor: { rgb: bgColor } },
+        font: { name: "Arial", sz: 11, bold: true, color: { rgb: "FFFFFF" } },
+        alignment: { horizontal: "center", vertical: "center", wrapText: true },
+        border: {
+          top: { style: "thin", color: { rgb: "E5E7EB" } },
+          bottom: { style: "medium", color: { rgb: "9CA3AF" } },
+          left: { style: "thin", color: { rgb: "E5E7EB" } },
+          right: { style: "thin", color: { rgb: "E5E7EB" } }
+        }
+      };
+    }
+  });
+}
 
 async function downloadUpdateOrtuExcelTemplate() {
   const XLSX = await loadXLSX();
@@ -143,6 +204,8 @@ async function downloadUpdateOrtuExcelTemplate() {
     [1, "Budi Santoso", "3201010101800001", "08123456789", "Wiraswasta", "Jl. Merdeka No. 1, Jakarta"],
   ]);
   ws["!cols"] = UPDATE_ORTU_HEADERS.map((h) => ({ wch: h === "Alamat" ? 36 : 26 }));
+  styleHeader(XLSX, ws, UPDATE_ORTU_HEADERS, "update");
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Update Orang Tua");
   XLSX.utils.book_append_sheet(wb, getOrangTuaGuideSheet(XLSX), "Panduan Penggunaan");
@@ -175,6 +238,8 @@ async function downloadExcelTemplate() {
     ["Budi Santoso", "3201010101800001", "08123456789", "Wiraswasta", "Jl. Merdeka No. 1, Jakarta"],
   ]);
   ws["!cols"] = TEMPLATE_HEADERS.map((h) => ({ wch: h === "Alamat" ? 36 : 24 }));
+  styleHeader(XLSX, ws, TEMPLATE_HEADERS, "import");
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Template Orang Tua");
   XLSX.utils.book_append_sheet(wb, getOrangTuaGuideSheet(XLSX), "Panduan Penggunaan");
@@ -252,9 +317,11 @@ async function exportTableExcel(data) {
     if (ws[telpCell]) { ws[telpCell].v = String(ws[telpCell].v); ws[telpCell].t = "s"; ws[telpCell].z = "@"; }
   }
 
+  const headers = ["ID", "Nama Orang Tua", "NIK", "Nomor Telepon", "Pekerjaan", "Alamat"];
+  styleHeader(XLSX, ws, headers, "export");
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Data Orang Tua");
-  XLSX.utils.book_append_sheet(wb, getOrangTuaGuideSheet(XLSX), "Panduan Penggunaan");
   XLSX.writeFile(wb, "data_orangtua.xlsx");
 }
 
@@ -288,6 +355,7 @@ function ImportModal({ onClose, onImportDone }) {
   const [previewLimit, setPreviewLimit] = useState(250);
   const [resultSearch, setResultSearch] = useState("");
   const [draftSearch, setDraftSearch]   = useState("");
+  const [resultFilter, setResultFilter] = useState("all");
   const fileRef = useRef();
 
   // Cegah user nutup/refresh tab di tengah proses import massal
@@ -313,6 +381,7 @@ function ImportModal({ onClose, onImportDone }) {
       setPreviewLimit(250);
       setResultSearch("");
       setDraftSearch("");
+      setResultFilter("all");
     };
     reader.readAsBinaryString(file);
   };
@@ -385,6 +454,7 @@ function ImportModal({ onClose, onImportDone }) {
     setDone(false);
     setResults([]);
     setProgress({ current: 0, total: rows.length });
+    setResultFilter("all");
 
     const allRows = rows.map((row, idx) => ({ row, idx }));
     await runImport(allRows);
@@ -404,6 +474,7 @@ function ImportModal({ onClose, onImportDone }) {
     setDone(false);
     setResults([]);
     setProgress({ current: 0, total: failedRows.length });
+    setResultFilter("all");
     await runImport(failedRows);
     setImporting(false);
     setDone(true);
@@ -422,13 +493,19 @@ function ImportModal({ onClose, onImportDone }) {
   }, [rows, draftSearch]);
 
   const filteredResults = useMemo(() => {
-    if (!resultSearch.trim()) return results;
+    let list = results;
+    if (resultFilter === "berhasil") {
+      list = list.filter((r) => r.ok);
+    } else if (resultFilter === "gagal") {
+      list = list.filter((r) => !r.ok);
+    }
+    if (!resultSearch.trim()) return list;
     const q = resultSearch.toLowerCase().trim();
-    return results.filter(
+    return list.filter(
       (r) =>
         r.nama?.toLowerCase().includes(q) || r.msg?.toLowerCase().includes(q)
     );
-  }, [results, resultSearch]);
+  }, [results, resultSearch, resultFilter]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -514,13 +591,27 @@ function ImportModal({ onClose, onImportDone }) {
                 <InfoStatCard label="Berhasil" value={successCount} helper="Data orang tua yang berhasil tersimpan" icon={<CheckCircle2 className="h-5 w-5" />} tone="emerald" />
                 <InfoStatCard label="Gagal" value={failCount} helper="Perlu dibetulkan sebelum import ulang" icon={<AlertTriangle className="h-5 w-5" />} tone="red" />
               </div>
-              <div className="relative">
+              <div className="flex items-center gap-2">
+                {[["all", "Semua"], ["berhasil", "Berhasil"], ["gagal", "Gagal"]].map(([val, label]) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setResultFilter(val)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
+                      resultFilter === val
+                        ? val === "berhasil" ? "bg-emerald-100 text-emerald-700" : val === "gagal" ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"
+                        : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
                 <input
                   type="text"
                   value={resultSearch}
                   onChange={(e) => setResultSearch(e.target.value)}
                   placeholder="Cari nama atau status hasil log..."
-                  className="w-full text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="flex-1 text-xs px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
               </div>
               <div className="overflow-auto max-h-44 border border-gray-200 rounded-lg divide-y divide-gray-100">
@@ -585,6 +676,7 @@ function UpdateOrtuModal({ onClose, onUpdateDone, ortuList }) {
   const [previewLimit, setPreviewLimit] = useState(250);
   const [resultSearch, setResultSearch] = useState("");
   const [draftSearch, setDraftSearch]   = useState("");
+  const [resultFilter, setResultFilter] = useState("all");
   const fileRef = useRef();
 
   // Cegah user nutup/refresh tab di tengah proses update massal
@@ -610,6 +702,7 @@ function UpdateOrtuModal({ onClose, onUpdateDone, ortuList }) {
       setPreviewLimit(250);
       setResultSearch("");
       setDraftSearch("");
+      setResultFilter("all");
     };
     reader.readAsBinaryString(file);
   };
@@ -698,6 +791,7 @@ function UpdateOrtuModal({ onClose, onUpdateDone, ortuList }) {
     setDone(false);
     setResults([]);
     setProgress({ current: 0, total: rows.length });
+    setResultFilter("all");
 
     const allRows = rows.map((row, idx) => ({ row, idx }));
     await runUpdate(allRows, rows.length);
@@ -717,6 +811,7 @@ function UpdateOrtuModal({ onClose, onUpdateDone, ortuList }) {
     setDone(false);
     setResults([]);
     setProgress({ current: 0, total: failedRows.length });
+    setResultFilter("all");
     await runUpdate(failedRows, failedRows.length);
     setUpdating(false);
     setDone(true);
@@ -735,13 +830,19 @@ function UpdateOrtuModal({ onClose, onUpdateDone, ortuList }) {
   }, [rows, draftSearch]);
 
   const filteredResults = useMemo(() => {
-    if (!resultSearch.trim()) return results;
+    let list = results;
+    if (resultFilter === "berhasil") {
+      list = list.filter((r) => r.ok);
+    } else if (resultFilter === "gagal") {
+      list = list.filter((r) => !r.ok);
+    }
+    if (!resultSearch.trim()) return list;
     const q = resultSearch.toLowerCase().trim();
-    return results.filter(
+    return list.filter(
       (r) =>
         r.nama?.toLowerCase().includes(q) || r.msg?.toLowerCase().includes(q)
     );
-  }, [results, resultSearch]);
+  }, [results, resultSearch, resultFilter]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -828,13 +929,27 @@ function UpdateOrtuModal({ onClose, onUpdateDone, ortuList }) {
                 <InfoStatCard label="Berhasil" value={successCount} helper="Data berhasil diupdate" icon={<CheckCircle2 className="h-5 w-5" />} tone="emerald" />
                 <InfoStatCard label="Gagal" value={failCount} helper="Perlu dicek kembali" icon={<AlertTriangle className="h-5 w-5" />} tone="red" />
               </div>
-              <div className="relative">
+              <div className="flex items-center gap-2">
+                {[["all", "Semua"], ["berhasil", "Berhasil"], ["gagal", "Gagal"]].map(([val, label]) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setResultFilter(val)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
+                      resultFilter === val
+                        ? val === "berhasil" ? "bg-emerald-100 text-emerald-700" : val === "gagal" ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"
+                        : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
                 <input
                   type="text"
                   value={resultSearch}
                   onChange={(e) => setResultSearch(e.target.value)}
                   placeholder="Cari nama atau status hasil log..."
-                  className="w-full text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="flex-1 text-xs px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500"
                 />
               </div>
               <div className="overflow-auto max-h-44 border border-gray-200 rounded-lg divide-y divide-gray-100">
@@ -996,11 +1111,58 @@ export default function AdminImport() {
   // jadi tidak nge-filter ratusan/ribuan baris di setiap keystroke.
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [deleteTarget, setDeleteTarget]       = useState(null);
+  const [toast, setToast]                     = useState(null);
   const itemsPerPage = 10;
 
   const templateRef  = useRef();
   const exportRef    = useRef();
   const importMenuRef = useRef();
+
+  const [templateCoords, setTemplateCoords] = useState({ top: 0, left: 0 });
+  const [exportCoords, setExportCoords] = useState({ top: 0, left: 0 });
+  const [importCoords, setImportCoords] = useState({ top: 0, left: 0 });
+
+  const updateMenuCoords = () => {
+    if (showTemplateMenu && templateRef.current) {
+      const rect = templateRef.current.getBoundingClientRect();
+      setTemplateCoords({
+        top: rect.bottom + 4,
+        left: rect.right - 208, // w-52 is 208px
+      });
+    }
+    if (showExportMenu && exportRef.current) {
+      const rect = exportRef.current.getBoundingClientRect();
+      setExportCoords({
+        top: rect.bottom + 4,
+        left: rect.right - 192, // w-48 is 192px
+      });
+    }
+    if (showImportMenu && importMenuRef.current) {
+      const rect = importMenuRef.current.getBoundingClientRect();
+      setImportCoords({
+        top: rect.bottom + 4,
+        left: rect.right - 192, // w-48 is 192px
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    updateMenuCoords();
+    const handleReposition = () => updateMenuCoords();
+    window.addEventListener("scroll", handleReposition, true);
+    window.addEventListener("resize", handleReposition);
+    return () => {
+      window.removeEventListener("scroll", handleReposition, true);
+      window.removeEventListener("resize", handleReposition);
+    };
+  }, [showTemplateMenu, showExportMenu, showImportMenu]);
 
   // Fetch
 
@@ -1114,6 +1276,8 @@ export default function AdminImport() {
 
   useEffect(() => {
     const handler = (e) => {
+      // If click is inside the dropdown portal, don't close the menu
+      if (e.target.closest('.dropdown-portal')) return;
       if (templateRef.current   && !templateRef.current.contains(e.target))   setShowTemplateMenu(false);
       if (exportRef.current     && !exportRef.current.contains(e.target))     setShowExportMenu(false);
       if (importMenuRef.current && !importMenuRef.current.contains(e.target)) setShowImportMenu(false);
@@ -1183,8 +1347,11 @@ export default function AdminImport() {
                   >
                     <DownloadIcon /> Template <ChevronDown />
                   </button>
-                  {showTemplateMenu && (
-                    <div className="absolute right-0 mt-1 w-52 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-20">
+                  {showTemplateMenu && createPortal(
+                    <div
+                      style={{ position: "fixed", top: templateCoords.top, left: templateCoords.left, width: "13rem" }}
+                      className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-[999] dropdown-portal"
+                    >
                       <p className="px-4 pt-2.5 pb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Import Baru</p>
                       <button onClick={() => { downloadExcelTemplate(); setShowTemplateMenu(false); }} className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition">
                         <span className="text-green-600"><FileExcelIcon /></span> Template Excel (.xlsx)
@@ -1200,7 +1367,8 @@ export default function AdminImport() {
                       <button onClick={() => { downloadUpdateOrtuPdfTemplate(); setShowTemplateMenu(false); }} className="w-full flex items-center gap-2.5 px-4 py-2 pb-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition">
                         <span className="text-red-500"><FilePdfIcon /></span> Template Update (PDF)
                       </button>
-                    </div>
+                    </div>,
+                    document.body
                   )}
                 </div>
 
@@ -1212,15 +1380,19 @@ export default function AdminImport() {
                   >
                     <DownloadIcon /> Export Data <ChevronDown />
                   </button>
-                  {showExportMenu && (
-                    <div className="absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-20">
+                  {showExportMenu && createPortal(
+                    <div
+                      style={{ position: "fixed", top: exportCoords.top, left: exportCoords.left, width: "12rem" }}
+                      className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-[999] dropdown-portal"
+                    >
                       <button onClick={() => { exportTableExcel(filteredData); setShowExportMenu(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition">
                         <span className="text-green-600"><FileExcelIcon /></span> Export Excel (.xlsx)
                       </button>
                       <button onClick={() => { exportTablePdf(filteredData); setShowExportMenu(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition">
                         <span className="text-red-500"><FilePdfIcon /></span> Export PDF
                       </button>
-                    </div>
+                    </div>,
+                    document.body
                   )}
                 </div>
 
@@ -1232,8 +1404,11 @@ export default function AdminImport() {
                   >
                     <UploadIcon /> Import / Update <ChevronDown />
                   </button>
-                  {showImportMenu && (
-                    <div className="absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-20">
+                  {showImportMenu && createPortal(
+                    <div
+                      style={{ position: "fixed", top: importCoords.top, left: importCoords.left, width: "12rem" }}
+                      className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-[999] dropdown-portal"
+                    >
                       <button
                         onClick={() => { setShowImportModal(true); setShowImportMenu(false); }}
                         className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition"
@@ -1246,7 +1421,8 @@ export default function AdminImport() {
                       >
                         <span className="text-emerald-600"><UploadIcon /></span> Update Excel
                       </button>
-                    </div>
+                    </div>,
+                    document.body
                   )}
                 </div>
 
@@ -1324,8 +1500,37 @@ export default function AdminImport() {
         <DeleteConfirmOrtuModal
           ortu={deleteTarget}
           onClose={() => setDeleteTarget(null)}
-          onDeleted={() => { setDeleteTarget(null); refreshData(); }}
+          onDeleted={() => {
+            setDeleteTarget(null);
+            refreshData();
+            setToast({ type: "success", message: `Orang tua "${deleteTarget.nama_orangtua}" berhasil dihapus` });
+          }}
         />
+      )}
+
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-[999] flex items-center gap-3 bg-white border border-gray-100 shadow-2xl rounded-xl p-4 animate-in fade-in slide-in-from-bottom-5 duration-300 min-w-80">
+          <div className={`p-2 rounded-lg ${toast.type === "success" ? "bg-green-50 text-green-500" : "bg-red-50 text-red-500"}`}>
+            {toast.type === "success" ? (
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            )}
+          </div>
+          <div className="flex-1">
+            <h4 className="text-sm font-semibold text-gray-900">{toast.type === "success" ? "Berhasil" : "Gagal"}</h4>
+            <p className="text-xs text-gray-500 mt-0.5">{toast.message}</p>
+          </div>
+          <button onClick={() => setToast(null)} className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
       )}
     </div>
   );

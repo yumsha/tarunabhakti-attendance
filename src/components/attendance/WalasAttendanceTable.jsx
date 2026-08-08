@@ -10,7 +10,8 @@ import {
   XCircle,
   Clock,
 } from "lucide-react";
-import { detailAbsensi, statusRequest, exportApi } from "../../lib/backendApi";
+import XLSX from "xlsx-js-style";
+import { detailAbsensi, statusRequest } from "../../lib/backendApi";
 import Pagination from "../layout/Pagination.jsx";
 
 function getTodayWIB() {
@@ -261,23 +262,69 @@ export default function WalasAttendanceTable({ kelasId, kelasName, walasId }) {
     }
   };
 
-  const handleExportExcel = async () => {
-    if (!kelasId || !filterDate) return;
+  const handleExportExcel = () => {
+    if (filteredData.length === 0) return;
     setExporting("excel");
     try {
-      const url = exportApi.rekapKelasHarian(kelasId, filterDate);
-      const blob = await exportApi.downloadBlob(url);
-      if (!blob) {
-        console.error("Excel export failed: no blob returned");
-        return;
-      }
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `Rekap_Harian_${kelasName || "Kelas"}_${formatFileDate(filterDate)}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(a.href);
+      const HEADERS = ["No", "Nama Siswa", "Waktu Masuk", "Waktu Keluar", "Status Tap", "Status", "Keterangan"];
+      const body = filteredData.map((item, i) => [
+        i + 1,
+        item.siswa?.nama || "-",
+        item.tap_in || "-",
+        item.tap_out || "-",
+        getStatusText(item.status_tapin),
+        item.walasStatus || "-",
+        item.walasKeterangan || "-",
+      ]);
+
+      const ws = XLSX.utils.aoa_to_sheet([HEADERS, ...body]);
+
+      // Lebar kolom
+      ws["!cols"] = [8, 30, 16, 16, 16, 14, 28].map((wch) => ({ wch }));
+
+      // Style header (biru)
+      HEADERS.forEach((_, ci) => {
+        const ref = XLSX.utils.encode_cell({ r: 0, c: ci });
+        if (ws[ref]) {
+          ws[ref].s = {
+            fill: { fgColor: { rgb: "3B82F6" } },
+            font: { name: "Arial", sz: 10, bold: true, color: { rgb: "FFFFFF" } },
+            alignment: { horizontal: "center", vertical: "center", wrapText: true },
+            border: {
+              top: { style: "thin", color: { rgb: "E5E7EB" } },
+              bottom: { style: "medium", color: { rgb: "9CA3AF" } },
+              left: { style: "thin", color: { rgb: "E5E7EB" } },
+              right: { style: "thin", color: { rgb: "E5E7EB" } },
+            },
+          };
+        }
+      });
+
+      // Style data rows (alternating)
+      body.forEach((_, ri) => {
+        const rowIdx = ri + 1;
+        const isEven = ri % 2 === 1;
+        HEADERS.forEach((_, ci) => {
+          const ref = XLSX.utils.encode_cell({ r: rowIdx, c: ci });
+          if (ws[ref]) {
+            ws[ref].s = {
+              fill: isEven ? { fgColor: { rgb: "F5F7FA" } } : { fgColor: { rgb: "FFFFFF" } },
+              font: { name: "Arial", sz: 9, color: { rgb: "1F2937" } },
+              alignment: { horizontal: ci === 1 || ci === 6 ? "left" : "center", vertical: "center" },
+              border: {
+                top: { style: "thin", color: { rgb: "E5E7EB" } },
+                bottom: { style: "thin", color: { rgb: "E5E7EB" } },
+                left: { style: "thin", color: { rgb: "E5E7EB" } },
+                right: { style: "thin", color: { rgb: "E5E7EB" } },
+              },
+            };
+          }
+        });
+      });
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Kehadiran");
+      XLSX.writeFile(wb, `Kehadiran_${kelasName || "Kelas"}_${formatFileDate(filterDate)}.xlsx`);
     } catch (err) {
       console.error("Excel export failed:", err);
     } finally {
@@ -311,7 +358,7 @@ export default function WalasAttendanceTable({ kelasId, kelasName, walasId }) {
             "Waktu Masuk",
             "Waktu Keluar",
             "Status Tap",
-            "Status Walas",
+            "Status",
             "Keterangan",
           ],
         ],

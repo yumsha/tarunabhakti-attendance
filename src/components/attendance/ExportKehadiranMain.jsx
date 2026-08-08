@@ -67,7 +67,7 @@ function StatusAbsensiBadge({ status }) {
 function SkeletonRow() {
   return (
     <tr>
-      <td colSpan={7} className="px-4 py-3">
+      <td colSpan={8} className="px-4 py-3">
         <div className="h-4 bg-gray-100 rounded-full animate-pulse" />
       </td>
     </tr>
@@ -471,6 +471,11 @@ export default function ExportKehadiranMain() {
         NISN: a.nisn || a.NISN || "",
         NIPD: a.nipd || a.NIPD || "",
         JK: a.jenis_kelamin || a.JK || "",
+        JK_label: (a.jenis_kelamin || a.JK || "") === "L"
+          ? "Laki-laki"
+          : (a.jenis_kelamin || a.JK || "") === "P"
+          ? "Perempuan"
+          : "-",
         kelas_nama: a.kelas?.kelas || "",
         jurusan: a.kelas?.jurusan || "",
         tahun_ajaran: a.kelas?.tahun?.tahun_ajaran || "",
@@ -579,7 +584,7 @@ export default function ExportKehadiranMain() {
         bySiswa.set(row.siswa_id, {
           nipd: row.NIPD || row.NISN || "-",
           nama: row.nama || "-",
-          jk: row.JK === "L" || row.JK === "P" ? row.JK : "-",
+          jk: row.JK === "L" ? "L" : row.JK === "P" ? "P" : (row.JK || "-"),
           kelas: row.kelas_nama || "-",
           perMonth: {},
         });
@@ -738,26 +743,33 @@ export default function ExportKehadiranMain() {
     });
 
     // Summary box
-    const finalY = doc.lastAutoTable.finalY + 10;
+    let finalY = doc.lastAutoTable.finalY + 10;
+    
+    // jsPDF landscape A4 height is 210mm. 
+    // If finalY + rekap height (approx 35mm) exceeds 190mm, add a new page
+    if (finalY + 35 > 190) {
+      doc.addPage();
+      finalY = 20; // reset y position on the new page
+    }
     
     doc.setFont("helvetica", "normal");
     doc.text("Jumlah Ketidakhadiran:", 14, finalY);
-    doc.text(String(jumlahKetidakhadiran), 60, finalY);
+    doc.text(String(jumlahKetidakhadiran), 70, finalY);
     
     doc.text("Jumlah Siswa:", 14, finalY + 5);
-    doc.text(String(jumlahSiswa), 60, finalY + 5);
+    doc.text(String(jumlahSiswa), 70, finalY + 5);
     
     doc.text("Presentase Ketidakhadiran:", 14, finalY + 10);
     doc.setFont("helvetica", "bold");
-    doc.text(strKetidakhadiran, 60, finalY + 10);
+    doc.text(strKetidakhadiran, 70, finalY + 10);
     
     doc.setFont("helvetica", "normal");
     doc.text("Jumlah Hari Efektif:", 14, finalY + 15);
-    doc.text(String(hariEfektif), 60, finalY + 15);
+    doc.text(String(hariEfektif), 70, finalY + 15);
     
     doc.text("Presentase Kehadiran:", 14, finalY + 20);
     doc.setFont("helvetica", "bold");
-    doc.text(strKehadiran, 60, finalY + 20);
+    doc.text(strKehadiran, 70, finalY + 20);
 
     doc.setFont("helvetica", "normal");
     doc.text(`Diekspor pada: ${new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })}`, 14, finalY + 30);
@@ -1182,6 +1194,7 @@ export default function ExportKehadiranMain() {
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">No</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Nama</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">NISN</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Jenis Kelamin</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Kelas</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Jurusan</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Tanggal</th>
@@ -1194,7 +1207,7 @@ export default function ExportKehadiranMain() {
                   [...Array(5)].map((_, i) => <SkeletonRow key={i} />)
                 ) : pagedData.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-14 text-center">
+                    <td colSpan={8} className="px-6 py-14 text-center">
                       <div className="flex flex-col items-center gap-2">
                         <svg className="w-10 h-10 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -1225,6 +1238,9 @@ export default function ExportKehadiranMain() {
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-600 font-mono">
                         {row.NISN || "-"}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-600">
+                        {row.JK_label || "-"}
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-600">
                         {row.kelas_nama || "-"}

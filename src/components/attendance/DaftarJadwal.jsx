@@ -16,6 +16,17 @@ const formatTime = (timeStr) => {
   return timeStr.slice(0, 5);
 };
 
+const formatTimeForInput = (timeStr) => {
+  if (!timeStr) return "";
+  if (timeStr.includes("T")) {
+    const d = new Date(timeStr);
+    const hrs = String(d.getHours()).padStart(2, "0");
+    const mins = String(d.getMinutes()).padStart(2, "0");
+    return `${hrs}:${mins}`;
+  }
+  return timeStr.replace(".", ":").slice(0, 5);
+};
+
 const HARI_ORDER = ["SENIN", "SELASA", "RABU", "KAMIS", "JUMAT", "SABTU"];
 
 const HARI_COLOR = {
@@ -105,7 +116,7 @@ const applyDataStyle = (cell, bgHex = "FFFFFF", alignH = "left") => {
 function SearchableSelect({ value, onChange, options, placeholder, disabled, renderLabel, getSearchText, activeBlue = false }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [coords, setCoords] = useState({ top: 0, left: 0, width: 288 });
+  const [coords, setCoords] = useState({ top: 0, left: 0, width: 288, initialized: false });
   const containerRef = useRef(null);
   const searchInputRef = useRef(null);
   const dropdownRef = useRef(null);
@@ -117,11 +128,15 @@ function SearchableSelect({ value, onChange, options, placeholder, disabled, ren
       top: rect.bottom + 6,
       left: rect.left,
       width: rect.width,
+      initialized: true,
     });
   };
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setCoords((prev) => ({ ...prev, initialized: false }));
+      return;
+    }
     updateCoords();
 
     const handleClickOutside = (e) => {
@@ -206,7 +221,13 @@ function SearchableSelect({ value, onChange, options, placeholder, disabled, ren
       {open && createPortal(
         <div
           ref={dropdownRef}
-          style={{ position: "fixed", top: coords.top, left: coords.left, width: coords.width }}
+          style={{ 
+            position: "fixed", 
+            top: coords.top, 
+            left: coords.left, 
+            width: coords.width,
+            visibility: coords.initialized ? "visible" : "hidden"
+          }}
           className="z-[999] mt-1.5 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl"
         >
           <div className="border-b border-gray-100 px-3 py-2.5">
@@ -290,6 +311,17 @@ export default function DaftarJadwal() {
 
   const [selectedJadwal, setSelectedJadwal] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editJadwalData, setEditJadwalData] = useState({
+    id: null,
+    hari: "SENIN",
+    kelas_id: "",
+    mapel_id: "",
+    guru_id: "",
+    jam_mulai: "07:00",
+    jam_selesai: "08:00",
+  });
 
   const [newJadwal, setNewJadwal] = useState({
     hari: "SENIN",
@@ -483,6 +515,7 @@ export default function DaftarJadwal() {
         });
       });
 
+      /*
       // ════════════════════════════════════════════════════════════════════════
       // Sheet 2: JADWAL_GRID
       // ════════════════════════════════════════════════════════════════════════
@@ -595,27 +628,31 @@ export default function DaftarJadwal() {
           }
         });
       });
+      */
 
       // ════════════════════════════════════════════════════════════════════════
-      // Sheet 3: PETUNJUK
-      // ════════════════════════════════════════════════════════════════════════
+      // Sheet 2: PETUNJUK
       const ws3 = workbook.addWorksheet("PETUNJUK");
-      ws3.columns = [{ width: 22 }, { width: 58 }];
+      ws3.columns = [{ width: 22 }, { width: 85 }];
 
       const petunjukRows = [
         ["KOLOM", "KETERANGAN"],
         ["HARI", "SENIN / SELASA / RABU / KAMIS / JUMAT / SABTU (huruf kapital)"],
         ["KELAS", "Nomor tingkatan: 10, 11, atau 12"],
         ["JURUSAN", "Nama jurusan. Contoh: RPL, TKJ, Multimedia"],
-        ["NAMA_MAPEL", "Nama mata pelajaran sesuai data sistem"],
-        ["NAMA_GURU", "Nama lengkap guru pengampu"],
-        ["JAM_MULAI", "Format 24 jam HH:MM — contoh: 07:00"],
-        ["JAM_SELESAI", "Format 24 jam HH:MM — contoh: 08:30"],
-        ["", ""],
-        ["⚠️  Jangan ubah nama kolom header di sheet TEMPLATE_JADWAL", ""],
-        ["⚠️  Baris contoh (4–8) dapat dihapus sebelum diupload", ""],
-        ["⚠️  NAMA_MAPEL & NAMA_GURU harus sama persis dengan data sistem", ""],
-        ["⚠️  Simpan file dalam format .xlsx sebelum diupload", ""],
+        ["NAMA_MAPEL", "Nama mata pelajaran (harus sama persis dengan yang terdaftar di sistem)"],
+        ["NAMA_GURU", "Nama lengkap guru pengampu (harus sama persis dengan yang terdaftar di sistem)"],
+        ["JAM_MULAI", "Format 24 jam HH:MM — contoh: '07:00 (wajib diawali tanda kutip satu ')"],
+        ["JAM_SELESAI", "Format 24 jam HH:MM — contoh: '08:30 (wajib diawali tanda kutip satu ')"],
+      ];
+
+      const warnings = [
+        "⚠️  Jangan ubah nama kolom header di sheet TEMPLATE_JADWAL",
+        "⚠️  Baris contoh (4–8) dapat dihapus sebelum diupload",
+        "⚠️  NAMA_MAPEL & NAMA_GURU harus sama persis dengan data sistem",
+        "⚠️  Diawali tanda kutip satu (') di depan jam (misal: '07:00) agar Excel tidak mengacaukan format waktu",
+        "⚠️  Wajib menggunakan pemisah titik dua (:) untuk jam, bukan titik (.) karena sistem hanya membaca pemisah (:)",
+        "⚠️  Simpan file dalam format .xlsx sebelum diupload",
       ];
 
       petunjukRows.forEach((row, ri) => {
@@ -626,20 +663,27 @@ export default function DaftarJadwal() {
           cell.value = val;
           if (ri === 0) {
             applyHeaderStyle(cell, "3B82F6");
-          } else if (ri >= 1 && ri <= 7) {
+          } else {
             applyDataStyle(cell, ri % 2 === 0 ? "FFFFFF" : "DBEAFE", "left");
-          } else if (ri >= 9) {
-            cell.font = { name: "Arial", size: 10, color: { argb: argb("7F1D1D") } };
-            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: argb("FEE2E2") } };
-            cell.alignment = { horizontal: "left", vertical: "middle" };
-            cell.border = {
-              top:    { style: "thin", color: { argb: argb("FCA5A5") } },
-              bottom: { style: "thin", color: { argb: argb("FCA5A5") } },
-              left:   { style: "thin", color: { argb: argb("FCA5A5") } },
-              right:  { style: "thin", color: { argb: argb("FCA5A5") } },
-            };
           }
         });
+      });
+
+      // Add warnings with merging A & B
+      const startWarnRow = petunjukRows.length + 2;
+      warnings.forEach((warn, idx) => {
+        const rowIdx = startWarnRow + idx;
+        ws3.mergeCells(`A${rowIdx}:B${rowIdx}`);
+        const cell = ws3.getCell(`A${rowIdx}`);
+        cell.value = warn;
+        cell.font = { name: "Arial", size: 10, bold: true, color: { argb: argb("7F1D1D") } };
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: argb("FEE2E2") } };
+        cell.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+        cell.border = borderStyle;
+
+        const cellB = ws3.getCell(`B${rowIdx}`);
+        cellB.border = borderStyle;
+        ws3.getRow(rowIdx).height = 22;
       });
 
       await downloadBuffer(workbook, "template_import_jadwal.xlsx");
@@ -647,6 +691,209 @@ export default function DaftarJadwal() {
     } catch (e) {
       console.error("Download template error", e);
       showNotification("Gagal mengunduh template", "error");
+    }
+  };
+
+  const handleDownloadUpdateTemplate = async () => {
+    try {
+      const ExcelJS = await loadExcelJS();
+      const workbook = new ExcelJS.Workbook();
+
+      // Sheet 1: TEMPLATE_JADWAL
+      const ws1 = workbook.addWorksheet("TEMPLATE_JADWAL");
+      ws1.columns = [
+        { width: 10 }, // ID
+        { width: 14 }, // HARI
+        { width: 10 }, // KELAS
+        { width: 18 }, // JURUSAN
+        { width: 28 }, // NAMA_MAPEL
+        { width: 28 }, // NAMA_GURU
+        { width: 13 }, // JAM_MULAI
+        { width: 13 }, // JAM_SELESAI
+      ];
+
+      // Baris 1: Title banner
+      ws1.mergeCells("A1:H1");
+      const t1 = ws1.getCell("A1");
+      t1.value = "TEMPLATE UPDATE DATA JADWAL PELAJARAN";
+      t1.font = { name: "Arial", bold: true, size: 13, color: { argb: "FFFFFFFF" } };
+      t1.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF059669" } }; // Green tone for update
+      t1.alignment = { horizontal: "center", vertical: "middle" };
+      ws1.getRow(1).height = 30;
+
+      // Baris 2: Subtitle
+      ws1.mergeCells("A2:H2");
+      const sub = ws1.getCell("A2");
+      sub.value = "Ubah data di bawah ini. Jangan ubah kolom ID. Baris dengan ID akan diupdate, baris tanpa ID akan dibuat baru.";
+      sub.font = { name: "Arial", italic: true, size: 9, color: { argb: argb("047857") } };
+      sub.fill = { type: "pattern", pattern: "solid", fgColor: { argb: argb("D1FAE5") } };
+      sub.alignment = { horizontal: "center", vertical: "middle" };
+      ws1.getRow(2).height = 18;
+
+      // Baris 3: Header kolom
+      const HEADER_LABELS = ["ID", "HARI", "KELAS", "JURUSAN", "NAMA_MAPEL", "NAMA_GURU", "JAM_MULAI", "JAM_SELESAI"];
+      const hRow = ws1.getRow(3);
+      hRow.height = 22;
+      HEADER_LABELS.forEach((lbl, i) => {
+        applyHeaderStyle(hRow.getCell(i + 1), "10B981"); // Emerald color for update template
+        hRow.getCell(i + 1).value = lbl;
+      });
+
+      // Populate current filteredJadwal data
+      filteredJadwal.forEach((item, ri) => {
+        const hari = item.hari || "-";
+        const bg = HARI_BG[hari] || "FFFFFF";
+        const dark = HARI_DARK[hari] || "1E293B";
+        const dataRow = ws1.getRow(ri + 4);
+        dataRow.height = 18;
+
+        const rowData = [
+          item.id,
+          hari,
+          item.kelas?.kelas || "-",
+          item.kelas?.jurusan || "-",
+          item.mata_pelajaran?.nama_mapel || "-",
+          item.guru?.nama || "-",
+          formatTime(item.jam_mulai),
+          formatTime(item.jam_selesai),
+        ];
+
+        rowData.forEach((val, ci) => {
+          const cell = dataRow.getCell(ci + 1);
+          cell.value = val;
+          if (ci === 0) {
+            // ID column: bold, gray bg
+            cell.font = { name: "Arial", bold: true, size: 10, color: { argb: argb("374151") } };
+            cell.fill = makeDataFill("E5E7EB");
+            cell.alignment = { horizontal: "center", vertical: "middle" };
+            cell.border = borderStyle;
+          } else if (ci === 1) {
+            cell.font = { name: "Arial", bold: true, size: 10, color: { argb: argb(dark) } };
+            cell.fill = makeDataFill(bg);
+            cell.alignment = { horizontal: "center", vertical: "middle" };
+            cell.border = borderStyle;
+          } else {
+            applyDataStyle(cell, bg, ci >= 6 ? "center" : "left");
+          }
+        });
+      });
+
+      // Sheet 2: PETUNJUK
+      const ws2 = workbook.addWorksheet("PETUNJUK");
+      ws2.columns = [{ width: 22 }, { width: 85 }];
+
+      const petunjukRows = [
+        ["KOLOM", "KETERANGAN"],
+        ["ID", "ID Jadwal yang ada di sistem (Jangan diubah! Digunakan untuk mendeteksi data yang akan diupdate)"],
+        ["HARI", "SENIN / SELASA / RABU / KAMIS / JUMAT / SABTU (huruf kapital)"],
+        ["KELAS", "Nomor tingkatan: 10, 11, atau 12"],
+        ["JURUSAN", "Nama jurusan. Contoh: RPL, TKJ, Multimedia"],
+        ["NAMA_MAPEL", "Nama mata pelajaran (harus sama persis dengan yang terdaftar di sistem)"],
+        ["NAMA_GURU", "Nama lengkap guru pengampu (harus sama persis dengan yang terdaftar di sistem)"],
+        ["JAM_MULAI", "Format 24 jam HH:MM — contoh: '07:00 (wajib diawali tanda kutip satu ')"],
+        ["JAM_SELESAI", "Format 24 jam HH:MM — contoh: '08:30 (wajib diawali tanda kutip satu ')"],
+      ];
+
+      const warnings = [
+        "⚠️  Kolom ID wajib diisi jika Anda ingin mengupdate jadwal yang sudah ada",
+        "⚠️  Jika kolom ID dikosongkan atau dihapus, baris tersebut akan dianggap sebagai Jadwal Baru",
+        "⚠️  Jangan ubah nama kolom header di sheet TEMPLATE_JADWAL",
+        "⚠️  NAMA_MAPEL & NAMA_GURU harus sama persis dengan data sistem",
+        "⚠️  Diawali tanda kutip satu (') di depan jam (misal: '07:00) agar Excel tidak mengacaukan format waktu",
+        "⚠️  Wajib menggunakan pemisah titik dua (:) untuk jam, bukan titik (.) karena sistem hanya membaca pemisah (:)",
+        "⚠️  Simpan file dalam format .xlsx sebelum diupload",
+      ];
+
+      petunjukRows.forEach((row, ri) => {
+        const wsRow = ws2.getRow(ri + 1);
+        wsRow.height = 18;
+        row.forEach((val, ci) => {
+          const cell = wsRow.getCell(ci + 1);
+          cell.value = val;
+          if (ri === 0) {
+            applyHeaderStyle(cell, "10B981");
+          } else {
+            applyDataStyle(cell, ri % 2 === 0 ? "FFFFFF" : "D1FAE5", "left");
+          }
+        });
+      });
+
+      // Add warnings with merging A & B
+      const startWarnRow = petunjukRows.length + 2;
+      warnings.forEach((warn, idx) => {
+        const rowIdx = startWarnRow + idx;
+        ws2.mergeCells(`A${rowIdx}:B${rowIdx}`);
+        const cell = ws2.getCell(`A${rowIdx}`);
+        cell.value = warn;
+        cell.font = { name: "Arial", size: 10, bold: true, color: { argb: argb("7F1D1D") } };
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: argb("FEE2E2") } };
+        cell.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+        cell.border = borderStyle;
+
+        const cellB = ws2.getCell(`B${rowIdx}`);
+        cellB.border = borderStyle;
+        ws2.getRow(rowIdx).height = 22;
+      });
+
+      await downloadBuffer(workbook, "template_update_jadwal.xlsx");
+      showNotification("Template update berhasil diunduh");
+    } catch (e) {
+      console.error("Download template update error", e);
+      showNotification("Gagal mengunduh template update", "error");
+    }
+  };
+
+  const handleEditJadwal = (item) => {
+    fetchDataForCreate();
+    setEditJadwalData({
+      id: item.id,
+      hari: (item.hari || "SENIN").toUpperCase(),
+      kelas_id: String(item.kelas?.id || ""),
+      mapel_id: String(item.mata_pelajaran?.id || ""),
+      guru_id: String(item.guru?.id || ""),
+      jam_mulai: formatTimeForInput(item.jam_mulai),
+      jam_selesai: formatTimeForInput(item.jam_selesai),
+    });
+    setShowEditModal(true);
+  };
+
+  const handleSaveEditJadwal = async () => {
+    if (!editJadwalData.kelas_id || !editJadwalData.mapel_id || !editJadwalData.guru_id) {
+      showNotification("Harap isi semua field yang wajib", "error");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const res = await jadwal.update(editJadwalData.id, {
+        hari: editJadwalData.hari,
+        kelas_id: parseInt(editJadwalData.kelas_id),
+        mapel_id: parseInt(editJadwalData.mapel_id),
+        guru_id:  parseInt(editJadwalData.guru_id),
+        jam_mulai: editJadwalData.jam_mulai,
+        jam_selesai: editJadwalData.jam_selesai,
+      });
+      if (res.success) {
+        // Re-fetch to get full relational data (kelas, mata_pelajaran, guru objects)
+        const refreshed = await jadwal.list("limit=100");
+        if (refreshed?.success && refreshed.data) {
+          setJadwalList(
+            [...refreshed.data].sort((a, b) => {
+              const hariDiff = HARI_ORDER.indexOf(a.hari) - HARI_ORDER.indexOf(b.hari);
+              if (hariDiff !== 0) return hariDiff;
+              return (a.jam_mulai || "").localeCompare(b.jam_mulai || "");
+            })
+          );
+        }
+        setShowEditModal(false);
+        showNotification("Jadwal berhasil diperbarui");
+      } else {
+        showNotification(res.message || "Gagal memperbarui jadwal", "error");
+      }
+    } catch (e) {
+      console.error("Error updating jadwal", e);
+      showNotification("Terjadi kesalahan saat memperbarui jadwal", "error");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -661,16 +908,18 @@ export default function DaftarJadwal() {
   }, []);
 
   useEffect(() => {
+    const sortJadwal = (list) =>
+      [...list].sort((a, b) => {
+        const hariDiff = HARI_ORDER.indexOf(a.hari) - HARI_ORDER.indexOf(b.hari);
+        if (hariDiff !== 0) return hariDiff;
+        return (a.jam_mulai || "").localeCompare(b.jam_mulai || "");
+      });
+
     const fetchJadwal = async () => {
       try {
         const res = await jadwal.list("limit=100");
         if (res.success && res.data) {
-          const sorted = [...res.data].sort((a, b) => {
-            const hariDiff = HARI_ORDER.indexOf(a.hari) - HARI_ORDER.indexOf(b.hari);
-            if (hariDiff !== 0) return hariDiff;
-            return (a.jam_mulai || "").localeCompare(b.jam_mulai || "");
-          });
-          setJadwalList(sorted);
+          setJadwalList(sortJadwal(res.data));
         }
       } catch (e) {
         console.error("Failed to fetch schedules", e);
@@ -778,7 +1027,17 @@ export default function DaftarJadwal() {
         guru_id:  parseInt(newJadwal.guru_id),
       });
       if (res.success) {
-        setJadwalList((prev) => [res.data, ...prev]);
+        // Re-fetch to get full relational data (kelas, mata_pelajaran, guru objects)
+        const refreshed = await jadwal.list("limit=100");
+        if (refreshed?.success && refreshed.data) {
+          setJadwalList(
+            [...refreshed.data].sort((a, b) => {
+              const hariDiff = HARI_ORDER.indexOf(a.hari) - HARI_ORDER.indexOf(b.hari);
+              if (hariDiff !== 0) return hariDiff;
+              return (a.jam_mulai || "").localeCompare(b.jam_mulai || "");
+            })
+          );
+        }
         setShowCreateModal(false);
         setNewJadwal({
           hari: "SENIN",
@@ -874,15 +1133,24 @@ export default function DaftarJadwal() {
               </div>
 
               {/* Dropdown Filter Kelas */}
-              <div className="w-56">
+              <div className="w-64">
                 <SearchableSelect
                   value={selectedKelasFilter}
                   onChange={setSelectedKelasFilter}
                   options={kelasList}
                   placeholder="Semua Kelas"
                   activeBlue={true}
-                  renderLabel={(item) => `${item.kelas} ${item.jurusan}`}
-                  getSearchText={(item) => `${item.kelas} ${item.jurusan}`}
+                  renderLabel={(item) => (
+                    <>
+                      <span>{item.kelas} {item.jurusan}</span>
+                      {(item.tahun?.tahun_ajaran || item.tahun_ajaran) && (
+                        <span className="ml-1 text-xs text-gray-400 font-normal">
+                          ({item.tahun?.tahun_ajaran || item.tahun_ajaran})
+                        </span>
+                      )}
+                    </>
+                  )}
+                  getSearchText={(item) => `${item.kelas} ${item.jurusan} ${item.tahun?.tahun_ajaran || item.tahun_ajaran || ""}`}
                 />
               </div>
 
@@ -1017,16 +1285,28 @@ export default function DaftarJadwal() {
                     </td>
                     {canManageJadwal && (
                       <td className="px-6 py-4">
-                        <button
-                          className="text-red-500 hover:text-red-700 font-medium text-sm transition-colors flex items-center gap-1"
-                          onClick={() => handleDeleteJadwal(item)}
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                          Hapus
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <button
+                            className="text-blue-600 hover:text-blue-800 font-medium text-sm transition-colors flex items-center gap-1"
+                            onClick={() => handleEditJadwal(item)}
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                            Edit
+                          </button>
+                          <button
+                            className="text-red-500 hover:text-red-700 font-medium text-sm transition-colors flex items-center gap-1"
+                            onClick={() => handleDeleteJadwal(item)}
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            Hapus
+                          </button>
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -1264,16 +1544,28 @@ export default function DaftarJadwal() {
                   <p className="text-sm text-gray-500 mb-3">Pilih file .xlsx sesuai format template yang tersedia.</p>
 
                   {/* Download Template */}
-                  <button
-                    onClick={handleDownloadTemplate}
-                    className="inline-flex items-center gap-2 mb-6 px-4 py-2 text-sm font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                    Download Template
-                  </button>
+                  <div className="flex justify-center gap-3 mb-6">
+                    <button
+                      onClick={handleDownloadTemplate}
+                      className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      Template Import
+                    </button>
+                    <button
+                      onClick={handleDownloadUpdateTemplate}
+                      className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      Template Update
+                    </button>
+                  </div>
 
                   {/* Dropzone */}
                   <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-2xl cursor-pointer transition-all ${
@@ -1406,6 +1698,132 @@ export default function DaftarJadwal() {
               </div>
             )}
 
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Edit Jadwal ──────────────────────────────────────────────── */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-visible">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50 rounded-t-2xl">
+              <h3 className="text-lg font-bold text-gray-900">Edit Jadwal Pelajaran</h3>
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                disabled={isSubmitting}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6 overflow-visible pb-32">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Hari</label>
+                  <SearchableSelect
+                    value={editJadwalData.hari}
+                    onChange={(v) => setEditJadwalData({ ...editJadwalData, hari: v })}
+                    options={HARI_ORDER}
+                    placeholder="Pilih Hari..."
+                    renderLabel={(item) => <span className="font-medium">{item}</span>}
+                    getSearchText={(item) => item}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Kelas</label>
+                  <SearchableSelect
+                    value={editJadwalData.kelas_id}
+                    onChange={(v) => setEditJadwalData({ ...editJadwalData, kelas_id: v })}
+                    options={kelasList}
+                    placeholder="Pilih Kelas..."
+                    renderLabel={(item) => (
+                      <>
+                        <span className="font-medium">{item.kelas} {item.jurusan}</span>
+                        {(item.tahun?.tahun_ajaran || item.tahun_ajaran) && (
+                          <span className="ml-1.5 text-xs text-gray-400">
+                            ({item.tahun?.tahun_ajaran || item.tahun_ajaran})
+                          </span>
+                        )}
+                      </>
+                    )}
+                    getSearchText={(item) => `${item.kelas} ${item.jurusan} ${item.tahun?.tahun_ajaran || item.tahun_ajaran || ""}`}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Mata Pelajaran</label>
+                  <SearchableSelect
+                    value={editJadwalData.mapel_id}
+                    onChange={(v) => setEditJadwalData({ ...editJadwalData, mapel_id: v })}
+                    options={mapelList}
+                    placeholder="Pilih Mapel..."
+                    renderLabel={(item) => <span className="font-medium">{item.nama_mapel}</span>}
+                    getSearchText={(item) => item.nama_mapel}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Guru Pengampu</label>
+                  <SearchableSelect
+                    value={editJadwalData.guru_id}
+                    onChange={(v) => setEditJadwalData({ ...editJadwalData, guru_id: v })}
+                    options={guruList}
+                    placeholder="Pilih Guru..."
+                    renderLabel={(item) => (
+                      <>
+                        <span className="font-medium">{item.nama}</span>
+                        {item.NIP ? <span className="ml-1.5 text-xs text-gray-400">({item.NIP})</span> : null}
+                      </>
+                    )}
+                    getSearchText={(item) => `${item.nama} ${item.NIP || ""}`}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Jam Mulai</label>
+                  <input
+                    type="time"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={editJadwalData.jam_mulai}
+                    onChange={(e) => setEditJadwalData({ ...editJadwalData, jam_mulai: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Jam Selesai</label>
+                  <input
+                    type="time"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={editJadwalData.jam_selesai}
+                    onChange={(e) => setEditJadwalData({ ...editJadwalData, jam_selesai: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 bg-gray-50 flex items-center justify-end gap-3 rounded-b-2xl">
+              <button
+                className="px-4 py-2 text-sm font-semibold text-gray-600 hover:text-gray-800 disabled:opacity-50"
+                onClick={() => setShowEditModal(false)}
+                disabled={isSubmitting}
+              >
+                Batal
+              </button>
+              <button
+                className="px-6 py-2 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-all shadow-md disabled:opacity-50 flex items-center gap-2"
+                onClick={handleSaveEditJadwal}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Menyimpan...
+                  </>
+                ) : "Simpan Perubahan"}
+              </button>
+            </div>
           </div>
         </div>
       )}

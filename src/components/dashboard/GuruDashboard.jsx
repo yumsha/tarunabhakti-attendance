@@ -54,10 +54,44 @@ export default function GuruDashboard() {
     fetchJadwal();
   }, []);
 
+  // ─── Helpers: tentukan status jadwal berdasarkan jam sekarang ───────────────
+  const getNowMinutes = () => {
+    const now = new Date();
+    return now.getHours() * 60 + now.getMinutes();
+  };
+
+  const parseTimeToMinutes = (timeStr) => {
+    if (!timeStr) return null;
+    const parts = String(timeStr).split(":");
+    const h = Number(parts[0]);
+    const m = Number(parts[1] ?? 0);
+    if (isNaN(h) || isNaN(m)) return null;
+    return h * 60 + m;
+  };
+
+  const getJadwalStatus = (item) => {
+    const nowMin = getNowMinutes();
+    const mulai = parseTimeToMinutes(item.jam_mulai);
+    const selesai = parseTimeToMinutes(item.jam_selesai);
+    if (mulai === null || selesai === null) return "unknown";
+    if (nowMin < mulai) return "upcoming";
+    if (nowMin >= mulai && nowMin < selesai) return "ongoing";
+    return "selesai";
+  };
+
+  // Jadwal yang sudah selesai hari ini, terbaru di atas
+  const jadwalSelesai = jadwalData
+    .filter((item) => getJadwalStatus(item) === "selesai")
+    .sort((a, b) => {
+      const aMin = parseTimeToMinutes(a.jam_selesai) ?? 0;
+      const bMin = parseTimeToMinutes(b.jam_selesai) ?? 0;
+      return bMin - aMin;
+    });
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Top Bar */}
-      <PageHeader 
+      <PageHeader
         title="Guru Dashboard"
         subtitle="Dashboard Guru"
       />
@@ -71,7 +105,7 @@ export default function GuruDashboard() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Quick Info Placeholder */}
+          {/* Panel kiri — Jadwal Hari Ini */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -81,16 +115,35 @@ export default function GuruDashboard() {
             </h3>
             <div>
               {jadwalData.length > 0 ? (
-                <ul className="divide-y divide-gray-200">
-                  {jadwalData.map((item, index) => (
-                    <li key={item.id || index} className="py-2 flex items-center gap-4">
-                      <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{item.mata_pelajaran.nama_mapel} - {item.kelas.kelas}</p>
-                        <p className="text-xs text-gray-500">{item.jam_mulai} - {item.jam_selesai}</p>
-                      </div>
-                    </li>
-                  ))}
+                <ul className="divide-y divide-gray-100 max-h-52 overflow-y-auto pr-1">
+                  {jadwalData.map((item, index) => {
+                    const status = getJadwalStatus(item);
+                    const dotColor =
+                      status === "ongoing"  ? "bg-green-500 animate-pulse" :
+                      status === "selesai"  ? "bg-gray-300" :
+                                             "bg-blue-400";
+                    return (
+                      <li key={item.id || index} className="py-2.5 flex items-center gap-3">
+                        <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${dotColor}`} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {item.mata_pelajaran?.nama_mapel || '-'} — {item.kelas?.kelas || '-'}{item.kelas?.jurusan ? ` ${item.kelas.jurusan}` : ''}
+                          </p>
+                          <p className="text-xs text-gray-500">{item.jam_mulai} – {item.jam_selesai}</p>
+                        </div>
+                        {status === "ongoing" && (
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 shrink-0">
+                            Berlangsung
+                          </span>
+                        )}
+                        {status === "selesai" && (
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 shrink-0">
+                            Selesai
+                          </span>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               ) : (
                 <p className="text-gray-500 text-center py-8 italic">Tidak ada jadwal untuk hari ini.</p>
@@ -98,6 +151,7 @@ export default function GuruDashboard() {
             </div>
           </div>
 
+          {/* Panel kanan — Aktifitas Terkini (jadwal yang sudah selesai) */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -105,7 +159,35 @@ export default function GuruDashboard() {
               </svg>
               Aktifitas Terkini
             </h3>
-            <p className="text-gray-500 text-center py-8 italic">Jadwal yang sudah sesai akan ditampilkan disini.</p>
+            {jadwalSelesai.length > 0 ? (
+              <ul className="divide-y divide-gray-100 max-h-52 overflow-y-auto pr-1">
+                {jadwalSelesai.map((item, index) => (
+                  <li key={item.id || index} className="py-2.5 flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                      <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {item.mata_pelajaran?.nama_mapel || '-'} — {item.kelas?.kelas || '-'}{item.kelas?.jurusan ? ` ${item.kelas.jurusan}` : ''}
+                      </p>
+                      <p className="text-xs text-gray-400">Selesai pukul {item.jam_selesai}</p>
+                    </div>
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 shrink-0 whitespace-nowrap">
+                      Selesai
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="text-center py-8">
+                <svg className="w-10 h-10 text-gray-200 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-gray-400 text-sm italic">Belum ada jadwal yang selesai hari ini.</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
