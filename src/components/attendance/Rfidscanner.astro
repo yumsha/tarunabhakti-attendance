@@ -27,10 +27,13 @@ import Logo from "../../assets/logo.png";
   />
 
   <script>
+
+// /home/yumsha/Projects/tarunabhakti-attendance/src/components/attendance/Rfidscanner.astro
+
     const RFID_CACHE_KEY = "rfid_cache";
     const RFID_CACHE_TS_KEY = "rfid_cache_ts";
     const RFID_CACHE_TTL_MS = 60_000;
-    const API_BASE_URL = import.meta.env.PUBLIC_API_BASE_URL || "http://localhost:3000";
+    const API_BASE_URL = import.meta.env.PUBLIC_API_BASE_URL;
 
     function readCachedRfidMap() {
       const tsRaw = localStorage.getItem(RFID_CACHE_TS_KEY);
