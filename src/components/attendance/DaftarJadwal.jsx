@@ -7,13 +7,19 @@ import Pagination from "../layout/Pagination";
 const formatTime = (timeStr) => {
   if (!timeStr) return "-";
   if (timeStr.includes("T")) {
-    return new Date(timeStr).toLocaleTimeString("id-ID", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
+    const d = new Date(timeStr);
+    const hrs = String(d.getHours()).padStart(2, "0");
+    const mins = String(d.getMinutes()).padStart(2, "0");
+    return `${hrs}:${mins}`;
   }
-  return timeStr.slice(0, 5);
+  return timeStr.replace(".", ":").slice(0, 5);
+};
+
+const formatTimeForTemplate = (timeStr) => {
+  if (!timeStr) return "";
+  const formatted = formatTime(timeStr);
+  if (formatted === "-") return "";
+  return `'${formatted}`;
 };
 
 const formatTimeForInput = (timeStr) => {
@@ -417,8 +423,8 @@ export default function DaftarJadwal() {
           item.kelas?.jurusan || "-",
           item.mata_pelajaran?.nama_mapel || "-",
           item.guru?.nama || "-",
-          formatTime(item.jam_mulai),
-          formatTime(item.jam_selesai),
+          formatTimeForTemplate(item.jam_mulai),
+          formatTimeForTemplate(item.jam_selesai),
         ];
 
         rowData.forEach((val, ci) => {
@@ -489,11 +495,11 @@ export default function DaftarJadwal() {
 
       // Sample data
       const SAMPLES = [
-        ["SENIN",  "10", "RPL",        "Pemrograman Web",   "Budi Santoso",  "07:00", "08:30"],
-        ["SELASA", "11", "TKJ",        "Jaringan Komputer", "Siti Rahayu",   "08:30", "10:00"],
-        ["RABU",   "12", "Multimedia", "Desain Grafis",     "Dewi Lestari",  "10:00", "11:30"],
-        ["KAMIS",  "10", "RPL",        "Basis Data",        "Ahmad Fauzi",   "07:00", "08:30"],
-        ["JUMAT",  "11", "TKJ",        "Sistem Operasi",    "Rudi Hermawan", "08:30", "10:00"],
+        ["SENIN",  "10", "RPL",        "Pemrograman Web",   "Budi Santoso",  "'07:00", "'08:30"],
+        ["SELASA", "11", "TKJ",        "Jaringan Komputer", "Siti Rahayu",   "'08:30", "'10:00"],
+        ["RABU",   "12", "Multimedia", "Desain Grafis",     "Dewi Lestari",  "'10:00", "'11:30"],
+        ["KAMIS",  "10", "RPL",        "Basis Data",        "Ahmad Fauzi",   "'07:00", "'08:30"],
+        ["JUMAT",  "11", "TKJ",        "Sistem Operasi",    "Rudi Hermawan", "'08:30", "'10:00"],
       ];
 
       SAMPLES.forEach((row, ri) => {
@@ -754,8 +760,8 @@ export default function DaftarJadwal() {
           item.kelas?.jurusan || "-",
           item.mata_pelajaran?.nama_mapel || "-",
           item.guru?.nama || "-",
-          formatTime(item.jam_mulai),
-          formatTime(item.jam_selesai),
+          formatTimeForTemplate(item.jam_mulai),
+          formatTimeForTemplate(item.jam_selesai),
         ];
 
         rowData.forEach((val, ci) => {

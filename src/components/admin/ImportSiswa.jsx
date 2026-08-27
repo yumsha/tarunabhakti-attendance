@@ -20,7 +20,7 @@ const TEMPLATE_HEADERS = [
   "Tanggal Lahir (YYYY-MM-DD)",
   "Jenis Kelamin",
   "Agama",
-  "Nama Kelas",
+  "Kelas",
   "Jurusan",
   "ID Orang Tua",
   "NIK Orang Tua",
@@ -39,7 +39,7 @@ const UPDATE_HEADERS = [
   "Tanggal Lahir (YYYY-MM-DD)",
   "Jenis Kelamin",
   "Agama",
-  "Nama Kelas",
+  "Kelas",
   "Jurusan",
   "ID Orang Tua",
 ];
@@ -83,7 +83,7 @@ function getSiswaGuideSheet() {
     ["   Jika tidak ditambahkan, Excel akan otomatis menghapus angka 0 di depan dan merusak format data Anda."],
     [""],
     ["2. PANDUAN DATA KELAS & GENDER SISWA"],
-    ["   - Gunakan kolom 'Nama Kelas' dan 'Jurusan."],
+    ["   - Gunakan kolom 'Kelas' dan 'Jurusan."],
     ["   - Pastikan nilainya sama persis dengan yang ada di sistem (Contoh: XII dan Rekayasa Perangkat Lunak)."],
     ["   - WAJIB: Kolom Jenis Kelamin harus menggunakan huruf KAPITAL (L untuk Laki-laki, P untuk Perempuan). Contoh: L atau P."],
     [""],
@@ -94,12 +94,12 @@ function getSiswaGuideSheet() {
     [""],
     ["4. CARA UPDATE DATA SISWA (TUNGGAL)"],
     ["   - Gunakan template excel yang tersedia"],
-    ["   - Ubah data siswa di Excel (misal memindahkan kelas siswa dengan mengubah 'Nama Kelas' dan 'Jurusan')."],
+    ["   - Ubah data siswa di Excel (misal memindahkan kelas siswa dengan mengubah 'Kelas' dan 'Jurusan')."],
     ["   - PERINGATAN: Kolom NISN bertindak sebagai kunci utama. Jangan pernah mengubah nilai NISN pada data yang ingin diupdate!"],
     [""],
     ["5. CARA UPDATE DATA SISWA (MASSAL)"],
     ["   - Ekspor data terlebih dahulu untuk mendapatkan semua data siswa saat ini yang berisi kolom NISN."],
-    ["   - Ubah data siswa di Excel (misal memindahkan kelas siswa dengan mengubah 'Nama Kelas' dan 'Jurusan')."],
+    ["   - Ubah data siswa di Excel (misal memindahkan kelas siswa dengan mengubah 'Kelas' dan 'Jurusan')."],
     ["   - PERINGATAN: Kolom NISN bertindak sebagai kunci utama. Jangan pernah mengubah nilai NISN pada data yang ingin diupdate!"]
   ];
   const ws = XLSX.utils.aoa_to_sheet(guideData);
@@ -251,7 +251,7 @@ function downloadUpdatePdfTemplate() {
   doc.text("Template Update Data Siswa", 14, 16);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text("NISN digunakan sebagai key pencarian. Nama Kelas & Jurusan diisi sesuai kelas di sistem.", 14, 23);
+  doc.text("NISN digunakan sebagai key pencarian. Kelas & Jurusan diisi sesuai kelas di sistem.", 14, 23);
   autoTable(doc, {
     startY: 28,
     head: [UPDATE_HEADERS],
@@ -269,7 +269,7 @@ function exportTablePdf(students) {
   doc.text("Data Siswa", 14, 16);
   autoTable(doc, {
     startY: 22,
-    head: [["NISN", "NIPD", "NIK", "Nama", "Tempat Lahir", "Tanggal Lahir (YYYY-MM-DD)", "Jenis Kelamin", "Agama", "Nama Kelas", "Jurusan"]],
+    head: [["NISN", "NIPD", "NIK", "Nama", "Tempat Lahir", "Tanggal Lahir (YYYY-MM-DD)", "Jenis Kelamin", "Agama", "Kelas", "Jurusan"]],
     body: students.map((s) => [
       s.nisn || s.NISN || "-",
       s.nipd || s.NIPD || "-",
@@ -298,7 +298,7 @@ function exportTableExcel(students) {
     "Tanggal Lahir (YYYY-MM-DD)": (s.tgl_lahir ? s.tgl_lahir.slice(0, 10) : (s.tanggal_lahir ? s.tanggal_lahir.slice(0, 10) : "")),
     "Jenis Kelamin": s.jenis_kelamin || s.gender || "",
     "Agama": s.agama || "",
-    "Nama Kelas": s.kelas?.kelas || "",
+    "Kelas": s.kelas?.kelas || "",
     "Jurusan": s.kelas?.jurusan || "",
     "ID Orang Tua": s.orangtua_id || s.orang_tua?.id || "",
   }));
@@ -710,7 +710,7 @@ function ImportModal({ onClose, onImportDone }) {
             tgl_lahir: row["Tanggal Lahir (YYYY-MM-DD)"] || "",
             jenis_kelamin: row["Jenis Kelamin"] || row["Gender"] || "",
             agama: row["Agama"] || "",
-            nama_kelas: row["Nama Kelas"] || "",
+            nama_kelas: row["Kelas"] || "",
             jurusan: row["Jurusan"] || "",
             ...(orangtuaPayload ? { orangtua: orangtuaPayload } : {}),
           };
@@ -1040,11 +1040,11 @@ function UpdateModal({ onClose, onUpdateDone, kelasList }) {
         return;
       }
 
-      const namaKelasStr = String(row["Nama Kelas"] || "").trim();
+      const namaKelasStr = String(row["Kelas"] || "").trim();
       const jurusanStr = String(row["Jurusan"] || "").trim();
 
       if (!namaKelasStr) {
-        prepared[idx] = { nama: row["Nama"] || nisnKey, ok: false, msg: "Nama Kelas wajib diisi" };
+        prepared[idx] = { nama: row["Nama"] || nisnKey, ok: false, msg: "Kelas wajib diisi" };
         return;
       }
 
@@ -1205,7 +1205,7 @@ function UpdateModal({ onClose, onUpdateDone, kelasList }) {
         <div className="bg-linear-to-r from-emerald-600 to-emerald-700 px-6 py-4 flex items-center justify-between">
           <div>
             <h2 className="text-white font-semibold text-lg">Update Data Siswa</h2>
-            <p className="text-emerald-200 text-xs mt-0.5">Upload Excel dengan kolom NISN (key), field siswa, Nama Kelas, Jurusan, ID Orang Tua</p>
+            <p className="text-emerald-200 text-xs mt-0.5">Upload Excel dengan kolom NISN (key), field siswa, Kelas, Jurusan, ID Orang Tua</p>
           </div>
           <button
             onClick={onClose}
