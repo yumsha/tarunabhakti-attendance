@@ -11,6 +11,7 @@ const formatTime = (timeStr) => {
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
+      timeZone: "Asia/Jakarta"
     });
   }
   return timeStr.slice(0, 5);
