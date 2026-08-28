@@ -26,8 +26,8 @@ export default function StudentStats() {
                 if (res.success && res.summary) {
                     const s = res.summary;
                     setStats({
-                        tepat_waktu:   s.tepat_waktu   ?? 0,
-                        terlambat:     s.terlambat     ?? 0,
+                        tepat_waktu:   s.Tepat_Waktu   ?? 0,
+                        terlambat:     s.Terlambat     ?? 0,
                         belum_tap_in:  s.belum_tap_in  ?? 0,
                         belum_tap_out: s.belum_tap_out ?? 0,
                         total:         s.total         ?? 0,

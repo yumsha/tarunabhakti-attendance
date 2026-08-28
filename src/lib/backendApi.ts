@@ -1,4 +1,4 @@
-const BASE_URL = '';
+const BASE_URL = import.meta.env.PUBLIC_API_BASE_URL ;
 const API_CACHE_PREFIX = 'tb_api_cache:';
 // Cache TTL: 5 menit untuk data statis (kelas, tahun, guru, dll).
 // Data kehadiran (finalAbsensi) di-fetch tanpa cache karena filternya dinamis.
