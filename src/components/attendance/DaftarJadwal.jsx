@@ -11,7 +11,7 @@ const formatTime = (timeStr) => {
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
-      timeZone: "UTC"
+      timeZone: "Asia/Jakarta",
     });
   }
   return timeStr.slice(0, 5);
@@ -20,23 +20,24 @@ const formatTime = (timeStr) => {
 const formatTimeForInput = (timeStr) => {
   if (!timeStr) return "";
   if (timeStr.includes("T")) {
-    const d = new Date(timeStr);
-    const hrs = String(d.getHours()).padStart(2, "0");
-    const mins = String(d.getMinutes()).padStart(2, "0");
-    return `${hrs}:${mins}`;
+    const wibStr = new Date(timeStr).toLocaleTimeString("en-GB", {
+      hour12: false,
+      timeZone: "Asia/Jakarta",
+    });
+    return wibStr.slice(0, 5);
   }
   return timeStr.replace(".", ":").slice(0, 5);
 };
 
-const HARI_ORDER = ["SENIN", "SELASA", "RABU", "KAMIS", "JUMAT", "SABTU"];
+const HARI_ORDER = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 
 const HARI_COLOR = {
-  SENIN:  "bg-blue-100 text-blue-700",
-  SELASA: "bg-purple-100 text-purple-700",
-  RABU:   "bg-green-100 text-green-700",
-  KAMIS:  "bg-yellow-100 text-yellow-700",
-  JUMAT:  "bg-orange-100 text-orange-700",
-  SABTU:  "bg-pink-100 text-pink-700",
+  Senin:  "bg-blue-100 text-blue-700",
+  Selasa: "bg-purple-100 text-purple-700",
+  Rabu:   "bg-green-100 text-green-700",
+  Kamis:  "bg-yellow-100 text-yellow-700",
+  Jumat:  "bg-orange-100 text-orange-700",
+  Sabtu:  "bg-pink-100 text-pink-700",
 };
 
 // ── Helper: load ExcelJS dari CDN ─────────────────────────────────────────────
@@ -70,12 +71,12 @@ const downloadBuffer = async (workbook, filename) => {
 
 // ── Konstanta warna hari ──────────────────────────────────────────────────────
 const HARI_BG = {
-  SENIN: "DBEAFE", SELASA: "EDE9FE", RABU: "D1FAE5",
-  KAMIS: "FEF3C7", JUMAT: "FFEDD5", SABTU: "FCE7F3",
+  Senin: "DBEAFE", Selasa: "EDE9FE", Rabu: "D1FAE5",
+  Kamis: "FEF3C7", Jumat: "FFEDD5", Sabtu: "FCE7F3",
 };
 const HARI_DARK = {
-  SENIN: "1D4ED8", SELASA: "6D28D9", RABU: "065F46",
-  KAMIS: "92400E", JUMAT: "9A3412", SABTU: "9D174D",
+  Senin: "1D4ED8", Selasa: "6D28D9", Rabu: "065F46",
+  Kamis: "92400E", Jumat: "9A3412", Sabtu: "9D174D",
 };
 
 // ── Helper style ExcelJS ──────────────────────────────────────────────────────
@@ -316,7 +317,7 @@ export default function DaftarJadwal() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editJadwalData, setEditJadwalData] = useState({
     id: null,
-    hari: "SENIN",
+    hari: "Senin",
     kelas_id: "",
     mapel_id: "",
     guru_id: "",
@@ -325,7 +326,7 @@ export default function DaftarJadwal() {
   });
 
   const [newJadwal, setNewJadwal] = useState({
-    hari: "SENIN",
+    hari: "Senin",
     kelas_id: "",
     mapel_id: "",
     guru_id: "",
@@ -515,121 +516,6 @@ export default function DaftarJadwal() {
           }
         });
       });
-
-      /*
-      // ════════════════════════════════════════════════════════════════════════
-      // Sheet 2: JADWAL_GRID
-      // ════════════════════════════════════════════════════════════════════════
-      const ws2 = workbook.addWorksheet("JADWAL_GRID");
-
-      const HARI_LIST = ["SENIN", "SELASA", "RABU", "KAMIS", "JUMAT", "SABTU"];
-      const JAM_SLOTS = [
-        { ke: "",   waktu: "06:30 - 07:30", special: "UPACARA / PEMBIASAAN PAGI" },
-        { ke: "1",  waktu: "07:30 - 08:05" },
-        { ke: "2",  waktu: "08:05 - 08:40" },
-        { ke: "3",  waktu: "08:40 - 09:15" },
-        { ke: "4",  waktu: "09:15 - 09:50" },
-        { ke: "",   waktu: "09:50 - 10:10", special: "ISTIRAHAT" },
-        { ke: "5",  waktu: "10:10 - 10:45" },
-        { ke: "6",  waktu: "10:45 - 11:20" },
-        { ke: "7",  waktu: "11:20 - 11:55" },
-        { ke: "8",  waktu: "11:55 - 12:30" },
-        { ke: "",   waktu: "12:30 - 13:00", special: "ISTIRAHAT" },
-        { ke: "9",  waktu: "13:00 - 13:35" },
-        { ke: "10", waktu: "13:35 - 14:10" },
-        { ke: "11", waktu: "14:10 - 14:45" },
-        { ke: "12", waktu: "14:45 - 15:20" },
-        { ke: "",   waktu: "15:20 - 15:40", special: "ISTIRAHAT" },
-        { ke: "13", waktu: "15:40 - 16:15" },
-        { ke: "14", waktu: "16:15 - 16:50" },
-        { ke: "15", waktu: "16:50 - 17:25" },
-        { ke: "16", waktu: "17:25 - 18:00" },
-      ];
-
-      const totalCols = HARI_LIST.length * 4;
-
-      // Lebar kolom: tiap hari punya 4 kolom [JAM KE, WAKTU, MAPEL, GURU]
-      const colWidths = [];
-      HARI_LIST.forEach(() => colWidths.push(7, 14, 22, 22));
-      ws2.columns = colWidths.map((w) => ({ width: w }));
-
-      // Baris 1: Judul utama
-      ws2.mergeCells(1, 1, 1, totalCols);
-      const gridTitle = ws2.getCell(1, 1);
-      gridTitle.value = "JADWAL PELAJARAN — SEMUA HARI";
-      gridTitle.font = { name: "Arial", bold: true, size: 14, color: { argb: "FFFFFFFF" } };
-      gridTitle.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E40AF" } };
-      gridTitle.alignment = { horizontal: "center", vertical: "middle" };
-      ws2.getRow(1).height = 30;
-
-      HARI_LIST.forEach((h, hi) => {
-        const baseCol = hi * 4 + 1; // 1-indexed
-        const dark = HARI_DARK[h];
-        const bg = HARI_BG[h];
-
-        // Baris 2: Nama hari (merge 4 kolom)
-        ws2.mergeCells(2, baseCol, 2, baseCol + 3);
-        const hariCell = ws2.getCell(2, baseCol);
-        hariCell.value = h;
-        applyHeaderStyle(hariCell, dark, "FFFFFF");
-        hariCell.font = { name: "Arial", bold: true, size: 11, color: { argb: "FFFFFFFF" } };
-        ws2.getRow(2).height = 22;
-
-        // Baris 3: Sub-header
-        ["JAM KE", "WAKTU", "MATA PELAJARAN", "NAMA GURU"].forEach((lbl, oi) => {
-          const cell = ws2.getCell(3, baseCol + oi);
-          cell.value = lbl;
-          applyHeaderStyle(cell, dark, "FFFFFF");
-          cell.font = { name: "Arial", bold: true, size: 9, color: { argb: "FFFFFFFF" } };
-        });
-        ws2.getRow(3).height = 18;
-
-        // Jam rows
-        JAM_SLOTS.forEach((slot, si) => {
-          const excelRow = si + 4;
-          ws2.getRow(excelRow).height = 16;
-
-          if (slot.special) {
-            ws2.mergeCells(excelRow, baseCol, excelRow, baseCol + 3);
-            const cell = ws2.getCell(excelRow, baseCol);
-            cell.value = slot.special;
-            const isIstirahat = slot.special === "ISTIRAHAT";
-            cell.font = {
-              name: "Arial", bold: true, size: 9,
-              color: { argb: argb(isIstirahat ? "78350F" : dark) },
-            };
-            cell.fill = {
-              type: "pattern", pattern: "solid",
-              fgColor: { argb: argb(isIstirahat ? "FCD34D" : bg) },
-            };
-            cell.alignment = { horizontal: "center", vertical: "middle" };
-            cell.border = borderStyle;
-          } else {
-            // JAM KE
-            const jamCell = ws2.getCell(excelRow, baseCol);
-            jamCell.value = slot.ke;
-            jamCell.font = { name: "Arial", bold: true, size: 9, color: { argb: argb(dark) } };
-            jamCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: argb("F1F5F9") } };
-            jamCell.alignment = { horizontal: "center", vertical: "middle" };
-            jamCell.border = borderStyle;
-
-            // WAKTU
-            const waktuCell = ws2.getCell(excelRow, baseCol + 1);
-            waktuCell.value = slot.waktu;
-            waktuCell.font = { name: "Arial", size: 9, color: { argb: argb("1E293B") } };
-            waktuCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: argb("F1F5F9") } };
-            waktuCell.alignment = { horizontal: "center", vertical: "middle" };
-            waktuCell.border = borderStyle;
-
-            // MATA PELAJARAN (kosong)
-            applyDataStyle(ws2.getCell(excelRow, baseCol + 2), "FFFFFF", "left");
-
-            // NAMA GURU (kosong)
-            applyDataStyle(ws2.getCell(excelRow, baseCol + 3), "FFFFFF", "left");
-          }
-        });
-      });
-      */
 
       // ════════════════════════════════════════════════════════════════════════
       // Sheet 2: PETUNJUK
@@ -848,7 +734,7 @@ export default function DaftarJadwal() {
     fetchDataForCreate();
     setEditJadwalData({
       id: item.id,
-      hari: (item.hari || "SENIN").toUpperCase(),
+      hari: item.hari || "Senin",
       kelas_id: String(item.kelas?.id || ""),
       mapel_id: String(item.mata_pelajaran?.id || ""),
       guru_id: String(item.guru?.id || ""),
@@ -1041,7 +927,7 @@ export default function DaftarJadwal() {
         }
         setShowCreateModal(false);
         setNewJadwal({
-          hari: "SENIN",
+          hari: "Senin",
           kelas_id: "",
           mapel_id: "",
           guru_id: "",
