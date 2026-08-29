@@ -2,7 +2,7 @@ import PageHeader from "../layout/PageHeader.jsx";
 import Pagination from "../layout/Pagination.jsx";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { CheckCircle2, AlertTriangle } from "lucide-react";
+import { CheckCircle2, AlertTriangle, X } from "lucide-react";
 import { siswa, kelas, orangTua } from "../../lib/backendApi";
 import XLSX from "xlsx-js-style";
 import jsPDF from "jspdf";
@@ -22,6 +22,7 @@ const TEMPLATE_HEADERS = [
   "Agama",
   "Kelas",
   "Jurusan",
+  "Rombel",
   "ID Orang Tua",
   "NIK Orang Tua",
   "Nama Orang Tua",
@@ -41,6 +42,7 @@ const UPDATE_HEADERS = [
   "Agama",
   "Kelas",
   "Jurusan",
+  "Rombel",
   "ID Orang Tua",
 ];
 
@@ -70,6 +72,76 @@ async function runWithConcurrency(items, concurrency, worker, onProgress) {
   return results;
 }
 
+// Helper: pencocokan data kelas dari Excel dengan daftar kelas di DB
+function normalizeStr(str) {
+  if (str === null || str === undefined) return "";
+  return String(str)
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
+function findMatchingKelas(namaKelasRaw, jurusanRaw, rombelRaw, kelasList) {
+  if (!kelasList || !kelasList.length) return null;
+
+  const kelasInput = normalizeStr(namaKelasRaw);
+  const rawJurusan = normalizeStr(jurusanRaw);
+  const rombelInput = normalizeStr(rombelRaw);
+
+  if (!kelasInput) return null;
+
+  // Siapkan kandidat nama jurusan
+  const candidateJurusanSet = new Set();
+  if (rawJurusan) {
+    candidateJurusanSet.add(rawJurusan);
+    if (rombelInput) {
+      if (!rawJurusan.endsWith(rombelInput)) {
+        candidateJurusanSet.add(`${rawJurusan} ${rombelInput}`);
+        candidateJurusanSet.add(`${rawJurusan}${rombelInput}`);
+      }
+    }
+  }
+
+  // 1. Pencocokan tepat berdasarkan kelas & kandidat jurusan
+  let matched = kelasList.find((k) => {
+    const kKelas = normalizeStr(k.kelas);
+    const kJurusan = normalizeStr(k.jurusan);
+
+    if (kKelas !== kelasInput) return false;
+    if (candidateJurusanSet.size === 0) return true;
+    return candidateJurusanSet.has(kJurusan);
+  });
+
+  if (matched) return matched;
+
+  // 2. Pencocokan gabungan lengkap (jika kolom kelas berisi misal "XII Rekayasa Perangkat Lunak 1")
+  const fullCombinedInput = normalizeStr(`${namaKelasRaw || ""} ${jurusanRaw || ""} ${rombelRaw || ""}`);
+  matched = kelasList.find((k) => {
+    const kFull = normalizeStr(`${k.kelas} ${k.jurusan}`);
+    return kFull === fullCombinedInput;
+  });
+
+  if (matched) return matched;
+
+  // 3. Fallback: pencocokan kelas & substring jurusan
+  if (candidateJurusanSet.size > 0) {
+    matched = kelasList.find((k) => {
+      const kKelas = normalizeStr(k.kelas);
+      const kJurusan = normalizeStr(k.jurusan);
+      if (kKelas !== kelasInput) return false;
+
+      for (const candidate of candidateJurusanSet) {
+        if (kJurusan.includes(candidate) || candidate.includes(kJurusan)) {
+          return true;
+        }
+      }
+      return false;
+    });
+  }
+
+  return matched || null;
+}
+
 // Template Downloaders 
 
 function getSiswaGuideSheet() {
@@ -82,9 +154,11 @@ function getSiswaGuideSheet() {
     ["   Contoh: '3050626105 atau '2005-06-01"],
     ["   Jika tidak ditambahkan, Excel akan otomatis menghapus angka 0 di depan dan merusak format data Anda."],
     [""],
-    ["2. PANDUAN DATA KELAS & GENDER SISWA"],
-    ["   - Gunakan kolom 'Kelas' dan 'Jurusan."],
-    ["   - Pastikan nilainya sama persis dengan yang ada di sistem (Contoh: XII dan Rekayasa Perangkat Lunak)."],
+    ["2. PANDUAN DATA KELAS, JURUSAN, ROMBEL & GENDER SISWA"],
+    ["   - Kolom 'Kelas': Tingkat kelas di sistem (Contoh: X, XI, atau XII)."],
+    ["   - Kolom 'Jurusan': Nama jurusan (Contoh: Rekayasa Perangkat Lunak)."],
+    ["   - Kolom 'Rombel': Nomor kelas paralel (Contoh: 1 atau 2). Sistem akan menggabungkan Jurusan + Rombel."],
+    ["   - Pastikan kombinasi Kelas, Jurusan, & Rombel sesuai dengan kelas yang terdaftar di sistem."],
     ["   - WAJIB: Kolom Jenis Kelamin harus menggunakan huruf KAPITAL (L untuk Laki-laki, P untuk Perempuan). Contoh: L atau P."],
     [""],
     ["3. CARA TAMBAH DATA SISWA & RELASI ORANG TUA."],
@@ -94,12 +168,12 @@ function getSiswaGuideSheet() {
     [""],
     ["4. CARA UPDATE DATA SISWA (TUNGGAL)"],
     ["   - Gunakan template excel yang tersedia"],
-    ["   - Ubah data siswa di Excel (misal memindahkan kelas siswa dengan mengubah 'Kelas' dan 'Jurusan')."],
+    ["   - Ubah data siswa di Excel (misal memindahkan kelas siswa dengan mengubah 'Kelas', 'Jurusan', atau 'Rombel')."],
     ["   - PERINGATAN: Kolom NISN bertindak sebagai kunci utama. Jangan pernah mengubah nilai NISN pada data yang ingin diupdate!"],
     [""],
     ["5. CARA UPDATE DATA SISWA (MASSAL)"],
     ["   - Ekspor data terlebih dahulu untuk mendapatkan semua data siswa saat ini yang berisi kolom NISN."],
-    ["   - Ubah data siswa di Excel (misal memindahkan kelas siswa dengan mengubah 'Kelas' dan 'Jurusan')."],
+    ["   - Ubah data siswa di Excel."],
     ["   - PERINGATAN: Kolom NISN bertindak sebagai kunci utama. Jangan pernah mengubah nilai NISN pada data yang ingin diupdate!"]
   ];
   const ws = XLSX.utils.aoa_to_sheet(guideData);
@@ -116,7 +190,7 @@ function getSiswaGuideSheet() {
   }
 
   // Style Section Headers
-  const sectionRows = [2, 8, 13, 18, 23];
+  const sectionRows = [2, 8, 14, 19, 24];
   sectionRows.forEach((r) => {
     const cell = XLSX.utils.encode_cell({ r: r, c: 0 });
     if (ws[cell]) {
@@ -151,14 +225,14 @@ function getSiswaGuideSheet() {
 
 // Contoh 1: punya ID orang tua di DB = cukup isi ID, kolom detail kosong
 const EXAMPLE_ROW_WITH_ID = [
-  "3050626105", "2025001", "3201010103070001", "Sandi Permata", "Bogor", "2005-12-06", "L", "Islam", "XII", "Rekayasa Perangkat Lunak",
+  "3050626105", "2025001", "3201010103070001", "Sandi Permata", "Bogor", "2005-12-06", "L", "Islam", "XII", "Rekayasa Perangkat Lunak", "1",
   "1",           // ID Orang Tua (ada di DB)
   "", "", "", "", "", // detail ortu dikosongkan
 ];
 
 // Contoh 2: orang tua belum ada di DB = ID kosong, isi kolom detail
 const EXAMPLE_ROW_NEW_PARENT = [
-  "3050626106", "2025002", "3201010103070002", "Dewi Rahayu", "Bogor", "2006-03-15", "P", "Islam", "XI", "Teknik Komputer Jaringan",
+  "3050626106", "2025002", "3201010103070002", "Dewi Rahayu", "Bogor", "2006-03-15", "P", "Islam", "XI", "Teknik Komputer Jaringan", "1",
   "",            // ID Orang Tua dikosongkan
   "3201234567890001", "Budi Santoso", "08123456789", "Wiraswasta", "Jl. Merdeka No. 1 Bogor",
 ];
@@ -219,12 +293,12 @@ function downloadPdfTemplate() {
     styles: { fontSize: 7 },
     headStyles: { fillColor: [37, 99, 235] },
     columnStyles: {
-      10: { fillColor: [239, 246, 255] }, // ID Orang Tua
-      11: { fillColor: [240, 253, 244] }, // NIK Orang Tua
-      12: { fillColor: [240, 253, 244] },
+      11: { fillColor: [239, 246, 255] }, // ID Orang Tua
+      12: { fillColor: [240, 253, 244] }, // NIK Orang Tua
       13: { fillColor: [240, 253, 244] },
       14: { fillColor: [240, 253, 244] },
       15: { fillColor: [240, 253, 244] },
+      16: { fillColor: [240, 253, 244] },
     },
   });
   doc.save("template_siswa.pdf");
@@ -233,7 +307,7 @@ function downloadPdfTemplate() {
 function downloadUpdateExcelTemplate() {
   const ws = XLSX.utils.aoa_to_sheet([
     UPDATE_HEADERS,
-    ["3050626105", "2025001", "3201010103070001", "Sandi Permata", "Bogor", "2005-12-06", "L", "Islam", "XII", "Rekayasa Perangkat Lunak", 1],
+    ["3050626105", "2025001", "3201010103070001", "Sandi Permata", "Bogor", "2005-12-06", "L", "Islam", "XII", "Rekayasa Perangkat Lunak", "1", 1],
   ]);
   ws["!cols"] = UPDATE_HEADERS.map(() => ({ wch: 26 }));
   styleHeader(ws, UPDATE_HEADERS, "update");
@@ -251,11 +325,11 @@ function downloadUpdatePdfTemplate() {
   doc.text("Template Update Data Siswa", 14, 16);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text("NISN digunakan sebagai key pencarian. Kelas & Jurusan diisi sesuai kelas di sistem.", 14, 23);
+  doc.text("NISN digunakan sebagai key pencarian. Kelas, Jurusan, & Rombel diisi sesuai kelas di sistem.", 14, 23);
   autoTable(doc, {
     startY: 28,
     head: [UPDATE_HEADERS],
-    body: [["3050626105", "2025001", "3201010103070001", "Sandi Permata", "Bogor", "2005-12-06", "L", "Islam", "XII", "Rekayasa Perangkat Lunak", "1"]],
+    body: [["3050626105", "2025001", "3201010103070001", "Sandi Permata", "Bogor", "2005-12-06", "L", "Islam", "XII", "Rekayasa Perangkat Lunak", "1", "1"]],
     styles: { fontSize: 8 },
     headStyles: { fillColor: [16, 185, 129] },
   });
@@ -547,7 +621,7 @@ function ProgressBar({ current, total, color = "blue" }) {
 
 // Import Modal
 
-function ImportModal({ onClose, onImportDone }) {
+function ImportModal({ onClose, onImportDone, kelasList = [] }) {
   const [rows, setRows] = useState([]);
   const [results, setResults] = useState([]);
   const [importing, setImporting] = useState(false);
@@ -570,7 +644,8 @@ function ImportModal({ onClose, onImportDone }) {
   const parseFile = (file) => {
     const reader = new FileReader();
     reader.onload = (e) => {
-      const wb = XLSX.read(e.target.result, { type: "binary" });
+      const data = e.target.result;
+      const wb = XLSX.read(data, { type: "binary" });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const json = XLSX.utils.sheet_to_json(ws, { defval: "" });
       setRows(json);
@@ -588,12 +663,8 @@ function ImportModal({ onClose, onImportDone }) {
   const handleFile = (e) => { const f = e.target.files[0]; if (f) parseFile(f); };
   const handleDrop = (e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) parseFile(f); };
 
-  // runImport menangani satu "batch" baris (bisa seluruh file, bisa cuma baris yang gagal saat retry).
-  // totalCount dipakai untuk progress bar (beda dengan rowsToProcess.length kalau ada yang ke-skip di pre-pass).
   const runImport = async (rowsToProcess, totalCount) => {
-    // Fetch semua orang tua sekali di awal untuk lookup cepat (difetch ulang juga saat retry,
-    // supaya data orang tua yang baru dibuat di percobaan sebelumnya ikut terbaca)
-    let orangtuaMap = {}; // id (string) → object orang tua
+    let orangtuaMap = {};
     try {
       const ortuRes = await orangTua.list("limit=9999");
       if (ortuRes?.success && Array.isArray(ortuRes.data)) {
@@ -603,10 +674,7 @@ function ImportModal({ onClose, onImportDone }) {
       }
     } catch (_) { }
 
-    // prepared menyimpan hasil per baris sesuai urutan asli (sparse array)
     const prepared = new Array(totalCount);
-
-    // ── Pre-pass: validasi sinkron & deteksi duplikat NISN/NIPD dalam batch ini ──
     const seenNISN = new Set();
     const seenNIPD = new Set();
     const seenNIK = new Set();
@@ -640,12 +708,10 @@ function ImportModal({ onClose, onImportDone }) {
       toProcess.push({ row, idx });
     });
 
-    // Tampilkan hasil pre-pass duluan (progress sudah terisi sebagian)
     const preDone = rowsToProcess.length - toProcess.length;
     setProgress({ current: preDone, total: totalCount });
     setResults(prepared.filter(Boolean));
 
-    // ── Proses ke backend dengan concurrency terbatas ──
     await runWithConcurrency(
       toProcess,
       CONCURRENCY,
@@ -653,14 +719,6 @@ function ImportModal({ onClose, onImportDone }) {
         const nama = row["Nama"] || "?";
 
         try {
-          // Resolusi Orang Tua
-          //
-          // Behavior:
-          //   1. ID Orang Tua diisi & ada di DB        = kirim orangtua_id (integer)
-          //   2. ID Orang Tua diisi & TIDAK ada di DB  = langsung gagal
-          //   3. ID kosong, detail diisi lengkap       = kirim orangtua object (buat baru)
-          //   4. Semua kosong                          = siswa tanpa orang tua
-
           const idOrtu = String(row["ID Orang Tua"] || "").trim();
           const nikOrtu = String(row["NIK Orang Tua"] || "").trim();
           const namaOrtu = String(row["Nama Orang Tua"] || "").trim();
@@ -668,8 +726,7 @@ function ImportModal({ onClose, onImportDone }) {
           const pekerjaanOrtu = String(row["Pekerjaan Orang Tua"] || "").trim();
           const alamatOrtu = String(row["Alamat Orang Tua"] || "").trim();
 
-          const hasDetail = nikOrtu && namaOrtu && telpOrtu && pekerjaanOrtu && alamatOrtu;
-
+          const hasDetail = Boolean(nikOrtu || namaOrtu || telpOrtu || pekerjaanOrtu || alamatOrtu);
           let orangtuaPayload = undefined;
 
           if (idOrtu) {
@@ -683,13 +740,11 @@ function ImportModal({ onClose, onImportDone }) {
                 alamat: matched.alamat,
               };
             } else {
-              // kalo ID tidak ditemukan di DB maka langsung gagal (no fallback)
               const entry = { nama, ok: false, msg: `ID Orang Tua "${idOrtu}" tidak ditemukan di database` };
               prepared[idx] = entry;
               return entry;
             }
           } else if (hasDetail) {
-            // ID kosong tapi detail lengkap maka buat orang tua baru
             orangtuaPayload = {
               NIK: nikOrtu,
               nama_orangtua: namaOrtu,
@@ -698,9 +753,9 @@ function ImportModal({ onClose, onImportDone }) {
               alamat: alamatOrtu,
             };
           }
-          // else: semua kosong maka import siswa tanpa orang tua
 
-          // Buat siswa
+          const matchedKelas = findMatchingKelas(row["Kelas"], row["Jurusan"], row["Rombel"], kelasList);
+
           const payload = {
             nisn: String(row["NISN"] || ""),
             nipd: String(row["NIPD"] || ""),
@@ -710,9 +765,17 @@ function ImportModal({ onClose, onImportDone }) {
             tgl_lahir: row["Tanggal Lahir (YYYY-MM-DD)"] || "",
             jenis_kelamin: row["Jenis Kelamin"] || row["Gender"] || "",
             agama: row["Agama"] || "",
-            nama_kelas: row["Kelas"] || "",
-            jurusan: row["Jurusan"] || "",
+            nama_kelas: matchedKelas ? matchedKelas.kelas : String(row["Kelas"] || "").trim(),
+            jurusan: matchedKelas ? matchedKelas.jurusan : (() => {
+              const rawJ = String(row["Jurusan"] || "").trim();
+              const romb = String(row["Rombel"] || "").trim();
+              if (romb && !rawJ.toLowerCase().endsWith(romb.toLowerCase())) {
+                return `${rawJ} ${romb}`.trim();
+              }
+              return rawJ;
+            })(),
             ...(orangtuaPayload ? { orangtua: orangtuaPayload } : {}),
+            ...(matchedKelas ? { kelas_id: matchedKelas.id } : {})
           };
 
           const result = await siswa.create(payload);
@@ -731,27 +794,23 @@ function ImportModal({ onClose, onImportDone }) {
       }
     );
 
+    setDone(true);
+    setImporting(false);
+    if (onImportDone) onImportDone();
     return prepared;
   };
 
-  const startImport = async () => {
-    if (!rows.length) return;
+  const startImport = () => {
+    if (!rows.length || importing) return;
     setImporting(true);
     setDone(false);
     setResults([]);
     setProgress({ current: 0, total: rows.length });
-    setResultFilter("all");
-
     const allRows = rows.map((row, idx) => ({ row, idx }));
-    await runImport(allRows, rows.length);
-
-    setImporting(false);
-    setDone(true);
-    onImportDone();
+    runImport(allRows, rows.length);
   };
 
-  // retryFailed hanya mengirim ulang baris-baris yang sebelumnya gagal,
-  const retryFailed = async () => {
+  const retryFailed = () => {
     const failedRows = results
       .map((r, i) => ({ r, originalRow: rows[i] }))
       .filter(({ r }) => !r.ok)
@@ -761,15 +820,11 @@ function ImportModal({ onClose, onImportDone }) {
     setDone(false);
     setResults([]);
     setProgress({ current: 0, total: failedRows.length });
-    setResultFilter("all");
-    await runImport(failedRows, failedRows.length);
-    setImporting(false);
-    setDone(true);
-    onImportDone();
+    runImport(failedRows, failedRows.length);
   };
 
-  const successCount = results.filter((r) => r.ok).length;
-  const failCount = results.filter((r) => !r.ok).length;
+  const successCount = results.filter((r) => r?.ok).length;
+  const failCount = results.filter((r) => r && !r.ok).length;
 
   const filteredRows = useMemo(() => {
     if (!draftSearch.trim()) return rows;
@@ -782,9 +837,9 @@ function ImportModal({ onClose, onImportDone }) {
   const filteredResults = useMemo(() => {
     let list = results;
     if (resultFilter === "berhasil") {
-      list = list.filter((r) => r.ok);
+      list = list.filter((r) => r?.ok);
     } else if (resultFilter === "gagal") {
-      list = list.filter((r) => !r.ok);
+      list = list.filter((r) => r && !r.ok);
     }
     if (!resultSearch.trim()) return list;
     const q = resultSearch.toLowerCase().trim();
@@ -1040,30 +1095,19 @@ function UpdateModal({ onClose, onUpdateDone, kelasList }) {
         return;
       }
 
-      const namaKelasStr = String(row["Kelas"] || "").trim();
-      const jurusanStr = String(row["Jurusan"] || "").trim();
-
-      if (!namaKelasStr) {
-        prepared[idx] = { nama: row["Nama"] || nisnKey, ok: false, msg: "Kelas wajib diisi" };
-        return;
-      }
-
-      const matchedKelas = kelasList.find(
-        (k) =>
-          k.kelas?.toString().toLowerCase() === namaKelasStr.toLowerCase() &&
-          (k.jurusan || "").toString().toLowerCase() === jurusanStr.toLowerCase()
-      );
+      const matchedKelas = findMatchingKelas(row["Kelas"], row["Jurusan"], row["Rombel"], kelasList);
 
       if (!matchedKelas) {
         prepared[idx] = {
           nama: row["Nama"] || nisnKey,
           ok: false,
-          msg: `Kelas "${namaKelasStr}" ${jurusanStr ? `dengan jurusan "${jurusanStr}"` : ""} tidak ditemukan`,
+          msg: `Kelas "${row["Kelas"] || ""}" tidak ditemukan`,
         };
         return;
       }
 
       const kelasId = matchedKelas.id;
+      const jurusanStr = matchedKelas.jurusan;
       const ortuId = row["ID Orang Tua"] ? parseInt(row["ID Orang Tua"]) : null;
 
       // Check data apakah sama kek di db apa gnti
@@ -1078,7 +1122,7 @@ function UpdateModal({ onClose, onUpdateDone, kelasList }) {
         String(existing.jenis_kelamin || existing.gender || "").trim() !== String(row["Jenis Kelamin"] || row["Gender"] || "").trim() ||
         String(existing.tempat_lahir || "").trim() !== String(row["Tempat Lahir"] || "").trim() ||
         String(existing.agama || "").trim() !== String(row["Agama"] || "").trim() ||
-        String(existing.jurusan || "").trim() !== String(row["Jurusan"] || "").trim() ||
+        String(existing.jurusan || "").trim() !== jurusanStr ||
         existingDateStr !== inputDateStr ||
         existing.kelas_id !== kelasId ||
         existing.orangtua_id !== (ortuId || null);
@@ -1092,7 +1136,7 @@ function UpdateModal({ onClose, onUpdateDone, kelasList }) {
         return;
       }
 
-      toProcess.push({ idx, row, existing, kelasId, ortuId, nisnKey });
+      toProcess.push({ idx, row, existing, kelasId, ortuId, nisnKey, jurusanStr });
     });
 
     // Tampilkan hasil pre-pass duluan (progress sudah terisi sebagian)
@@ -1104,7 +1148,7 @@ function UpdateModal({ onClose, onUpdateDone, kelasList }) {
     await runWithConcurrency(
       toProcess,
       CONCURRENCY,
-      async ({ idx, row, existing, kelasId, ortuId, nisnKey }) => {
+      async ({ idx, row, existing, kelasId, ortuId, nisnKey, jurusanStr }) => {
         try {
           const payload = {
             nisn: String(row["NISN"] || "").trim(),
@@ -1115,7 +1159,7 @@ function UpdateModal({ onClose, onUpdateDone, kelasList }) {
             tgl_lahir: String(row["Tanggal Lahir (YYYY-MM-DD)"] || "").trim(),
             jenis_kelamin: String(row["Jenis Kelamin"] || row["Gender"] || "").trim(),
             agama: String(row["Agama"] || "").trim(),
-            jurusan: String(row["Jurusan"] || "").trim(),
+            jurusan: jurusanStr,
             kelas_id: kelasId,
             ...(ortuId ? { orangtua_id: ortuId } : {}),
           };
@@ -1357,6 +1401,372 @@ function UpdateModal({ onClose, onUpdateDone, kelasList }) {
   );
 }
 
+// Searchable Kelas Select — dropdown with inline search, max 5 rows visible
+function SearchableKelasSelect({ value, onChange, kelasList, disabled }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const containerRef = useRef(null);
+  const searchInputRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false);
+        setQuery("");
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  useEffect(() => {
+    if (open) setTimeout(() => searchInputRef.current?.focus(), 50);
+  }, [open]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return kelasList;
+    return kelasList.filter((k) => {
+      const text = `${k.kelas} ${k.jurusan} ${k.tahun?.tahun_ajaran || ""}`.toLowerCase();
+      return text.includes(q);
+    });
+  }, [kelasList, query]);
+
+  const selected = kelasList.find((k) => String(k.id) === String(value));
+
+  return (
+    <div ref={containerRef} className="relative w-full">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => !disabled && setOpen((prev) => !prev)}
+        className={
+          "flex w-full items-center justify-between gap-2 rounded-lg border bg-white px-3 py-2 text-xs transition " +
+          (open ? "border-transparent ring-2 ring-blue-500" : "border-gray-300 hover:border-gray-400") +
+          (disabled ? " cursor-not-allowed opacity-60" : " cursor-pointer")
+        }
+      >
+        <span className={selected ? "text-gray-800" : "text-gray-400"}>
+          {selected
+            ? `${selected.kelas} ${selected.jurusan}${selected.tahun?.tahun_ajaran ? ` (${selected.tahun.tahun_ajaran})` : ""}`
+            : "-- Pilih Kelas --"}
+        </span>
+        <span className="flex items-center gap-1 shrink-0">
+          {selected && !disabled ? (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(e) => { e.stopPropagation(); onChange(""); setQuery(""); }}
+              className="rounded p-0.5 text-gray-400 hover:text-gray-600"
+            >
+              <X className="h-3 w-3" />
+            </span>
+          ) : null}
+          <svg className={`h-3.5 w-3.5 text-gray-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </span>
+      </button>
+
+      {open ? (
+        <div className="absolute z-50 mt-1 w-full overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
+          <div className="border-b border-gray-100 px-2.5 py-2">
+            <div className="flex items-center gap-2 rounded-lg bg-gray-50 px-2.5 py-1.5">
+              <svg className="h-3.5 w-3.5 shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="11" cy="11" r="8" /><path strokeLinecap="round" d="M21 21l-4.35-4.35" /></svg>
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Cari kelas, jurusan, atau tahun..."
+                className="w-full bg-transparent text-xs text-gray-700 outline-none placeholder:text-gray-400"
+              />
+              {query ? (
+                <button type="button" onClick={() => setQuery("")} className="text-gray-400 hover:text-gray-600">
+                  <X className="h-3 w-3" />
+                </button>
+              ) : null}
+            </div>
+          </div>
+          {/* Max 5 rows visible, then scroll */}
+          <ul className="overflow-y-auto py-1" style={{ maxHeight: "calc(5 * 2.5rem)" }}>
+            {filtered.length === 0 ? (
+              <li className="px-4 py-6 text-center text-xs text-gray-400">Kelas tidak ditemukan</li>
+            ) : (
+              filtered.map((k) => {
+                const isSelected = String(k.id) === String(value);
+                return (
+                  <li
+                    key={k.id}
+                    onClick={() => { onChange(String(k.id)); setOpen(false); setQuery(""); }}
+                    className={
+                      "flex h-10 cursor-pointer items-center justify-between px-3 text-xs transition " +
+                      (isSelected ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-700 hover:bg-gray-50")
+                    }
+                  >
+                    <span>
+                      <span className="font-medium">{k.kelas} {k.jurusan}</span>
+                      {k.tahun?.tahun_ajaran ? (
+                        <span className="ml-1.5 text-gray-400">({k.tahun.tahun_ajaran})</span>
+                      ) : null}
+                    </span>
+                    {isSelected ? (
+                      <svg className="h-3.5 w-3.5 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                    ) : null}
+                  </li>
+                );
+              })
+            )}
+          </ul>
+          <div className="border-t border-gray-100 px-3 py-1.5 text-[10px] text-gray-400">
+            {filtered.length} kelas ditampilkan · ketik untuk memfilter
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+// Single Edit Siswa Modal
+
+function EditSiswaModal({ student, kelasList, onClose, onUpdated }) {
+  const [formData, setFormData] = useState({
+    nisn: student.nisn || student.NISN || "",
+    nipd: student.nipd || student.NIPD || "",
+    nik: student.nik || student.NIK || "",
+    nama: student.nama || "",
+    tempat_lahir: student.tempat_lahir || "",
+    tgl_lahir: student.tgl_lahir ? student.tgl_lahir.slice(0, 10) : (student.tanggal_lahir ? student.tanggal_lahir.slice(0, 10) : ""),
+    jenis_kelamin: student.jenis_kelamin || student.gender || "L",
+    agama: student.agama || "",
+    jurusan: student.jurusan || (student.kelas?.jurusan || ""),
+    kelas_id: student.kelas_id ? String(student.kelas_id) : (student.kelas?.id ? String(student.kelas.id) : ""),
+    orangtua_id: student.orangtua_id ? String(student.orangtua_id) : (student.orang_tua?.id ? String(student.orang_tua.id) : "")
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => {
+      const updated = { ...prev, [name]: value };
+      if (name === "kelas_id" && value) {
+        const matched = kelasList.find((k) => String(k.id) === String(value));
+        if (matched && matched.jurusan) {
+          updated.jurusan = matched.jurusan;
+        }
+      }
+      return updated;
+    });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setError("");
+
+    try {
+      if (!formData.nisn || !formData.nipd || !formData.nik || !formData.nama || !formData.tempat_lahir || !formData.tgl_lahir || !formData.jenis_kelamin || !formData.agama || !formData.kelas_id) {
+        setError("Semua field wajib diisi, termasuk pemilihan kelas.");
+        setSaving(false);
+        return;
+      }
+
+      // Pastikan jurusan terisi dari kelas yang dipilih
+      const selectedClass = kelasList.find((k) => String(k.id) === String(formData.kelas_id));
+      const finalJurusan = formData.jurusan || selectedClass?.jurusan || "";
+
+      const payload = {
+        nisn: String(formData.nisn).trim(),
+        nipd: String(formData.nipd).trim(),
+        nik: String(formData.nik).trim(),
+        nama: String(formData.nama).trim(),
+        tempat_lahir: String(formData.tempat_lahir).trim(),
+        tgl_lahir: String(formData.tgl_lahir).trim(),
+        jenis_kelamin: String(formData.jenis_kelamin).trim(),
+        agama: String(formData.agama).trim(),
+        jurusan: String(finalJurusan).trim(),
+        kelas_id: parseInt(formData.kelas_id, 10),
+        ...(formData.orangtua_id ? { orangtua_id: parseInt(formData.orangtua_id, 10) } : {})
+      };
+
+      const res = await siswa.update(student.id, payload);
+      if (res?.success) {
+        onUpdated();
+      } else {
+        setError(res?.message || "Gagal mengupdate data siswa");
+      }
+    } catch (err) {
+      setError(err.message || "Terjadi kesalahan pada server");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl my-8 overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-white font-semibold text-lg">Edit Data Siswa</h2>
+            <p className="text-blue-200 text-xs mt-0.5">Ubah rincian data siswa di bawah</p>
+          </div>
+          <button onClick={onClose} disabled={saving} className="text-blue-200 hover:text-white transition-colors cursor-pointer">
+            <XCircle />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+          {error && (
+            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-xs">
+              <AlertCircle /> {error}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Nama Siswa *</label>
+              <input
+                type="text"
+                name="nama"
+                value={formData.nama}
+                onChange={handleChange}
+                required
+                className="w-full text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">NISN *</label>
+              <input
+                type="text"
+                name="nisn"
+                value={formData.nisn}
+                onChange={handleChange}
+                required
+                className="w-full text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">NIPD *</label>
+              <input
+                type="text"
+                name="nipd"
+                value={formData.nipd}
+                onChange={handleChange}
+                required
+                className="w-full text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">NIK Siswa *</label>
+              <input
+                type="text"
+                name="nik"
+                value={formData.nik}
+                onChange={handleChange}
+                required
+                className="w-full text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Tempat Lahir *</label>
+              <input
+                type="text"
+                name="tempat_lahir"
+                value={formData.tempat_lahir}
+                onChange={handleChange}
+                required
+                className="w-full text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Tanggal Lahir *</label>
+              <input
+                type="date"
+                name="tgl_lahir"
+                value={formData.tgl_lahir}
+                onChange={handleChange}
+                required
+                className="w-full text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Jenis Kelamin *</label>
+              <select
+                name="jenis_kelamin"
+                value={formData.jenis_kelamin}
+                onChange={handleChange}
+                required
+                className="w-full text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="L">Laki-laki (L)</option>
+                <option value="P">Perempuan (P)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Agama *</label>
+              <input
+                type="text"
+                name="agama"
+                value={formData.agama}
+                onChange={handleChange}
+                required
+                className="w-full text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="sm:col-span-2 space-y-1">
+              <label className="block text-xs font-medium text-gray-700">Pilih Kelas *</label>
+              <SearchableKelasSelect
+                value={formData.kelas_id}
+                onChange={(id) => {
+                  const matched = kelasList.find((k) => String(k.id) === String(id));
+                  setFormData((prev) => ({
+                    ...prev,
+                    kelas_id: id,
+                    jurusan: matched?.jurusan ?? prev.jurusan,
+                  }));
+                }}
+                kelasList={kelasList}
+                disabled={saving}
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium text-gray-700 mb-1">ID Orang Tua (Opsional)</label>
+              <input
+                type="number"
+                name="orangtua_id"
+                value={formData.orangtua_id}
+                onChange={handleChange}
+                placeholder="Kosongkan jika belum ada"
+                className="w-full text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-4 border-t border-gray-100">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition disabled:opacity-50 cursor-pointer"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-2 cursor-pointer"
+            >
+              {saving ? "Menyimpan..." : "Simpan Perubahan"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // Delete Confirm Modal (tidak berubah)
 
 function DeleteConfirmModal({ student, onClose, onDeleted }) {
@@ -1443,6 +1853,7 @@ export default function ImportSiswa() {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showImportMenu, setShowImportMenu] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [editTarget, setEditTarget] = useState(null);
   const [toast, setToast] = useState(null);
   const itemsPerPage = 10;
 
@@ -1807,13 +2218,22 @@ export default function ImportSiswa() {
                       <td className="px-6 py-4 text-sm text-gray-600">{s.agama || "-"}</td>
                       <td className="px-6 py-4 text-sm text-gray-600">{s.orang_tua?.nama_orangtua || "-"}</td>
                       <td className="px-6 py-4">
-                        <button
-                          onClick={() => setDeleteTarget(s)}
-                          title="Hapus siswa"
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors duration-150"
-                        >
-                          Hapus
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setEditTarget(s)}
+                            title="Edit siswa"
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors duration-150 cursor-pointer"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => setDeleteTarget(s)}
+                            title="Hapus siswa"
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors duration-150 cursor-pointer"
+                          >
+                            Hapus
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -1840,10 +2260,22 @@ export default function ImportSiswa() {
       </div>
 
       {showImportModal && (
-        <ImportModal onClose={() => setShowImportModal(false)} onImportDone={refreshData} />
+        <ImportModal onClose={() => setShowImportModal(false)} onImportDone={refreshData} kelasList={kelasList} />
       )}
       {showUpdateModal && (
         <UpdateModal onClose={() => setShowUpdateModal(false)} onUpdateDone={refreshData} kelasList={kelasList} />
+      )}
+      {editTarget && (
+        <EditSiswaModal
+          student={editTarget}
+          kelasList={kelasList}
+          onClose={() => setEditTarget(null)}
+          onUpdated={() => {
+            setEditTarget(null);
+            refreshData();
+            setToast({ type: "success", message: `Data siswa "${editTarget.nama}" berhasil diperbarui` });
+          }}
+        />
       )}
       {deleteTarget && (
         <DeleteConfirmModal

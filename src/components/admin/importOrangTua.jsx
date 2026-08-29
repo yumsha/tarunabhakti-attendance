@@ -1003,6 +1003,164 @@ function UpdateOrtuModal({ onClose, onUpdateDone, ortuList }) {
   );
 }
 
+// Modal Edit Single Orang Tua
+
+function EditOrtuModal({ ortu, onClose, onUpdated }) {
+  const [formData, setFormData] = useState({
+    nama_orangtua: ortu.nama_orangtua || "",
+    NIK: ortu.NIK || "",
+    nomor_telepon: ortu.nomor_telepon || "",
+    pekerjaan: ortu.pekerjaan || "",
+    alamat: ortu.alamat || ""
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setError("");
+
+    try {
+      if (!formData.nama_orangtua || !formData.NIK || !formData.nomor_telepon || !formData.pekerjaan || !formData.alamat) {
+        setError("Semua field (Nama, NIK, Nomor Telepon, Pekerjaan, Alamat) wajib diisi.");
+        setSaving(false);
+        return;
+      }
+
+      const payload = {
+        nama_orangtua: String(formData.nama_orangtua).trim(),
+        NIK: String(formData.NIK).trim(),
+        nomor_telepon: String(formData.nomor_telepon).trim(),
+        pekerjaan: String(formData.pekerjaan).trim(),
+        alamat: String(formData.alamat).trim()
+      };
+
+      const res = await orangTua.update(ortu.id, payload);
+      if (res?.success) {
+        onUpdated();
+      } else {
+        setError(res?.message || "Gagal mengupdate data orang tua");
+      }
+    } catch (err) {
+      setError(err.message || "Terjadi kesalahan pada server");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg my-8 overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-white font-semibold text-lg">Edit Data Orang Tua</h2>
+            <p className="text-blue-200 text-xs mt-0.5">Ubah rincian data orang tua di bawah</p>
+          </div>
+          <button onClick={onClose} disabled={saving} className="text-blue-200 hover:text-white transition-colors cursor-pointer">
+            <XCircle />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+          {error && (
+            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-xs">
+              <AlertCircle /> {error}
+            </div>
+          )}
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Nama Orang Tua *</label>
+              <input
+                type="text"
+                name="nama_orangtua"
+                value={formData.nama_orangtua}
+                onChange={handleChange}
+                required
+                className="w-full text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">NIK (16 Digit) *</label>
+                <input
+                  type="text"
+                  name="NIK"
+                  value={formData.NIK}
+                  onChange={handleChange}
+                  required
+                  maxLength={16}
+                  className="w-full text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Nomor Telepon (08xx) *</label>
+                <input
+                  type="text"
+                  name="nomor_telepon"
+                  value={formData.nomor_telepon}
+                  onChange={handleChange}
+                  required
+                  className="w-full text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Pekerjaan *</label>
+              <input
+                type="text"
+                name="pekerjaan"
+                value={formData.pekerjaan}
+                onChange={handleChange}
+                required
+                className="w-full text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Alamat *</label>
+              <textarea
+                name="alamat"
+                value={formData.alamat}
+                onChange={handleChange}
+                required
+                rows={3}
+                className="w-full text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-4 border-t border-gray-100">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition disabled:opacity-50 cursor-pointer"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-2 cursor-pointer"
+            >
+              {saving ? "Menyimpan..." : "Simpan Perubahan"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // Modal Delete Konfirmasi Orang Tua
 
 function DeleteConfirmOrtuModal({ ortu, onClose, onDeleted }) {
@@ -1111,6 +1269,7 @@ export default function AdminImport() {
   // jadi tidak nge-filter ratusan/ribuan baris di setiap keystroke.
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [deleteTarget, setDeleteTarget]       = useState(null);
+  const [editTarget, setEditTarget]           = useState(null);
   const [toast, setToast]                     = useState(null);
   const itemsPerPage = 10;
 
@@ -1458,13 +1617,22 @@ export default function AdminImport() {
                         <td className="px-6 py-4 text-sm text-gray-600">{o.pekerjaan}</td>
                         <td className="px-6 py-4 text-sm text-gray-600">{o.alamat}</td>
                         <td className="px-6 py-4">
-                          <button
-                            onClick={() => setDeleteTarget(o)}
-                            title="Hapus orang tua"
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors duration-150"
-                          >
-                            Hapus
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setEditTarget(o)}
+                              title="Edit orang tua"
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors duration-150 cursor-pointer"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => setDeleteTarget(o)}
+                              title="Hapus orang tua"
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors duration-150 cursor-pointer"
+                            >
+                              Hapus
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -1495,6 +1663,17 @@ export default function AdminImport() {
       )}
       {showUpdateModal && (
         <UpdateOrtuModal onClose={() => setShowUpdateModal(false)} onUpdateDone={refreshData} ortuList={allData} />
+      )}
+      {editTarget && (
+        <EditOrtuModal
+          ortu={editTarget}
+          onClose={() => setEditTarget(null)}
+          onUpdated={() => {
+            setEditTarget(null);
+            refreshData();
+            setToast({ type: "success", message: `Data orang tua "${editTarget.nama_orangtua}" berhasil diperbarui` });
+          }}
+        />
       )}
       {deleteTarget && (
         <DeleteConfirmOrtuModal

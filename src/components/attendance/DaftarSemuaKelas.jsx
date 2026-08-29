@@ -22,6 +22,7 @@ const inputClass =
   "text-gray-700 outline-none transition focus:border-transparent focus:ring-2 focus:ring-blue-500";
 
 const DEFAULT_LEVEL_OPTIONS = ["X", "XI", "XII"];
+const DEFAULT_ROMBEL_OPTIONS = ["1", "2", "3", "4", "5"];
 
 function formatDate(value) {
   if (!value) return "-";
@@ -75,6 +76,7 @@ function KelasFormModal({
   const [form, setForm] = useState({
     kelas: "",
     jurusan: "",
+    rombel: "",
     tahun_ajaran_id: "",
   });
   const [error, setError] = useState("");
@@ -87,9 +89,21 @@ function KelasFormModal({
       tahunOptions[0] ||
       null;
 
+    let baseJurusan = editItem?.jurusan ?? "";
+    let baseRombel = "";
+
+    if (editItem?.jurusan) {
+      const match = editItem.jurusan.match(/^(.*?)\s+(\d+|[A-Za-z])$/);
+      if (match) {
+        baseJurusan = match[1].trim();
+        baseRombel = match[2].trim();
+      }
+    }
+
     setForm({
       kelas: editItem?.kelas ?? "",
-      jurusan: editItem?.jurusan ?? "",
+      jurusan: baseJurusan,
+      rombel: baseRombel,
       tahun_ajaran_id: editItem?.tahun_ajaran_id
         ? String(editItem.tahun_ajaran_id)
         : activeTahun?.id
@@ -124,10 +138,17 @@ function KelasFormModal({
       return;
     }
 
+    const cleanJurusan = form.jurusan.trim();
+    const cleanRombel = form.rombel.trim();
+    let finalJurusan = cleanJurusan;
+    if (cleanRombel && !cleanJurusan.toLowerCase().endsWith(cleanRombel.toLowerCase())) {
+      finalJurusan = `${cleanJurusan} ${cleanRombel}`;
+    }
+
     try {
       await onSubmit({
         kelas: form.kelas.trim(),
-        jurusan: form.jurusan.trim(),
+        jurusan: finalJurusan,
         tahun_ajaran_id: Number(form.tahun_ajaran_id),
       });
       onClose();
@@ -146,23 +167,23 @@ function KelasFormModal({
               {editItem ? "Edit Kelas" : "Tambah Kelas Baru"}
             </h3>
             <p className="mt-1 text-sm text-gray-500">
-              Kelola kelas dan jurusan langsung dari halaman ini.
+              Kelola kelas, jurusan, dan rombel langsung dari halaman ini.
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="rounded-lg p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+            className="rounded-lg p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 cursor-pointer"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5 p-6">
-          <div className="grid gap-5 md:grid-cols-2">
+          <div className="grid gap-5 md:grid-cols-3">
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">Kelas</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700">Tingkat Kelas</label>
               <input
                 className={inputClass}
                 placeholder="Contoh: X, XI, XII"
@@ -177,7 +198,7 @@ function KelasFormModal({
                     type="button"
                     onClick={() => updateForm("kelas", item)}
                     disabled={loading}
-                    className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                    className={`rounded-full border px-3 py-1 text-xs font-medium transition cursor-pointer ${
                       form.kelas === item
                         ? "border-blue-200 bg-blue-50 text-blue-700"
                         : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
@@ -193,7 +214,7 @@ function KelasFormModal({
               <label className="mb-2 block text-sm font-medium text-gray-700">Jurusan</label>
               <input
                 className={inputClass}
-                placeholder="Contoh: RPL, TKJ, Multimedia"
+                placeholder="Contoh: Rekayasa Perangkat Lunak"
                 value={form.jurusan}
                 onChange={(event) => updateForm("jurusan", event.target.value)}
                 disabled={loading}
@@ -205,9 +226,37 @@ function KelasFormModal({
                     type="button"
                     onClick={() => updateForm("jurusan", item)}
                     disabled={loading}
-                    className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                    className={`rounded-full border px-3 py-1 text-xs font-medium transition cursor-pointer ${
                       form.jurusan === item
                         ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                    }`}
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700">Rombel (Nomor)</label>
+              <input
+                className={inputClass}
+                placeholder="Contoh: 1, 2, 3"
+                value={form.rombel}
+                onChange={(event) => updateForm("rombel", event.target.value)}
+                disabled={loading}
+              />
+              <div className="mt-3 flex flex-wrap gap-2">
+                {DEFAULT_ROMBEL_OPTIONS.map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => updateForm("rombel", item)}
+                    disabled={loading}
+                    className={`rounded-full border px-3 py-1 text-xs font-medium transition cursor-pointer ${
+                      form.rombel === item
+                        ? "border-purple-200 bg-purple-50 text-purple-700"
                         : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
                     }`}
                   >
@@ -235,23 +284,33 @@ function KelasFormModal({
             </select>
           </div>
 
-          <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Preview</p>
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-xl bg-white px-3 py-3">
-                <p className="text-xs text-gray-400">Kelas</p>
-                <p className="mt-1 text-sm font-semibold text-gray-800">{form.kelas || "-"}</p>
+          <div className="rounded-2xl border border-blue-100 bg-blue-50/50 px-4 py-4 space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Preview Data Kelas</p>
+            <div className="grid gap-3 sm:grid-cols-4">
+              <div className="rounded-xl bg-white px-3 py-2.5 border border-gray-100">
+                <p className="text-[11px] text-gray-400 font-medium">Tingkat</p>
+                <p className="mt-0.5 text-sm font-semibold text-gray-800">{form.kelas || "-"}</p>
               </div>
-              <div className="rounded-xl bg-white px-3 py-3">
-                <p className="text-xs text-gray-400">Jurusan</p>
-                <p className="mt-1 text-sm font-semibold text-gray-800">{form.jurusan || "-"}</p>
+              <div className="rounded-xl bg-white px-3 py-2.5 border border-gray-100">
+                <p className="text-[11px] text-gray-400 font-medium">Jurusan</p>
+                <p className="mt-0.5 text-sm font-semibold text-gray-800">{form.jurusan || "-"}</p>
               </div>
-              <div className="rounded-xl bg-white px-3 py-3">
-                <p className="text-xs text-gray-400">Tahun Ajaran</p>
-                <p className="mt-1 text-sm font-semibold text-gray-800">
+              <div className="rounded-xl bg-white px-3 py-2.5 border border-gray-100">
+                <p className="text-[11px] text-gray-400 font-medium">Rombel</p>
+                <p className="mt-0.5 text-sm font-semibold text-gray-800">{form.rombel || "-"}</p>
+              </div>
+              <div className="rounded-xl bg-white px-3 py-2.5 border border-gray-100">
+                <p className="text-[11px] text-gray-400 font-medium">Tahun Ajaran</p>
+                <p className="mt-0.5 text-sm font-semibold text-gray-800">
                   {tahunOptions.find((item) => String(item.id) === form.tahun_ajaran_id)?.tahun_ajaran || "-"}
                 </p>
               </div>
+            </div>
+            <div className="pt-2 border-t border-blue-100/80 flex items-center justify-between">
+              <span className="text-xs text-blue-900 font-medium">Nama Kelas di Sistem:</span>
+              <span className="text-xs font-bold text-blue-700 bg-white px-3 py-1 rounded-lg border border-blue-200">
+                {form.kelas ? `${form.kelas} ${form.jurusan} ${form.rombel}`.trim() : "-"}
+              </span>
             </div>
           </div>
 
@@ -267,14 +326,14 @@ function KelasFormModal({
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-600 transition hover:bg-gray-50 disabled:opacity-50"
+              className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-600 transition hover:bg-gray-50 disabled:opacity-50 cursor-pointer"
             >
               Batal
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               {editItem ? "Simpan Perubahan" : "Tambah Kelas"}
@@ -378,7 +437,11 @@ export default function DaftarSemuaKelas() {
       Array.from(
         new Set(
           classList
-            .map((item) => item?.jurusan?.trim())
+            .map((item) => {
+              const raw = item?.jurusan?.trim() || "";
+              const match = raw.match(/^(.*?)\s+(\d+|[A-Za-z])$/);
+              return match ? match[1].trim() : raw;
+            })
             .filter(Boolean)
         )
       ).sort((a, b) => a.localeCompare(b, "id")),
