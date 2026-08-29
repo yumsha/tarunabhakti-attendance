@@ -23,14 +23,16 @@ import Logo from "../../assets/logo.png";
     type="text"
     placeholder="Tap Kartu ke RFID Scanner"
     class="w-62 text-gray-500 bg-white rounded-full px-2 py-3 text-center"
-  autofocus
+    autofocus
   />
 
   <script>
+    // /home/yumsha/Projects/tarunabhakti-attendance/src/components/attendance/Rfidscanner.astro
+
     const RFID_CACHE_KEY = "rfid_cache";
     const RFID_CACHE_TS_KEY = "rfid_cache_ts";
     const RFID_CACHE_TTL_MS = 60_000;
-    const API_BASE_URL = import.meta.env.PUBLIC_API_BASE_URL || "http://localhost:3000";
+    const API_BASE_URL = import.meta.env.PUBLIC_API_BASE_URL;
 
     function readCachedRfidMap() {
       const tsRaw = localStorage.getItem(RFID_CACHE_TS_KEY);
@@ -66,7 +68,7 @@ import Logo from "../../assets/logo.png";
         if (!response.ok) throw new Error("Gagal mengambil data RFID");
 
         const result = await response.json();
-        // Simpan sebagai object 
+        // Simpan sebagai object
         const cacheMap: Record<string, string> = {};
         for (const item of result.data) {
           cacheMap[item.uid_rfid] = item.nama;
@@ -91,7 +93,9 @@ import Logo from "../../assets/logo.png";
     }
 
     function initializeRfidScanner() {
-      const rfidInput = document.getElementById("rfid-input") as HTMLInputElement;
+      const rfidInput = document.getElementById(
+        "rfid-input",
+      ) as HTMLInputElement;
 
       if (!rfidInput) {
         console.error("RFID input element not found");
@@ -116,6 +120,11 @@ import Logo from "../../assets/logo.png";
             return;
           }
 
+          // mode menandai endpoint mana yang sedang aktif menentukan hasil,
+          // supaya listener tahu ini hasil tap-in atau tap-out (bukan cuma
+          // menebak dari status_tapin yang null di respons tap-out)
+          let mode: "tap_in" | "tap_out" = "tap_in";
+
           try {
             let response = await fetch(
               `${API_BASE_URL}/api/v1/absensi-siswa/tap-in`,
@@ -126,11 +135,10 @@ import Logo from "../../assets/logo.png";
               },
             );
 
-            let isTapOut = false;
-
-            // tap in 409? tap out
+            // Backend: tap-in balas 409 hanya untuk reason "already_tapped_in".
+            // Itu sinyal siswa sudah tap-in hari ini -> coba tap-out.
             if (response.status === 409) {
-              isTapOut = true;
+              mode = "tap_out";
               response = await fetch(
                 `${API_BASE_URL}/api/v1/absensi-siswa/tap-out`,
                 {
@@ -145,23 +153,25 @@ import Logo from "../../assets/logo.png";
               const result = await response.json();
               const dataAbsensi = result.data;
               document.dispatchEvent(
-                new CustomEvent("absensi-berhasil", { detail: dataAbsensi }),
+                new CustomEvent("absensi-berhasil", {
+                  detail: { ...dataAbsensi, mode },
+                }),
               );
-
-              console.log("Absensi berhasil untuk:", dataAbsensi.siswa.nama);
-              console.log("Data lengkap:", result);
             } else {
               const errorData = await response.json().catch(() => ({}));
               const errorMessage = errorData.message || response.statusText;
 
               document.dispatchEvent(
-                new CustomEvent("absensi-gagal", { detail: { message: errorMessage, isTapOut } }),
+                new CustomEvent("absensi-gagal", {
+                  detail: { message: errorMessage, mode },
+                }),
               );
-              console.error("Absensi gagal:", errorMessage);
             }
           } catch (error) {
             document.dispatchEvent(
-              new CustomEvent("absensi-gagal", { detail: { message: error.message } }),
+              new CustomEvent("absensi-gagal", {
+                detail: { message: error.message, mode },
+              }),
             );
             console.error("Error Absensi:", error);
           } finally {

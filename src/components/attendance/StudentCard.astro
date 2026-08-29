@@ -1,11 +1,9 @@
-
-
-<div class="relative w-full max-w-[65vh] h-[90vh] aspect-[4/5] rounded-[60px] bg-gradient-to-b from-[#4b89bd] to-[#356792] flex items-center justify-center text-white p-[5%] overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.1)] ml-[30vh]">
-  <div class="absolute w-[120px] h-[50px] bottom-[80px] -left-[20px] rounded-[50px] bg-white filter drop-shadow-[2px_4px_6px_rgba(0,0,0,0.05)]"
+<div class="relative w-full max-w-[65vh] h-[90vh] aspect-4/5 rounded-[60px] bg-linear-to-b from-[#4b89bd] to-[#356792] flex items-center justify-center text-white p-[5%] overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.1)] ml-[30vh]">
+  <div class="absolute w-30 h-12.5 bottom-20 -left-5 rounded-[50px] bg-white filter drop-shadow-[2px_4px_6px_rgba(0,0,0,0.05)]"
     style="box-shadow: 30px -25px 0 5px white, 70px -10px 0 -5px white;">
   </div>
   
-  <div class="absolute w-[100px] h-[40px] top-[60px] -right-[15px] rounded-[40px] bg-white filter drop-shadow-[2px_4px_6px_rgba(0,0,0,0.05)]"
+  <div class="absolute w-25 h-10 top-15 -right-3.75 rounded-[40px] bg-white filter drop-shadow-[2px_4px_6px_rgba(0,0,0,0.05)]"
     style="box-shadow: -20px -20px 0 8px white, -55px -5px 0 -2px white;">
   </div>
 
@@ -41,24 +39,33 @@
 </div>
 
 <script>
+  type AttendanceDetail = {
+    siswa: {
+      nama: string;
+      kelas: {
+        kelas: string;
+      };
+    };
+    tap_in?: string | null;
+    tap_out?: string | null;
+  };
+
+  type AttendanceErrorDetail = {
+    message?: string;
+  };
+
   const container = document.getElementById('student-data-card');
 
-  function formatJam(jam){
+  function formatJam(jam: string | null | undefined): string {
     if (!jam) return '-';
     return jam;
   }
 
   document.addEventListener('absensi-berhasil', (event) => {
-    const dataAbsensi = event.detail;
+    if (!container) return;
+    const dataAbsensi = (event as CustomEvent<AttendanceDetail>).detail;
     const siswa = dataAbsensi.siswa;
     container.innerHTML = `
-      // <div class="items-center justify-center mb-[2vh] mx-20">
-      //   <img 
-      //     src="./src/assets/images.jpeg" 
-      //     alt="Student Photo" 
-      //     class="w-[max(50px,15vw)] h-[max(50px,15vw)] rounded-full object-cover border-4 border-white shadow-[0_4px_15px_rgba(0,0,0,0.2)]"
-      //   />
-      // </div>
       <h2 class="text-[max(18px,2vw)] font-medium">
         ${siswa.nama}
       </h2>
@@ -76,16 +83,9 @@
 
   document.addEventListener('absensi-gagal', (event) => {
     if (!container) return;
-    const detail = event.detail || {};
-    const message = detail.message || "Absensi Gagal";
-    const isTapOut = detail.isTapOut || false;
-    
-    // Provide more helpful error messages
-    let errorMessage = message;
-    if (message.includes("sudah")) {
-      errorMessage = isTapOut ? "Anda sudah melakukan tap in hari ini." : "Anda sudah melakukan tap out hari ini.";
-    }
-    
+    const detail = (event as CustomEvent<AttendanceErrorDetail>).detail || {};
+    const errorMessage = detail.message || "Absensi Gagal";
+
     container.innerHTML = `
       <div class="items-center justify-center mb-[2vh] mx-20">
         <img 
