@@ -427,6 +427,8 @@ function SearchableSelectKelas({ value, onChange, kelasList, disabled }) {
   const searchInputRef = useRef(null);
   const dropdownRef = useRef(null);
 
+
+
   // Hitung posisi dropdown relatif ke viewport (fixed), bukan ke parent
   const updateCoords = () => {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -596,6 +598,21 @@ function SearchableSelectKelas({ value, onChange, kelasList, disabled }) {
         document.body
       )}
     </div>
+  );
+}
+
+function PageSizeSelect({ value, onChange }) {
+  const options = [20, 30, 50];
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(Number(e.target.value))}
+      className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+    >
+      {options.map((opt) => (
+        <option key={opt} value={opt}>{opt} </option>
+      ))}
+    </select>
   );
 }
 
@@ -956,11 +973,10 @@ function ImportModal({ onClose, onImportDone, kelasList = [] }) {
                     key={val}
                     type="button"
                     onClick={() => setResultFilter(val)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
-                      resultFilter === val
-                        ? val === "berhasil" ? "bg-emerald-100 text-emerald-700" : val === "gagal" ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"
-                        : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                    }`}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${resultFilter === val
+                      ? val === "berhasil" ? "bg-emerald-100 text-emerald-700" : val === "gagal" ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"
+                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                      }`}
                   >
                     {label}
                   </button>
@@ -1333,11 +1349,10 @@ function UpdateModal({ onClose, onUpdateDone, kelasList }) {
                     key={val}
                     type="button"
                     onClick={() => setResultFilter(val)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
-                      resultFilter === val
-                        ? val === "berhasil" ? "bg-emerald-100 text-emerald-700" : val === "gagal" ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"
-                        : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                    }`}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${resultFilter === val
+                      ? val === "berhasil" ? "bg-emerald-100 text-emerald-700" : val === "gagal" ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"
+                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                      }`}
                   >
                     {label}
                   </button>
@@ -1830,7 +1845,7 @@ function AddSiswaModal({ kelasList, onClose, onAdded }) {
     }
     if (!/^\d+$/.test(formData.nisn.trim())) { setError("NISN harus berupa angka."); return; }
     if (!/^\d+$/.test(formData.nipd.trim())) { setError("NIPD harus berupa angka."); return; }
-    if (!/^\d+$/.test(formData.nik.trim()))  { setError("NIK harus berupa angka."); return; }
+    if (!/^\d+$/.test(formData.nik.trim())) { setError("NIK harus berupa angka."); return; }
 
     // Validasi orang tua jika toggle aktif
     if (addOrtu) {
@@ -1881,26 +1896,26 @@ function AddSiswaModal({ kelasList, onClose, onAdded }) {
         }
       } else if (addOrtu) {
         orangtuaPayload = {
-          NIK:           ortuData.NIK.trim(),
+          NIK: ortuData.NIK.trim(),
           nama_orangtua: ortuData.nama_orangtua.trim(),
           nomor_telepon: ortuData.nomor_telepon.trim(),
-          pekerjaan:     ortuData.pekerjaan.trim(),
-          alamat:        ortuData.alamat.trim(),
+          pekerjaan: ortuData.pekerjaan.trim(),
+          alamat: ortuData.alamat.trim(),
         };
       }
 
       const selectedKelas = kelasList.find((k) => String(k.id) === String(formData.kelas_id));
       const payload = {
-        nisn:          formData.nisn.trim(),
-        nipd:          formData.nipd.trim(),
-        nik:           formData.nik.trim(),
-        nama:          formData.nama.trim(),
-        tempat_lahir:  formData.tempat_lahir.trim(),
-        tgl_lahir:     formData.tgl_lahir,
+        nisn: formData.nisn.trim(),
+        nipd: formData.nipd.trim(),
+        nik: formData.nik.trim(),
+        nama: formData.nama.trim(),
+        tempat_lahir: formData.tempat_lahir.trim(),
+        tgl_lahir: formData.tgl_lahir,
         jenis_kelamin: formData.jenis_kelamin,
-        agama:         formData.agama.trim(),
-        jurusan:       selectedKelas?.jurusan ?? formData.jurusan,
-        nama_kelas:    selectedKelas?.kelas ?? "",
+        agama: formData.agama.trim(),
+        jurusan: selectedKelas?.jurusan ?? formData.jurusan,
+        nama_kelas: selectedKelas?.kelas ?? "",
         ...(orangtuaPayload ? { orangtua: orangtuaPayload } : {}),
       };
 
@@ -2216,7 +2231,7 @@ export default function ImportSiswa() {
   const [editTarget, setEditTarget] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [toast, setToast] = useState(null);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(20);
 
   const templateRef = useRef();
   const exportRef = useRef();
@@ -2278,6 +2293,7 @@ export default function ImportSiswa() {
     fetchKelas();
   }, []);
 
+
   const fetchPageStudents = async (targetPage) => {
     setLoading(true);
     setError("");
@@ -2311,6 +2327,12 @@ export default function ImportSiswa() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchPageStudents(page);
+  }, [page, selectedKelas, itemsPerPage]);
+
+  useEffect(() => { setPage(1); }, [selectedKelas, searchQuery, itemsPerPage]);
 
   const fetchAllStudentsBackground = async () => {
     setBackgroundLoading(true);
@@ -2455,6 +2477,8 @@ export default function ImportSiswa() {
                 onChange={setSelectedKelas}
                 kelasList={kelasList}
               />
+
+              <PageSizeSelect value={itemsPerPage} onChange={setItemsPerPage} />
 
               <div className="flex items-center gap-2 ml-auto flex-wrap">
 
