@@ -44,6 +44,9 @@
       nama: string;
       kelas: {
         kelas: string;
+        jurusan: {
+          nama_jurusan: string;
+        }
       };
     };
     tap_in?: string | null;
@@ -70,7 +73,7 @@
         ${siswa.nama}
       </h2>
       <p class="text-lg opacity-90">
-        Kelas: ${siswa.kelas.kelas}
+        Kelas: ${siswa.kelas.kelas} ${siswa.kelas.jurusan}
       </p>
       <p class="text-lg opacity-90">
         Waktu Tap In: ${formatJam(dataAbsensi.tap_in)}
