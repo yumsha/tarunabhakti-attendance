@@ -226,7 +226,7 @@ export default function SidebarContainer() {
     <nav className="space-y-1 text-sm">
     <div className="flex items-center gap-3 mb-10">
       <div className="w-12 h-12 flex items-center justify-center shadow-lg">
-        <img src="/src/assets/logotbvector-copy.png" alt=""/>
+        <img src="/logotbvector-copy.png" alt=""/>
       </div>
 
       <div className="flex flex-col leading-tight">
