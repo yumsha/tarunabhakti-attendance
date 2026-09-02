@@ -33,13 +33,15 @@ function RealtimeClock() {
   });
 
   return (
-    <div>
-      <div className="text-3xl font-bold text-gray-900 tracking-tight">{timeStr}</div>
-      <div className="text-xs text-gray-400 mt-0.5">Waktu Terkini</div>
-      <div className="mt-5 text-sm font-semibold text-gray-700">
-        Hari ini:
+    <div className="flex flex-row lg:flex-col items-center lg:items-start justify-between lg:justify-start w-full gap-2">
+      <div>
+        <div className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">{timeStr}</div>
+        <div className="text-xs text-gray-400 mt-0.5">Waktu Terkini</div>
+      </div>
+      <div className="text-right lg:text-left lg:mt-5 text-xs sm:text-sm font-semibold text-gray-700">
+        <span>Hari ini:</span>
         <br />
-        <span className="text-base font-bold text-gray-900">{dateStr}</span>
+        <span className="text-sm sm:text-base font-bold text-gray-900">{dateStr}</span>
       </div>
     </div>
   );
@@ -70,74 +72,60 @@ export default function KesiswaanDashboard() {
           detailAbsensi.getRekapAbsensiSemuaKelas(
             `tanggal_mulai=${today}&tanggal_akhir=${today}`
           ),
-          siswa.list(),
+          siswa.list("limit=1000"),
         ]);
-        let hadir = 0;
-        let telat = 0;
-        let pulangAwal = 0;
 
-        if (tapRes?.success && Array.isArray(tapRes.data)) {
-          tapRes.data.forEach((r, i) => {
-            console.log("DATA TAP", i, {
-              nama: r.siswa?.nama,
-              status_tapin: r.status_tapin,
-              status_tapout: r.status_tapout,
+        const tapList =
+          tapRes?.success && Array.isArray(tapRes.data) ? tapRes.data : [];
+        const walasData =
+          walasRes?.success && walasRes.data ? walasRes.data : null;
+        const totalSiswa =
+          siswaRes?.pagination?.total ??
+          (Array.isArray(siswaRes?.data) ? siswaRes.data.length : 0);
+
+        let hadirCount = 0;
+        let telatCount = 0;
+        let pulangAwalCount = 0;
+
+        tapList.forEach((r) => {
+          if (r.status_tapin === "Tepat_Waktu") hadirCount++;
+          if (r.status_tapin === "Terlambat") telatCount++;
+          if (r.jam_pulang) pulangAwalCount++;
+        });
+
+        let izinCount = 0;
+        let sakitCount = 0;
+
+        if (walasData) {
+          const list = walasData.data || walasData.rekap || [];
+          if (Array.isArray(list)) {
+            list.forEach((row) => {
+              izinCount += Number(row.izin || row.total_izin || 0);
+              sakitCount += Number(row.sakit || row.total_sakit || 0);
             });
-          });
-
-          hadir = tapRes.data.filter(
-            (r) => r.status_tapin === "TEPAT_WAKTU"
-          ).length;
-
-          telat = tapRes.data.filter(
-            (r) => r.status_tapin === "TERLAMBAT"
-          ).length;
-
-          pulangAwal = tapRes.data.filter(
-            (r) => r.status_tapout === "PULANG_AWAL"
-          ).length;
+          }
         }
 
-        let izin = 0;
-        let sakit = 0;
-        let alpha = 0;
+        const tercatat = hadirCount + telatCount + izinCount + sakitCount;
+        const absenCount = Math.max(0, totalSiswa - tercatat);
 
-        if (walasRes?.success) {
-          const g = walasRes.data.statistik_global;
-
-          izin = g.izin || 0;
-          sakit = g.sakit || 0;
-          alpha = g.alpha || 0;
-        } else {
-          console.log("WALAS ERROR OR EMPTY");
-        }
-
-        const total = siswaRes?.data?.length ?? 0;
-
-        const totalRecorded = hadir + telat + izin + sakit + alpha;
-
-        const finalStats = {
-          total,
-          hadir,
-          telat,
-          izin,
-          sakit,
-          pulangAwal,
-          absen: Math.max(0, total - totalRecorded),
-        };
-
-        setStats(finalStats);
+        setStats({
+          total: totalSiswa,
+          hadir: hadirCount,
+          absen: absenCount,
+          telat: telatCount,
+          pulangAwal: pulangAwalCount,
+          izin: izinCount,
+          sakit: sakitCount,
+        });
       } catch (e) {
-        console.error("ERROR DASHBOARD:", e);
+        console.error("Kesiswaan stats error", e);
       } finally {
         setLoading(false);
       }
     };
 
     load();
-
-    const interval = setInterval(load, 10000);
-    return () => clearInterval(interval);
   }, []);
 
   const cards = [
@@ -180,24 +168,22 @@ export default function KesiswaanDashboard() {
         subtitle="Dashboard untuk Kesiswaan"
       />
 
-      <div className="flex-1 overflow-auto p-6">
-        <div className="flex gap-5 mb-5">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col justify-between min-w-[200px] w-[200px]">
-            <Clock className="w-10 h-10 text-gray-300 mb-3" />
+      <div className="flex-1 overflow-auto p-3 sm:p-4 md:p-6">
+        <div className="flex flex-col lg:flex-row gap-3 sm:gap-5 mb-4 sm:mb-5">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 flex flex-col justify-between w-full lg:w-56 lg:min-w-[224px]">
+            <Clock className="w-8 h-8 sm:w-10 sm:h-10 text-gray-300 mb-2 sm:mb-3 hidden lg:block" />
             <RealtimeClock />
           </div>
 
-          <div className="flex-1 grid grid-cols-3 gap-4">
+          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
             {cards.map((c) => (
               <StatCard key={c.label} {...c} loading={loading} />
             ))}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-10">
-          <div className="col-span-2">
-            <AttendanceComparisonChart />
-          </div>
+        <div className="grid grid-cols-1 gap-4 sm:gap-5">
+          <AttendanceComparisonChart />
         </div>
       </div>
     </div>

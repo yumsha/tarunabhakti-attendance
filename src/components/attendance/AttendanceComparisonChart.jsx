@@ -287,18 +287,18 @@ export default function AttendanceComparisonChart() {
 
     // ── JSX ───────────────────────────────────────────────────────────────────
     return (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-5">
             {/* Header */}
-            <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold text-gray-900">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                <h3 className="text-sm sm:text-base font-bold text-gray-900">
                     Grafik Kehadiran
                 </h3>
-                <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-3 text-xs text-gray-500">
+                <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-gray-500">
                         {PERIODS.map((p) => (
                             <label
                                 key={p}
-                                className="flex items-center gap-1 cursor-pointer select-none"
+                                className="flex items-center gap-1.5 cursor-pointer select-none bg-gray-50 sm:bg-transparent px-2.5 py-1 sm:p-0 rounded-lg sm:rounded-none border sm:border-0 border-gray-100"
                             >
                                 <input
                                     type="radio"
@@ -306,7 +306,7 @@ export default function AttendanceComparisonChart() {
                                     value={p}
                                     checked={period === p}
                                     onChange={() => setPeriod(p)}
-                                    className="accent-indigo-500"
+                                    className="accent-indigo-500 w-3.5 h-3.5"
                                 />
                                 <span
                                     className={
@@ -320,14 +320,14 @@ export default function AttendanceComparisonChart() {
                             </label>
                         ))}
                     </div>
-                    <AlignJustify className="w-4 h-4 text-gray-400" />
+                    <AlignJustify className="w-4 h-4 text-gray-400 flex-shrink-0 hidden sm:block" />
                 </div>
             </div>
 
             {/* Legend */}
-            <div className="flex items-center gap-5 mb-4">
+            <div className="flex flex-wrap items-center gap-4 sm:gap-5 mb-4">
                 <span className="flex items-center gap-1.5 text-xs text-gray-500">
-                    <span className="inline-block w-6 h-0.5 bg-indigo-500 rounded" />
+                    <span className="inline-block w-5 sm:w-6 h-0.5 bg-indigo-500 rounded" />
                     Hadir
                 </span>
                 <span className="flex items-center gap-1.5 text-xs text-gray-500">
@@ -345,7 +345,7 @@ export default function AttendanceComparisonChart() {
             </div>
 
             {/* Chart */}
-            <div className="relative h-52">
+            <div className="relative h-56 sm:h-64 md:h-72 w-full">
                 {isLoading ? (
                     <div className="absolute inset-0 flex items-center justify-center">
                         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-500" />
@@ -357,7 +357,7 @@ export default function AttendanceComparisonChart() {
 
             {/* Footnote konteks skala */}
             {!isLoading && (period === "Mingguan" || period === "Bulanan" || period === "Tahunan") && (
-                <p className="mt-2 text-[10px] text-gray-400 text-right">
+                <p className="mt-2 text-[10px] text-gray-400 text-left sm:text-right">
                     {period === "Mingguan"
                         ? "Total tap-in per minggu · estimasi tidak hadir = total siswa × 5 hari"
                         : period === "Bulanan"

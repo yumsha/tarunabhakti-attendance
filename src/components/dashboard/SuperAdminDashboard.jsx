@@ -28,13 +28,15 @@ function RealtimeClock() {
     });
 
     return (
-        <div>
-            <div className="text-3xl font-bold text-gray-900 tracking-tight">{timeStr}</div>
-            <div className="text-xs text-gray-400 mt-0.5">Waktu Terkini</div>
-            <div className="mt-5 text-sm font-semibold text-gray-700">
-                Hari ini:
+        <div className="flex flex-row lg:flex-col items-center lg:items-start justify-between lg:justify-start w-full gap-2">
+            <div>
+                <div className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">{timeStr}</div>
+                <div className="text-xs text-gray-400 mt-0.5">Waktu Terkini</div>
+            </div>
+            <div className="text-right lg:text-left lg:mt-5 text-xs sm:text-sm font-semibold text-gray-700">
+                <span>Hari ini:</span>
                 <br />
-                <span className="text-base font-bold text-gray-900">{dateStr}</span>
+                <span className="text-sm sm:text-base font-bold text-gray-900">{dateStr}</span>
             </div>
         </div>
     );
@@ -209,23 +211,23 @@ export default function SuperAdminDashboard() {
             <PageHeader
                 title="Super Admin Dashboard"
                 subtitle={
-                    <span className="inline-flex items-center gap-1.5 text-sm ">
-                        <h1>Lihat dan pantau Data Siswa saat ini</h1>
+                    <span className="inline-flex items-center gap-1.5 text-xs sm:text-sm">
+                        <span>Lihat dan pantau Data Siswa saat ini</span>
                     </span>
                 }
             />
 
-            <div className="flex-1 overflow-auto p-6">
+            <div className="flex-1 overflow-auto p-3 sm:p-4 md:p-6">
                 {/* ── Top: clock + stat cards ── */}
-                <div className="flex gap-5 mb-5">
+                <div className="flex flex-col lg:flex-row gap-3 sm:gap-5 mb-4 sm:mb-5">
                     {/* Clock panel */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col justify-between min-w-[200px] w-[200px]">
-                        <Clock className="w-10 h-10 text-gray-300 mb-3" />
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 flex flex-col justify-between w-full lg:w-56 lg:min-w-[224px]">
+                        <Clock className="w-8 h-8 sm:w-10 sm:h-10 text-gray-300 mb-2 sm:mb-3 hidden lg:block" />
                         <RealtimeClock />
                     </div>
 
-                    {/* 2×3 stat grid */}
-                    <div className="flex-1 grid grid-cols-3 gap-4">
+                    {/* Stat grid */}
+                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
                         {cards.map((c) => (
                             <StatCard key={c.label} {...c} loading={loading} />
                         ))}
@@ -233,7 +235,7 @@ export default function SuperAdminDashboard() {
                 </div>
 
                 {/* Bottom: chart */}
-                <div className="grid grid-cols-1 gap-5">
+                <div className="grid grid-cols-1 gap-4 sm:gap-5">
                     <AttendanceComparisonChart />
                 </div>
             </div>

@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { auth } from "../../lib/backendApi";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function LoginForm() {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
@@ -61,16 +63,28 @@ export default function LoginForm() {
                 />
             </div>
 
-            <div>
+            <div className="relative">
                 <input
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     placeholder="Password"
                     name="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    className="w-full px-5 py-3.5 bg-white border-0 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm"
+                    className="w-full pl-5 pr-12 py-3.5 bg-white border-0 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm"
                 />
+                <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none transition-colors"
+                    aria-label={showPassword ? "Sembunyikan password" : "Lihat password"}
+                >
+                    {showPassword ? (
+                        <EyeOff className="w-5 h-5" />
+                    ) : (
+                        <Eye className="w-5 h-5" />
+                    )}
+                </button>
             </div>
 
             <button
