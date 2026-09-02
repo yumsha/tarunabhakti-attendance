@@ -48,6 +48,29 @@ export default function OrtuImportModal({ isOpen, onClose, onImportDone }) {
     return () => window.removeEventListener("beforeunload", handler);
   }, [importing]);
 
+  const filteredRows = useMemo(() => {
+    if (!draftSearch.trim()) return rows;
+    const q = draftSearch.toLowerCase().trim();
+    return rows.filter((row) =>
+      Object.values(row).some((val) => String(val).toLowerCase().includes(q))
+    );
+  }, [rows, draftSearch]);
+
+  const filteredResults = useMemo(() => {
+    let list = results;
+    if (resultFilter === "berhasil") {
+      list = list.filter((r) => r.ok);
+    } else if (resultFilter === "gagal") {
+      list = list.filter((r) => !r.ok);
+    }
+    if (!resultSearch.trim()) return list;
+    const q = resultSearch.toLowerCase().trim();
+    return list.filter(
+      (r) =>
+        r.nama?.toLowerCase().includes(q) || r.msg?.toLowerCase().includes(q)
+    );
+  }, [results, resultSearch, resultFilter]);
+
   if (!isOpen) return null;
 
   const parseFile = async (file) => {
@@ -173,29 +196,6 @@ export default function OrtuImportModal({ isOpen, onClose, onImportDone }) {
 
   const successCount = results.filter((r) => r.ok).length;
   const failCount = results.filter((r) => !r.ok).length;
-
-  const filteredRows = useMemo(() => {
-    if (!draftSearch.trim()) return rows;
-    const q = draftSearch.toLowerCase().trim();
-    return rows.filter((row) =>
-      Object.values(row).some((val) => String(val).toLowerCase().includes(q))
-    );
-  }, [rows, draftSearch]);
-
-  const filteredResults = useMemo(() => {
-    let list = results;
-    if (resultFilter === "berhasil") {
-      list = list.filter((r) => r.ok);
-    } else if (resultFilter === "gagal") {
-      list = list.filter((r) => !r.ok);
-    }
-    if (!resultSearch.trim()) return list;
-    const q = resultSearch.toLowerCase().trim();
-    return list.filter(
-      (r) =>
-        r.nama?.toLowerCase().includes(q) || r.msg?.toLowerCase().includes(q)
-    );
-  }, [results, resultSearch, resultFilter]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
@@ -328,15 +328,14 @@ export default function OrtuImportModal({ isOpen, onClose, onImportDone }) {
                       key={val}
                       type="button"
                       onClick={() => setResultFilter(val)}
-                      className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                        resultFilter === val
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${resultFilter === val
                           ? val === "berhasil"
                             ? "bg-emerald-100 text-emerald-700"
                             : val === "gagal"
-                            ? "bg-red-100 text-red-700"
-                            : "bg-blue-100 text-blue-700"
+                              ? "bg-red-100 text-red-700"
+                              : "bg-blue-100 text-blue-700"
                           : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                      }`}
+                        }`}
                     >
                       {label}
                     </button>
