@@ -181,20 +181,22 @@ export default function UserTable({
                     {formatDate(user.created_at)}
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex items-center justify-center gap-1">
+                    <div className="flex items-center justify-center gap-2">
                       <button
+                        type="button"
                         onClick={() => onEdit(user)}
-                        className="p-2 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                        title="Edit"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-900 transition active:scale-[0.98] cursor-pointer"
                       >
-                        <Pencil className="w-4 h-4" />
+                        <Pencil className="w-3.5 h-3.5 text-gray-500" />
+                        <span>Edit</span>
                       </button>
                       <button
+                        type="button"
                         onClick={() => onDelete(user)}
-                        className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                        title="Hapus"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition active:scale-[0.98] cursor-pointer"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                        <span>Hapus</span>
                       </button>
                     </div>
                   </td>

@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from "react";
+import { Download, Plus, ChevronDown, Pencil, Trash2 } from "lucide-react";
 import Pagination from "../../layout/Pagination";
 import SearchableSelect from "./SearchableSelect";
 import { formatTime, HARI_COLOR } from "./jadwalUtils";
@@ -38,9 +39,9 @@ export default function JadwalTable({
   }, [setShowCreateMenu]);
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
       {/* Toolbar */}
-      <div className="p-4 sm:p-5 border-b border-gray-100 flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4">
+      <div className="relative z-20 p-4 sm:p-5 border-b border-gray-100 flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4">
         {/* Left: Search & Filter */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 flex-1 flex-wrap">
           {/* Search */}
@@ -119,21 +120,14 @@ export default function JadwalTable({
         </div>
 
         {/* Right: Export & Add Actions */}
-        <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-start">
           {/* Export Button */}
           <button
             type="button"
             onClick={onExportData}
-            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2 border border-gray-200 rounded-xl hover:bg-gray-50 transition text-gray-700 text-xs sm:text-sm font-medium shadow-sm cursor-pointer"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 sm:px-4 py-2 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 active:scale-[0.98] transition text-gray-700 text-xs sm:text-sm font-semibold shadow-xs cursor-pointer"
           >
-            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-              />
-            </svg>
+            <Download className="w-3.5 h-3.5 text-gray-500" />
             <span>Export Data</span>
           </button>
 
@@ -143,30 +137,23 @@ export default function JadwalTable({
               <button
                 type="button"
                 onClick={() => setShowCreateMenu(!showCreateMenu)}
-                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition shadow-sm font-bold text-xs sm:text-sm cursor-pointer"
+                className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 active:scale-[0.98] transition shadow-sm font-semibold text-xs sm:text-sm cursor-pointer"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                </svg>
+                <Plus className="w-4 h-4" />
                 <span>Tambah Jadwal</span>
-                <svg
-                  className={`w-3.5 h-3.5 transition-transform duration-200 ${showCreateMenu ? "rotate-180" : ""}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                </svg>
+                <ChevronDown
+                  className={`w-3.5 h-3.5 transition-transform duration-200 ease-out ${showCreateMenu ? "rotate-180" : ""}`}
+                />
               </button>
 
               {showCreateMenu && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 w-52 bg-white rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 p-1.5 z-50 overflow-hidden animate-dropdown">
                   <button
                     type="button"
                     onClick={onCreateManual}
-                    className="w-full text-left px-4 py-3 text-xs sm:text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition flex items-center gap-2.5 border-b border-gray-50 cursor-pointer font-medium"
+                    className="w-full text-left px-3.5 py-2.5 text-xs sm:text-sm text-gray-700 rounded-xl hover:bg-blue-50/80 hover:text-blue-700 transition flex items-center gap-2.5 cursor-pointer font-medium active:scale-[0.98]"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -174,7 +161,7 @@ export default function JadwalTable({
                         d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
                       />
                     </svg>
-                    Tambah Manual
+                    <span>Tambah Manual</span>
                   </button>
                   <button
                     type="button"
@@ -182,9 +169,9 @@ export default function JadwalTable({
                       setShowCreateMenu(false);
                       onOpenImportModal();
                     }}
-                    className="w-full text-left px-4 py-3 text-xs sm:text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition flex items-center gap-2.5 cursor-pointer font-medium"
+                    className="w-full text-left px-3.5 py-2.5 text-xs sm:text-sm text-gray-700 rounded-xl hover:bg-blue-50/80 hover:text-blue-700 transition flex items-center gap-2.5 cursor-pointer font-medium active:scale-[0.98]"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -192,7 +179,7 @@ export default function JadwalTable({
                         d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                       />
                     </svg>
-                    Import XLSX/PDF
+                    <span>Import XLSX/PDF</span>
                   </button>
                 </div>
               )}
@@ -202,7 +189,7 @@ export default function JadwalTable({
       </div>
 
       {/* Table Area */}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto rounded-b-2xl">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-gray-50/75 border-b border-gray-100">
@@ -299,35 +286,21 @@ export default function JadwalTable({
                   {/* Actions */}
                   {canManageJadwal && (
                     <td className="px-4 sm:px-6 py-3.5 sm:py-4 text-right sm:text-left">
-                      <div className="flex items-center justify-end sm:justify-start gap-2 sm:gap-3">
+                      <div className="flex items-center justify-end sm:justify-start gap-1.5 sm:gap-2">
                         <button
                           type="button"
-                          className="text-blue-600 hover:text-blue-800 font-semibold text-xs sm:text-sm transition flex items-center gap-1 cursor-pointer"
                           onClick={() => onEditJadwal(item)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-900 transition active:scale-[0.98] cursor-pointer"
                         >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                            />
-                          </svg>
+                          <Pencil className="w-3.5 h-3.5 text-gray-500" />
                           <span>Edit</span>
                         </button>
                         <button
                           type="button"
-                          className="text-red-500 hover:text-red-700 font-semibold text-xs sm:text-sm transition flex items-center gap-1 cursor-pointer"
                           onClick={() => onDeleteJadwal(item)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition active:scale-[0.98] cursor-pointer"
                         >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                            />
-                          </svg>
+                          <Trash2 className="w-3.5 h-3.5 text-red-500" />
                           <span>Hapus</span>
                         </button>
                       </div>

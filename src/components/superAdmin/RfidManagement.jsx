@@ -1534,13 +1534,13 @@ export default function RfidManagement() {
                   <button
                     type="button"
                     onClick={() => { setShowTemplateMenu(!showTemplateMenu); setShowExportMenu(false); }}
-                    className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                    className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-50 active:scale-[0.98] transition-all shadow-xs cursor-pointer"
                   >
                     <Download className="h-3.5 w-3.5" />
                     Unduh Template
                   </button>
                   {showTemplateMenu && (
-                    <div className="absolute right-0 mt-1 w-52 rounded-xl border border-gray-100 bg-white shadow-lg overflow-hidden z-20 animate-in fade-in-50 duration-150">
+                    <div className="absolute right-0 mt-1 w-52 rounded-xl border border-gray-100 bg-white shadow-lg overflow-hidden z-20 animate-dropdown">
                       <p className="px-4 pt-2.5 pb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Import Baru</p>
                       <button
                         onClick={() => { downloadExcelTemplate(); setShowTemplateMenu(false); }}
@@ -1581,13 +1581,13 @@ export default function RfidManagement() {
                   <button
                     type="button"
                     onClick={() => { setShowExportMenu(!showExportMenu); setShowTemplateMenu(false); }}
-                    className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                    className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-50 active:scale-[0.98] transition-all shadow-xs cursor-pointer"
                   >
                     <Download className="h-3.5 w-3.5" />
                     Export Data
                   </button>
                   {showExportMenu && (
-                    <div className="absolute right-0 mt-1 w-52 rounded-xl border border-gray-100 bg-white shadow-lg overflow-hidden z-20">
+                    <div className="absolute right-0 mt-1 w-52 rounded-xl border border-gray-100 bg-white shadow-lg overflow-hidden z-20 animate-dropdown">
                       <button
                         onClick={() => { exportTableExcel(filteredRows); setShowExportMenu(false); }}
                         className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition"
@@ -1611,16 +1611,16 @@ export default function RfidManagement() {
                   <button
                     type="button"
                     onClick={() => { setShowAddMenu(!showAddMenu); setShowTemplateMenu(false); setShowExportMenu(false); }}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-blue-700 active:scale-[0.98] transition-all cursor-pointer"
                   >
                     <Plus className="h-4 w-4" />
                     Tambah RFID
-                    <svg className={`h-3.5 w-3.5 transition-transform duration-200 ${showAddMenu ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <svg className={`h-3.5 w-3.5 transition-transform duration-200 ease-out ${showAddMenu ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
                   {showAddMenu && (
-                    <div className="absolute right-0 mt-1 w-52 rounded-xl border border-gray-100 bg-white shadow-lg overflow-hidden z-20">
+                    <div className="absolute right-0 mt-1 w-52 rounded-xl border border-gray-100 bg-white shadow-lg overflow-hidden z-20 animate-dropdown">
                       <button
                         onClick={() => { setEditItem(null); setShowModal(true); setShowAddMenu(false); }}
                         className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition"
@@ -1714,15 +1714,23 @@ export default function RfidManagement() {
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             <Tooltip text="Edit RFID">
-                              <button type="button" onClick={() => { setEditItem(item); setShowModal(true); }}
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-600 transition hover:border-gray-300 hover:bg-gray-50">
-                                <Pencil className="h-3.5 w-3.5" />Edit
+                              <button
+                                type="button"
+                                onClick={() => { setEditItem(item); setShowModal(true); }}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900 active:scale-[0.98] cursor-pointer"
+                              >
+                                <Pencil className="h-3.5 w-3.5 text-gray-500" />
+                                <span>Edit</span>
                               </button>
                             </Tooltip>
                             <Tooltip text="Hapus RFID">
-                              <button type="button" onClick={() => setConfirmDelete(item)}
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs text-red-600 transition hover:border-red-300 hover:bg-red-50">
-                                <Trash2 className="h-3.5 w-3.5" />Hapus
+                              <button
+                                type="button"
+                                onClick={() => setConfirmDelete(item)}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:border-red-300 hover:bg-red-50 hover:text-red-700 active:scale-[0.98] cursor-pointer"
+                              >
+                                <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                                <span>Hapus</span>
                               </button>
                             </Tooltip>
                           </div>

@@ -108,7 +108,7 @@ export default function MapelTable({
             id="add-mapel-btn"
             type="button"
             onClick={onAddMapel}
-            className="inline-flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2 text-xs sm:text-sm bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition shadow-sm font-medium cursor-pointer"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs sm:text-sm bg-blue-600 text-white rounded-xl hover:bg-blue-700 active:scale-[0.98] transition shadow-sm font-semibold cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Tambah Mapel</span>
@@ -222,9 +222,9 @@ export default function MapelTable({
                           id={`edit-mapel-${mapel.id}`}
                           type="button"
                           onClick={() => onEditMapel(mapel)}
-                          className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition font-medium cursor-pointer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-900 transition active:scale-[0.98] cursor-pointer"
                         >
-                          <Pencil className="w-3.5 h-3.5" />
+                          <Pencil className="w-3.5 h-3.5 text-gray-500" />
                           <span className="hidden sm:inline">Edit</span>
                         </button>
                       </Tooltip>
@@ -234,9 +234,9 @@ export default function MapelTable({
                           id={`delete-mapel-${mapel.id}`}
                           type="button"
                           onClick={() => onDeleteMapel(mapel)}
-                          className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs border border-red-200 rounded-lg text-red-600 hover:bg-red-50 hover:border-red-300 transition font-medium cursor-pointer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition active:scale-[0.98] cursor-pointer"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-3.5 h-3.5 text-red-500" />
                           <span className="hidden sm:inline">Hapus</span>
                         </button>
                       </Tooltip>

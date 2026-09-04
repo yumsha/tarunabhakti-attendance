@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from "react";
-import { createPortal } from "react-dom";
+import { ChevronDown, Pencil, Trash2, Plus, Upload } from "lucide-react";
 import Pagination from "../../layout/Pagination";
 import {
   downloadExcelTemplate,
@@ -38,48 +38,8 @@ export default function OrtuTable({
   const exportRef = useRef();
   const importMenuRef = useRef();
 
-  const [templateCoords, setTemplateCoords] = useState({ top: 0, left: 0 });
-  const [exportCoords, setExportCoords] = useState({ top: 0, left: 0 });
-  const [importCoords, setImportCoords] = useState({ top: 0, left: 0 });
-
-  const updateMenuCoords = () => {
-    if (showTemplateMenu && templateRef.current) {
-      const rect = templateRef.current.getBoundingClientRect();
-      setTemplateCoords({
-        top: rect.bottom + 4,
-        left: Math.max(10, rect.right - 208),
-      });
-    }
-    if (showExportMenu && exportRef.current) {
-      const rect = exportRef.current.getBoundingClientRect();
-      setExportCoords({
-        top: rect.bottom + 4,
-        left: Math.max(10, rect.right - 192),
-      });
-    }
-    if (showImportMenu && importMenuRef.current) {
-      const rect = importMenuRef.current.getBoundingClientRect();
-      setImportCoords({
-        top: rect.bottom + 4,
-        left: Math.max(10, rect.right - 192),
-      });
-    }
-  };
-
-  useEffect(() => {
-    updateMenuCoords();
-    const handleReposition = () => updateMenuCoords();
-    window.addEventListener("scroll", handleReposition, true);
-    window.addEventListener("resize", handleReposition);
-    return () => {
-      window.removeEventListener("scroll", handleReposition, true);
-      window.removeEventListener("resize", handleReposition);
-    };
-  }, [showTemplateMenu, showExportMenu, showImportMenu]);
-
   useEffect(() => {
     const handler = (e) => {
-      if (e.target.closest(".dropdown-portal")) return;
       if (templateRef.current && !templateRef.current.contains(e.target)) setShowTemplateMenu(false);
       if (exportRef.current && !exportRef.current.contains(e.target)) setShowExportMenu(false);
       if (importMenuRef.current && !importMenuRef.current.contains(e.target)) setShowImportMenu(false);
@@ -91,9 +51,9 @@ export default function OrtuTable({
   const TABLE_COLS = ["ID", "Nama Orang Tua", "NIK", "Nomor Telepon", "Pekerjaan", "Alamat", "Aksi"];
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
       {/* Toolbar */}
-      <div className="p-4 sm:p-5 border-b border-gray-100 flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4">
+      <div className="relative z-20 p-4 sm:p-5 border-b border-gray-100 flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4">
         {/* Count */}
         <div className="flex-1">
           <p className="text-xs sm:text-sm text-gray-500">
@@ -139,7 +99,7 @@ export default function OrtuTable({
         </div>
 
         {/* Action buttons */}
-        <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap justify-end">
+        <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap justify-start">
           {/* Template Dropdown */}
           <div className="relative" ref={templateRef}>
             <button
@@ -149,74 +109,67 @@ export default function OrtuTable({
                 setShowExportMenu(false);
                 setShowImportMenu(false);
               }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition shadow-xs cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 active:scale-[0.98] transition-all shadow-xs cursor-pointer"
             >
               <span>Template</span>
-              <span className={`text-[10px] text-gray-400 transition-transform duration-150 ${showTemplateMenu ? "rotate-180" : ""}`}>▼</span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ease-out ${
+                  showTemplateMenu ? "rotate-180 text-gray-600" : ""
+                }`}
+              />
             </button>
 
-            {showTemplateMenu &&
-              typeof document !== "undefined" &&
-              createPortal(
-                <div
-                  style={{
-                    position: "fixed",
-                    top: templateCoords.top,
-                    left: templateCoords.left,
-                    width: "13rem",
+            {showTemplateMenu && (
+              <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 w-56 bg-white rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 p-1.5 z-50 animate-dropdown">
+                <p className="px-3 pt-2 pb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                  Import Baru
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    downloadExcelTemplate();
+                    setShowTemplateMenu(false);
                   }}
-                  className="bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-[9999] dropdown-portal animate-in fade-in zoom-in-95 duration-150"
+                  className="w-full text-left px-3 py-2 text-xs sm:text-sm text-gray-700 rounded-xl hover:bg-blue-50/80 hover:text-blue-700 transition cursor-pointer font-medium active:scale-[0.98]"
                 >
-                  <p className="px-4 pt-2.5 pb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
-                    Import Baru
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      downloadExcelTemplate();
-                      setShowTemplateMenu(false);
-                    }}
-                    className="w-full text-left px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition cursor-pointer font-medium"
-                  >
-                    Template Excel (.xlsx)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      downloadPdfTemplate();
-                      setShowTemplateMenu(false);
-                    }}
-                    className="w-full text-left px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition cursor-pointer font-medium"
-                  >
-                    Template PDF
-                  </button>
-                  <div className="border-t border-gray-100 my-1" />
-                  <p className="px-4 pt-1 pb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
-                    Update Data
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      downloadUpdateOrtuExcelTemplate();
-                      setShowTemplateMenu(false);
-                    }}
-                    className="w-full text-left px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition cursor-pointer font-medium"
-                  >
-                    Template Update (.xlsx)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      downloadUpdateOrtuPdfTemplate();
-                      setShowTemplateMenu(false);
-                    }}
-                    className="w-full text-left px-4 py-2 pb-2.5 text-xs sm:text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition cursor-pointer font-medium"
-                  >
-                    Template Update (PDF)
-                  </button>
-                </div>,
-                document.body
-              )}
+                  Template Excel (.xlsx)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    downloadPdfTemplate();
+                    setShowTemplateMenu(false);
+                  }}
+                  className="w-full text-left px-3 py-2 text-xs sm:text-sm text-gray-700 rounded-xl hover:bg-blue-50/80 hover:text-blue-700 transition cursor-pointer font-medium active:scale-[0.98]"
+                >
+                  Template PDF
+                </button>
+                <div className="border-t border-gray-100 my-1 mx-1" />
+                <p className="px-3 pt-1 pb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                  Update Data
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    downloadUpdateOrtuExcelTemplate();
+                    setShowTemplateMenu(false);
+                  }}
+                  className="w-full text-left px-3 py-2 text-xs sm:text-sm text-gray-700 rounded-xl hover:bg-emerald-50/80 hover:text-emerald-700 transition cursor-pointer font-medium active:scale-[0.98]"
+                >
+                  Template Update (.xlsx)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    downloadUpdateOrtuPdfTemplate();
+                    setShowTemplateMenu(false);
+                  }}
+                  className="w-full text-left px-3 py-2 pb-2.5 text-xs sm:text-sm text-gray-700 rounded-xl hover:bg-emerald-50/80 hover:text-emerald-700 transition cursor-pointer font-medium active:scale-[0.98]"
+                >
+                  Template Update (PDF)
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Export Dropdown */}
@@ -228,47 +181,40 @@ export default function OrtuTable({
                 setShowTemplateMenu(false);
                 setShowImportMenu(false);
               }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition shadow-xs cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 active:scale-[0.98] transition-all shadow-xs cursor-pointer"
             >
               <span>Export</span>
-              <span className={`text-[10px] text-gray-400 transition-transform duration-150 ${showExportMenu ? "rotate-180" : ""}`}>▼</span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ease-out ${
+                  showExportMenu ? "rotate-180 text-gray-600" : ""
+                }`}
+              />
             </button>
 
-            {showExportMenu &&
-              typeof document !== "undefined" &&
-              createPortal(
-                <div
-                  style={{
-                    position: "fixed",
-                    top: exportCoords.top,
-                    left: exportCoords.left,
-                    width: "12rem",
+            {showExportMenu && (
+              <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 w-52 bg-white rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 p-1.5 z-50 animate-dropdown">
+                <button
+                  type="button"
+                  onClick={() => {
+                    exportTableExcel(filteredData);
+                    setShowExportMenu(false);
                   }}
-                  className="bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-[9999] dropdown-portal animate-in fade-in zoom-in-95 duration-150"
+                  className="w-full text-left px-3.5 py-2.5 text-xs sm:text-sm text-gray-700 rounded-xl hover:bg-blue-50/80 hover:text-blue-700 transition cursor-pointer font-medium active:scale-[0.98]"
                 >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      exportTableExcel(filteredData);
-                      setShowExportMenu(false);
-                    }}
-                    className="w-full text-left px-4 py-2.5 text-xs sm:text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition cursor-pointer font-medium"
-                  >
-                    Export Excel (.xlsx)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      exportTablePdf(filteredData);
-                      setShowExportMenu(false);
-                    }}
-                    className="w-full text-left px-4 py-2.5 text-xs sm:text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition cursor-pointer font-medium"
-                  >
-                    Export PDF
-                  </button>
-                </div>,
-                document.body
-              )}
+                  Export Excel (.xlsx)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    exportTablePdf(filteredData);
+                    setShowExportMenu(false);
+                  }}
+                  className="w-full text-left px-3.5 py-2.5 text-xs sm:text-sm text-gray-700 rounded-xl hover:bg-blue-50/80 hover:text-blue-700 transition cursor-pointer font-medium active:scale-[0.98]"
+                >
+                  Export PDF
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Tambah Orang Tua Dropdown */}
@@ -280,63 +226,66 @@ export default function OrtuTable({
                 setShowTemplateMenu(false);
                 setShowExportMenu(false);
               }}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs sm:text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition shadow-sm cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 active:scale-[0.98] rounded-xl transition-all shadow-sm cursor-pointer"
             >
+              <Plus className="w-4 h-4" />
               <span>Tambah Orang Tua</span>
-              <span className={`text-[10px] text-blue-200 transition-transform duration-150 ${showImportMenu ? "rotate-180" : ""}`}>▼</span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 text-blue-200 transition-transform duration-200 ease-out ${
+                  showImportMenu ? "rotate-180 text-white" : ""
+                }`}
+              />
             </button>
 
-            {showImportMenu &&
-              typeof document !== "undefined" &&
-              createPortal(
-                <div
-                  style={{
-                    position: "fixed",
-                    top: importCoords.top,
-                    left: importCoords.left,
-                    width: "12.5rem",
+            {showImportMenu && (
+              <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 w-56 bg-white rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 p-1.5 z-50 animate-dropdown">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onAddManual();
+                    setShowImportMenu(false);
                   }}
-                  className="bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-[9999] dropdown-portal animate-in fade-in zoom-in-95 duration-150"
+                  className="w-full text-left px-3.5 py-2.5 text-xs sm:text-sm text-gray-700 rounded-xl hover:bg-blue-50/80 hover:text-blue-700 transition cursor-pointer font-medium active:scale-[0.98] flex items-center gap-2.5"
                 >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onAddManual();
-                      setShowImportMenu(false);
-                    }}
-                    className="w-full text-left px-4 py-2.5 text-xs sm:text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition cursor-pointer font-medium border-b border-gray-50"
-                  >
-                    Tambah Mandiri
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onOpenImportModal();
-                      setShowImportMenu(false);
-                    }}
-                    className="w-full text-left px-4 py-2.5 text-xs sm:text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition cursor-pointer font-medium border-b border-gray-50"
-                  >
-                    Import Excel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onOpenUpdateModal();
-                      setShowImportMenu(false);
-                    }}
-                    className="w-full text-left px-4 py-2.5 text-xs sm:text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition cursor-pointer font-medium"
-                  >
-                    Update Excel
-                  </button>
-                </div>,
-                document.body
-              )}
+                  <span className="text-blue-600">
+                    <Plus className="w-4 h-4" />
+                  </span>
+                  <span>Tambah Mandiri</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onOpenImportModal();
+                    setShowImportMenu(false);
+                  }}
+                  className="w-full text-left px-3.5 py-2.5 text-xs sm:text-sm text-gray-700 rounded-xl hover:bg-blue-50/80 hover:text-blue-700 transition cursor-pointer font-medium active:scale-[0.98] flex items-center gap-2.5"
+                >
+                  <span className="text-blue-600">
+                    <Upload className="w-4 h-4" />
+                  </span>
+                  <span>Import Excel</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onOpenUpdateModal();
+                    setShowImportMenu(false);
+                  }}
+                  className="w-full text-left px-3.5 py-2.5 text-xs sm:text-sm text-gray-700 rounded-xl hover:bg-emerald-50/80 hover:text-emerald-700 transition cursor-pointer font-medium active:scale-[0.98] flex items-center gap-2.5"
+                >
+                  <span className="text-emerald-600">
+                    <Upload className="w-4 h-4" />
+                  </span>
+                  <span>Update Excel</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto rounded-b-2xl">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-gray-50/80 border-b border-gray-100">
@@ -375,16 +324,18 @@ export default function OrtuTable({
                       <button
                         type="button"
                         onClick={() => onEditOrtu(o)}
-                        className="px-2.5 py-1 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors cursor-pointer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-900 transition active:scale-[0.98] cursor-pointer"
                       >
-                        Edit
+                        <Pencil className="w-3.5 h-3.5 text-gray-500" />
+                        <span>Edit</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => onDeleteOrtu(o)}
-                        className="px-2.5 py-1 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition active:scale-[0.98] cursor-pointer"
                       >
-                        Hapus
+                        <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                        <span>Hapus</span>
                       </button>
                     </div>
                   </td>

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { createPortal } from "react-dom";
 
 export default function SearchableSelect({
   value,
@@ -13,28 +12,12 @@ export default function SearchableSelect({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [coords, setCoords] = useState({ top: 0, left: 0, width: 288, initialized: false });
   const containerRef = useRef(null);
   const searchInputRef = useRef(null);
   const dropdownRef = useRef(null);
 
-  const updateCoords = () => {
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    setCoords({
-      top: rect.bottom + 6,
-      left: rect.left,
-      width: rect.width,
-      initialized: true,
-    });
-  };
-
   useEffect(() => {
-    if (!open) {
-      setCoords((prev) => ({ ...prev, initialized: false }));
-      return;
-    }
-    updateCoords();
+    if (!open) return;
 
     const handleClickOutside = (e) => {
       if (
@@ -47,15 +30,10 @@ export default function SearchableSelect({
         setQuery("");
       }
     };
-    const handleReposition = () => updateCoords();
 
     document.addEventListener("mousedown", handleClickOutside);
-    window.addEventListener("scroll", handleReposition, true);
-    window.addEventListener("resize", handleReposition);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
-      window.removeEventListener("scroll", handleReposition, true);
-      window.removeEventListener("resize", handleReposition);
     };
   }, [open]);
 
@@ -146,111 +124,101 @@ export default function SearchableSelect({
         </span>
       </button>
 
-      {open &&
-        typeof document !== "undefined" &&
-        createPortal(
-          <div
-            ref={dropdownRef}
-            style={{
-              position: "fixed",
-              top: coords.top,
-              left: coords.left,
-              width: coords.width,
-              visibility: coords.initialized ? "visible" : "hidden",
-            }}
-            className="z-[9999] mt-1.5 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl"
-          >
-            <div className="border-b border-gray-100 px-3 py-2">
-              <div className="flex items-center gap-2 rounded-lg bg-gray-50 px-2.5 py-1.5">
-                <svg
-                  className="h-3.5 w-3.5 shrink-0 text-gray-400"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+      {open && (
+        <div
+          ref={dropdownRef}
+          className="absolute left-0 top-full mt-1.5 w-full z-50 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl animate-dropdown"
+        >
+          <div className="border-b border-gray-100 px-3 py-2">
+            <div className="flex items-center gap-2 rounded-lg bg-gray-50 px-2.5 py-1.5">
+              <svg
+                className="h-3.5 w-3.5 shrink-0 text-gray-400"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Cari..."
+                className="w-full bg-transparent text-xs sm:text-sm text-gray-700 outline-none placeholder:text-gray-400"
+              />
+              {query ? (
+                <button
+                  type="button"
+                  onClick={() => setQuery("")}
+                  className="text-gray-400 hover:text-gray-600"
+                  aria-label="Bersihkan"
                 >
-                  <circle cx="11" cy="11" r="8" />
-                  <path d="m21 21-4.3-4.3" />
-                </svg>
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Cari..."
-                  className="w-full bg-transparent text-xs sm:text-sm text-gray-700 outline-none placeholder:text-gray-400"
-                />
-                {query ? (
-                  <button
-                    type="button"
-                    onClick={() => setQuery("")}
-                    className="text-gray-400 hover:text-gray-600"
-                    aria-label="Bersihkan"
+                  <svg
+                    className="h-3 w-3"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                   >
-                    <svg
-                      className="h-3 w-3"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M18 6 6 18" />
-                      <path d="m6 6 12 12" />
-                    </svg>
-                  </button>
-                ) : null}
-              </div>
+                    <path d="M18 6 6 18" />
+                    <path d="m6 6 12 12" />
+                  </svg>
+                </button>
+              ) : null}
             </div>
-            <ul className="max-h-56 overflow-y-auto py-1">
-              {filtered.length === 0 ? (
-                <li className="px-4 py-6 text-center text-xs sm:text-sm text-gray-400">
-                  Tidak ada data
-                </li>
-              ) : (
-                filtered.map((item) => {
-                  const itemValue = String(item.id || item.value || item);
-                  const isSelected = itemValue === String(value);
-                  return (
-                    <li
-                      key={itemValue}
-                      onClick={() => {
-                        onChange(itemValue);
-                        setOpen(false);
-                        setQuery("");
-                      }}
-                      className={
-                        "flex cursor-pointer items-center justify-between px-3.5 sm:px-4 py-2.5 text-xs sm:text-sm transition " +
-                        (isSelected
-                          ? "bg-blue-50 text-blue-700 font-semibold"
-                          : "text-gray-700 hover:bg-gray-50")
-                      }
-                    >
-                      <span className="truncate">{renderLabel(item)}</span>
-                      {isSelected ? (
-                        <svg
-                          className="h-3.5 w-3.5 text-blue-500 shrink-0 ml-2"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M20 6 9 17l-5-5" />
-                        </svg>
-                      ) : null}
-                    </li>
-                  );
-                })
-              )}
-            </ul>
-          </div>,
-          document.body
-        )}
+          </div>
+          <ul className="max-h-56 overflow-y-auto py-1">
+            {filtered.length === 0 ? (
+              <li className="px-4 py-6 text-center text-xs sm:text-sm text-gray-400">
+                Tidak ada data
+              </li>
+            ) : (
+              filtered.map((item) => {
+                const itemValue = String(item.id || item.value || item);
+                const isSelected = itemValue === String(value);
+                return (
+                  <li
+                    key={itemValue}
+                    onClick={() => {
+                      onChange(itemValue);
+                      setOpen(false);
+                      setQuery("");
+                    }}
+                    className={
+                      "flex cursor-pointer items-center justify-between px-3.5 sm:px-4 py-2.5 text-xs sm:text-sm transition " +
+                      (isSelected
+                        ? "bg-blue-50 text-blue-700 font-semibold"
+                        : "text-gray-700 hover:bg-gray-50")
+                    }
+                  >
+                    <span className="truncate">{renderLabel(item)}</span>
+                    {isSelected ? (
+                      <svg
+                        className="h-3.5 w-3.5 text-blue-500 shrink-0 ml-2"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M20 6 9 17l-5-5" />
+                      </svg>
+                    ) : null}
+                  </li>
+                );
+              })
+            )}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
