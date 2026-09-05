@@ -67,6 +67,7 @@ export default function WalasAttendanceTable({ kelasId, kelasName, walasId }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [exporting, setExporting] = useState("");
   const [page, setPage] = useState(1);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // ── Pending requests from GURU ──────────────────────────────────────────
   const [pendingRequests, setPendingRequests] = useState([]);
@@ -98,7 +99,7 @@ export default function WalasAttendanceTable({ kelasId, kelasName, walasId }) {
       if (res?.success) {
         setPendingRequests((prev) => prev.filter((r) => r.id !== id));
         // refresh attendance table so new status shows
-        setFilterDate((d) => d); // triggers useEffect below
+        setRefreshKey((prev) => prev + 1);
       }
     } catch (err) {
       console.error("Respond error:", err);
@@ -155,7 +156,7 @@ export default function WalasAttendanceTable({ kelasId, kelasName, walasId }) {
     };
 
     fetchAttendance();
-  }, [kelasId, filterDate]);
+  }, [kelasId, filterDate, refreshKey]);
 
   const filteredData = useMemo(
     () =>
