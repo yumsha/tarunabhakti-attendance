@@ -266,10 +266,11 @@ export default function KehadiranTableV2() {
   const handleStatusChange = async (row, newStatus) => {
     if (!guruId) { alert("Informasi guru tidak ditemukan."); return; }
     const sid = row.siswa_id;
-    // Default selalu ALPHA kecuali walas sudah konfirmasi (sudah_diabsen === true)
+    // Prioritas: pending status -> status saved -> status rekomendasi (tap-in) -> ALPHA
     const currentStatus = normalizeStatusCode(
       row._pending_status ||
       (row.sudah_diabsen ? row.status_saat_ini : null) ||
+      row.status_rekomendasi ||
       "ALPHA"
     );
     if (newStatus === currentStatus) return; // nothing changed
@@ -413,11 +414,14 @@ export default function KehadiranTableV2() {
                   pagedRows.map((row, index) => {
                     const sid = row.siswa_id;
                     const state = rowState[sid] ?? "idle";
-                    // Menampilkan status database jika walas sudah melakukan konfirmasi/finalisasi (sudah_diabsen === true).
-                    // Jika belum diabsen, default ke ALPHA agar guru dapat berinteraksi mengganti statusnya.
+                    // Prioritas:
+                    // 1. Pending status (jika sedang diubah)
+                    // 2. Status saved/absen yang sudah ada (sudah_diabsen === true / status_saat_ini)
+                    // 3. Status rekomendasi dari backend berdasarkan Tap-In RFID (sudah_tap -> Hadir, belum_tap -> Alpha)
                     const effectiveStatus = normalizeStatusCode(
                       row._pending_status ||
                       (row.sudah_diabsen ? row.status_saat_ini : null) ||
+                      row.status_rekomendasi ||
                       "ALPHA"
                     );
 
