@@ -1,10 +1,11 @@
 ---
-import BaseLayout from "../layouts/BaseLayout.astro"
-import LoginForm from "../components/auth/LoginForm.jsx"
+import BaseLayout from "../layouts/BaseLayout.astro";
+import StudentLoginForm from "../components/auth/StudentLoginForm.jsx";
 ---
 
-<BaseLayout requireGuest={true} title="Login - TB Attendance">
+<BaseLayout requireGuest={true} title="Login Siswa - TB Attendance">
   <div class="min-h-screen flex bg-gradient-to-br from-[#5B9BD5] via-[#4A8BC2] to-[#2D5F7F]">
+    {/* LEFT SIDE (Hero) */}
     <div class="hidden lg:flex w-[55%] relative overflow-hidden flex-col justify-between p-16 text-white">
       <div class="absolute inset-0 z-0 opacity-30 pointer-events-none">
         <svg
@@ -28,7 +29,6 @@ import LoginForm from "../components/auth/LoginForm.jsx"
 
       <!-- Hero Content -->
       <div class="relative z-10 mt-12">
-        
         <!-- Logo -->
         <div class="mb-14">
           <svg
@@ -49,46 +49,49 @@ import LoginForm from "../components/auth/LoginForm.jsx"
         <h1 class="text-[64px] font-bold mb-6 leading-[1.15] tracking-tight">
           Selamat Datang,
           <br />
-          Starbhak People!
+          Siswa Starbhak!
         </h1>
 
         <p class="text-[18px] text-white/90 max-w-[460px] leading-[1.6]">
-          Pantau Kehadiran dengan mudah dan efisien menggunakan Sistem. Solusi modern untuk manajemen kehadiran yang lebih baik.
+          Pantau kehadiran harian dan jadwal pelajaran Anda dengan mudah dan mandiri menggunakan Sistem Presensi Starbhak.
         </p>
       </div>
 
       <!-- Footer -->
       <div class="relative z-10 text-[15px] text-white/60 font-light tracking-wide">
-        © 2026 Riza Pahlevi
+        © 2026 SMK Taruna Bhakti
       </div>
     </div>
 
-    <!-- RIGHT SIDE -->
+    {/* RIGHT SIDE (Login Card) */}
     <div class="flex flex-1 items-center justify-center px-6 py-12">
       <div class="bg-white rounded-3xl shadow-2xl p-10 w-full max-w-md">
-        
         <div class="mb-10">
-          <h1 class="text-2xl font-bold text-gray-900">STARBHAK</h1>
+          <div class="flex items-center justify-between">
+            <h1 class="text-2xl font-bold text-gray-900">STARBHAK</h1>
+            <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">
+              Portal Siswa
+            </span>
+          </div>
           <h2 class="text-2xl font-normal text-gray-700">
             Attendance System
           </h2>
         </div>
 
-        <LoginForm client:load />
+        <StudentLoginForm client:load />
 
-        <div class="mt-6 pt-5 border-t border-gray-100 text-center">
+        <div class="mt-8 pt-5 border-t border-gray-100 text-center">
           <p class="text-xs text-gray-500">
-            Anda seorang siswa?{" "}
+            Masuk sebagai Guru atau Staf?{" "}
             <a
-              href="/login-siswa"
+              href="/login"
               class="font-semibold text-blue-600 hover:text-blue-700 underline underline-offset-2 transition-colors"
             >
-              Masuk ke Portal Siswa
+              Klik di sini
             </a>
           </p>
         </div>
       </div>
     </div>
-
   </div>
 </BaseLayout>

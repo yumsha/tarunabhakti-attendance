@@ -29,6 +29,9 @@ const resolveRoles = (userData) => {
 
   // Normalisasi alias
   const normalized = merged.map((r) => (r === "WALI KELAS" ? "WALAS" : r));
+  if (userData?.siswa || userData?.nisn || userData?.nis || userData?.nipd) {
+    normalized.push("SISWA");
+  }
 
   return Array.from(new Set(normalized));
 };
@@ -69,13 +72,14 @@ export default function SidebarContainer() {
   const [roles, setRoles] = useState(null);
   const [userData, setUserData] = useState(null);
 
-  const { isAdmin, isSuperAdmin, isWalas, isGuru, isKesiswaan, canAccessAttendance, isKurikulum, canAccessPokja } = useMemo(() => {
-    if (!roles) return { isAdmin: false, isSuperAdmin: false, isWalas: false, isGuru: false, isKesiswaan: false, canAccessAttendance: false, isKurikulum: false, canAccessPokja: false };
+  const { isAdmin, isSuperAdmin, isWalas, isGuru, isKesiswaan, canAccessAttendance, isKurikulum, canAccessPokja, isSiswa } = useMemo(() => {
+    if (!roles) return { isAdmin: false, isSuperAdmin: false, isWalas: false, isGuru: false, isKesiswaan: false, canAccessAttendance: false, isKurikulum: false, canAccessPokja: false, isSiswa: false };
     const superAdminRoles = ["SUPERADMIN", "SUPER ADMIN", "SUPER_ADMIN"];
     const guru = roles.includes("GURU");
     const walas = roles.includes("WALAS");
     const kesiswaan = roles.includes("KESISWAAN");
     const isPokja = userData?.is_pokja === true;
+    const siswa = roles.includes("SISWA") || roles.includes("STUDENT");
     return {
       isAdmin: roles.includes("ADMIN"),
       isSuperAdmin: roles.some((r) => superAdminRoles.includes(r)),
@@ -86,6 +90,7 @@ export default function SidebarContainer() {
       canAccessPokja: kesiswaan && isPokja,
       // hanya role guru & walas yang bisa akses, tapi role GURU juga bisa akses walaupun gak ada role WALAS (untuk guru mapel yang bukan walas)
       canAccessAttendance: walas || guru,
+      isSiswa: siswa,
     };
   }, [roles, userData]);
 
@@ -251,8 +256,17 @@ export default function SidebarContainer() {
         </svg>
         Dashboard
       </a>
+
+      {isSiswa && (
+        <a href="/dashboard/profile" data-astro-prefetch className={getLinkClass("/dashboard/profile")}>
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+          Profil Saya
+        </a>
+      )}
       
-            {isSuperAdmin && (
+      {isSuperAdmin && (
         <a
           href="/dashboard/kelas"
           data-astro-prefetch

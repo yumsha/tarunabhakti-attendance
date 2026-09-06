@@ -152,6 +152,9 @@ export default function ProfilePage() {
     if (upper.includes("KESISWAAN")) {
       return "bg-cyan-50 text-cyan-700 border-cyan-200";
     }
+    if (upper.includes("SISWA") || upper.includes("STUDENT")) {
+      return "bg-indigo-50 text-indigo-700 border-indigo-200";
+    }
     return "bg-slate-100 text-slate-700 border-slate-200";
   };
 
@@ -159,10 +162,20 @@ export default function ProfilePage() {
     ["GURU", "WALAS", "WALI KELAS"].includes(r)
   ) || !!user?.guru;
 
+  const isSiswa = roleLabels.some((r) =>
+    ["SISWA", "STUDENT"].includes(r)
+  ) || !!user?.siswa || !!user?.nisn;
+
   const nip = user?.guru?.NIP || user?.guru?.nip;
   const noHp = user?.guru?.no_hp || user?.guru?.telepon || user?.telepon;
   const kodeGuru = user?.guru?.kode_guru || user?.guru?.kode;
   const walasKelas = user?.guru?.walas?.kelas?.kelas || user?.guru?.kelas?.kelas || (roleLabels.includes("WALAS") ? "Wali Kelas Aktif" : null);
+
+  const siswaData = user?.siswa || user;
+  const nisnSiswa = siswaData?.nisn || siswaData?.NISN;
+  const nipdSiswa = siswaData?.nipd || siswaData?.NIPD || siswaData?.nis;
+  const kelasSiswa = siswaData?.kelas?.kelas ? `${siswaData.kelas.kelas} ${siswaData.kelas.jurusan || ""}`.trim() : (typeof siswaData?.kelas === "string" ? siswaData.kelas : null);
+  const walasSiswa = siswaData?.kelas?.walas?.nama || siswaData?.walas?.nama || "-";
 
   if (loading) {
     return (
@@ -493,12 +506,130 @@ export default function ProfilePage() {
                 </div>
               )}
 
+              {/* Card 2B: Informasi Siswa / Peserta Didik (Jika ada) */}
+              {isSiswa && (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-7">
+                  <div className="flex items-center justify-between pb-5 border-b border-gray-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                        <GraduationCap className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-bold text-gray-900">
+                          Data Peserta Didik
+                        </h3>
+                        <p className="text-xs text-gray-500">
+                          Informasi akademik dan penugasan kelas siswa
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-semibold px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg border border-indigo-100">
+                      Siswa Terdaftar
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-6">
+                    {/* NISN */}
+                    <div className="p-3.5 rounded-xl bg-slate-50/70 border border-slate-100 hover:bg-slate-50 transition-colors">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                          <IdCard className="w-3.5 h-3.5 text-indigo-600" />
+                          NISN
+                        </div>
+                        {nisnSiswa && (
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(nisnSiswa, "nisn")}
+                            className="text-xs text-indigo-600 hover:text-indigo-700 font-medium inline-flex items-center gap-1 transition-colors cursor-pointer"
+                            title="Salin NISN"
+                          >
+                            {copiedField === "nisn" ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                <span className="text-[11px] text-emerald-600 font-bold">Disalin</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3.5 h-3.5" />
+                                <span className="text-[11px]">Salin</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
+                      <div className="text-sm font-mono font-bold text-gray-800">
+                        {nisnSiswa || "-"}
+                      </div>
+                      <div className="text-[11px] text-gray-400 mt-0.5">Nomor Induk Siswa Nasional</div>
+                    </div>
+
+                    {/* NIPD / NIS */}
+                    <div className="p-3.5 rounded-xl bg-slate-50/70 border border-slate-100 hover:bg-slate-50 transition-colors">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                          <IdCard className="w-3.5 h-3.5 text-indigo-600" />
+                          NIPD / NIS
+                        </div>
+                      </div>
+                      <div className="text-sm font-mono font-bold text-gray-800">
+                        {nipdSiswa || "-"}
+                      </div>
+                      <div className="text-[11px] text-gray-400 mt-0.5">Nomor Induk Peserta Didik</div>
+                    </div>
+
+                    {/* Kelas & Jurusan */}
+                    <div className="p-3.5 rounded-xl bg-slate-50/70 border border-slate-100 hover:bg-slate-50 transition-colors">
+                      <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                        <GraduationCap className="w-3.5 h-3.5 text-indigo-600" />
+                        Rombongan Belajar (Kelas)
+                      </div>
+                      <div className="text-sm font-semibold text-gray-900">
+                        {kelasSiswa || "-"}
+                      </div>
+                      <div className="text-[11px] text-gray-400 mt-0.5">Kelas dan jurusan terdaftar</div>
+                    </div>
+
+                    {/* Wali Kelas */}
+                    <div className="p-3.5 rounded-xl bg-slate-50/70 border border-slate-100 hover:bg-slate-50 transition-colors">
+                      <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                        <User className="w-3.5 h-3.5 text-indigo-600" />
+                        Wali Kelas
+                      </div>
+                      <div className="text-sm font-semibold text-gray-900">
+                        {walasSiswa || "-"}
+                      </div>
+                      <div className="text-[11px] text-gray-400 mt-0.5">Guru pembimbing kelas</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Card 3: Pintasan Cepat (Quick Shortcuts) */}
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-7">
                 <h3 className="text-base font-bold text-gray-900 mb-1">Pintasan Cepat</h3>
                 <p className="text-xs text-gray-500 mb-4">Akses modul utama sesuai wewenang akun Anda</p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {isSiswa && (
+                    <a
+                      href="/dashboard"
+                      className="group flex items-center justify-between p-3.5 rounded-xl border border-indigo-100 bg-indigo-50/40 hover:bg-indigo-50 hover:border-indigo-200 transition-all"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center">
+                          <Calendar className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold text-gray-900 group-hover:text-indigo-800 transition-colors">
+                            Dashboard Siswa
+                          </div>
+                          <div className="text-[11px] text-gray-500">Cek presensi harian & jadwal</div>
+                        </div>
+                      </div>
+                      <ArrowRight className="w-4 h-4 text-indigo-500 group-hover:translate-x-0.5 transition-transform" />
+                    </a>
+                  )}
+
                   {roleLabels.includes("WALAS") && (
                     <a
                       href="/attendance/walas"

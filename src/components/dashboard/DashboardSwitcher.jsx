@@ -4,6 +4,7 @@ import SuperAdminDashboard from "./SuperAdminDashboard.jsx";
 import GuruDashboard from "./GuruDashboard.jsx";
 import WalasDashboard from "./WalasDashboard.jsx";
 import KesiswaanDashboard from "./KesiswaanDashboard.jsx";  
+import SiswaDashboard from "./SiswaDashboard.jsx";
 
 function clearAuth() {
   localStorage.removeItem("accessToken");
@@ -34,6 +35,9 @@ export default function DashboardSwitcher() {
       .map((r) => String(r).toUpperCase());
 
     const normalized = merged.map((r) => (r === "WALI KELAS" ? "WALAS" : r));
+    if (userData?.siswa || userData?.nisn || userData?.nis || userData?.nipd) {
+      normalized.push("SISWA");
+    }
     return Array.from(new Set(normalized));
   };
 
@@ -69,6 +73,7 @@ export default function DashboardSwitcher() {
   if (roles.includes("GURU")) return <GuruDashboard />;
   if (roles.includes("WALAS")) return <WalasDashboard />;
   if (roles.includes("KESISWAAN")) return <KesiswaanDashboard />;
+  if (roles.includes("SISWA") || roles.includes("STUDENT")) return <SiswaDashboard />;
 
   return (
     <div className="flex-1 flex items-center justify-center bg-gray-50">
