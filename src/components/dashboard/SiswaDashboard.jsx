@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { auth, absensiSiswa, jadwal, kelas as kelasApi } from "../../lib/backendApi";
+import { auth, absensiSiswa, jadwal, kelas as kelasApi, moodle } from "../../lib/backendApi";
 import PageHeader from "../layout/PageHeader.jsx";
 import {
   Calendar,
@@ -49,6 +49,8 @@ export default function SiswaDashboard() {
     return (dayIndex >= 1 && dayIndex <= 5) ? DAYS_LIST[dayIndex - 1] : "Senin";
   });
   const [currentTime, setCurrentTime] = useState("");
+  const [lmsUrl, setLmsUrl] = useState(null);
+  const [lmsUrlLoading, setLmsUrlLoading] = useState(false);
 
   // Update live clock
   useEffect(() => {
@@ -77,13 +79,28 @@ export default function SiswaDashboard() {
         const token = localStorage.getItem("accessToken");
         if (!token) return;
 
-        const res = await auth.me();
+         const res = await auth.me();
         if (res?.success && (res?.data?.user || res?.data)) {
           const freshUser = res.data.user || res.data;
           setUser(freshUser);
           try {
             localStorage.setItem("user", JSON.stringify(freshUser));
           } catch (_) { }
+        }
+
+        // Fetch LMS auto-login URL (only if this is a student account)
+        if (res?.success && (freshUser?.siswa || res.data?.siswa)) {
+          try {
+            setLmsUrlLoading(true);
+            const lmsRes = await moodle.getLmsUrl();
+            if (lmsRes?.success && lmsRes?.data?.url) {
+              setLmsUrl(lmsRes.data.url);
+            }
+          } catch (e) {
+            console.debug("LMS URL fetch error:", e);
+          } finally {
+            setLmsUrlLoading(false);
+          }
         }
       } catch (err) {
         console.error("Error loading student profile:", err);
@@ -641,17 +658,49 @@ export default function SiswaDashboard() {
                 </a>
               </div>
 
-              <div className="mt-3">
-                <a
-                  href={import.meta.env.PUBLIC_LMS_URL || "https://lms.smktarunabhakti.com"}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white border border-indigo-300 rounded-xl text-xs font-semibold shadow-md hover:shadow-lg transition-all"
-                >
-                  <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.5M12 14V4m0 10l-6.16 3.5M15.5 12c0 1.66-.67 3.26-1.76 4.34l-.24.26a6.96 6.96 0 01-1.5 1.12 6.96 6.96 0 01-2.5 0 6.96 6.96 0 01-1.5-1.12l-.24-.26A6.47 6.47 0 018.5 12c0-1.66.67-3.26 1.76-4.34l.24-.26a6.96 6.96 0 011.5-1.12 6.96 6.96 0 012.5 0 6.96 6.96 0 011.5 1.12l.24.26A6.47 6.47 0 0115.5 12z" /></svg>
-                  <span>Buka LMS SMK Taruna Bhakti</span>
-                  <ArrowUpRight className="w-3.5 h-3.5" />
-                </a>
+               <div className="mt-3">
+                {lmsUrl ? (
+                  <a
+                    href={lmsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white border border-indigo-300 rounded-xl text-xs font-semibold shadow-md hover:shadow-lg transition-all"
+                  >
+                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.5M12 14V4m0 10l-6.16 3.5M15.5 12c0 1.66-.67 3.26-1.76 4.34l-.24.26a6.96 6.96 0 01-1.5 1.12 6.96 6.96 0 01-2.5 0 6.96 6.96 0 01-1.5-1.12l-.24-.26A6.47 6.47 0 018.5 12c0-1.66.67-3.26 1.76-4.34l.24-.26a6.96 6.96 0 011.5-1.12 6.96 6.96 0 012.5 0 6.96 6.96 0 011.5 1.12l.24.26A6.47 6.47 0 0115.5 12z" /></svg>
+                    <span>Buka LMS SMK Taruna Bhakti</span>
+                    <ArrowUpRight className="w-3.5 h-3.5" />
+                  </a>
+                ) : (
+                  <button
+                    disabled={lmsUrlLoading || loading}
+                    onClick={async () => {
+                      try {
+                        setLmsUrlLoading(true);
+                        const res = await moodle.getLmsUrl();
+                        if (res?.success && res?.data?.url) {
+                          setLmsUrl(res.data.url);
+                        }
+                      } catch (e) {
+                        console.error("LMS URL fetch error:", e);
+                      } finally {
+                        setLmsUrlLoading(false);
+                      }
+                    }}
+                    className="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white border border-indigo-300 rounded-xl text-xs font-semibold shadow-md hover:shadow-lg transition-all disabled:opacity-60"
+                  >
+                    {lmsUrlLoading ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Loading LMS...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" /></svg>
+                        <span>Buka LMS SMK Taruna Bhakti</span>
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             </div>
 

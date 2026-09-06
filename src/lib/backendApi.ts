@@ -313,6 +313,10 @@ export const auth = {
   me: () => request('/api/v1/auth/me'),
 };
 
+export const moodle = {
+  getLmsUrl: () => request('/api/v1/moodle/lms-url', { noCache: true } as any),
+};
+
 export const statusRequest = {
   create: (data: any) =>
     request('/api/v1/status-request', { method: 'POST', body: JSON.stringify(data) }),
