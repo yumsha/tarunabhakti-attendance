@@ -1,0 +1,16 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Sidebar from "../../components/Sidebar.astro";
+import AuthGate from "../../components/auth/AuthGate.jsx";
+import RfidManagement from "../../components/superAdmin/RfidManagement.jsx";
+---
+
+<BaseLayout requireAuth={true} title="Manajemen RFID">
+  <div class="flex h-screen bg-gray-50 overflow-hidden">
+    <Sidebar />
+
+    <AuthGate client:load allowedRoles={["ADMIN", "SUPERADMIN"]}>
+      <RfidManagement client:load />
+    </AuthGate>
+  </div>
+</BaseLayout>

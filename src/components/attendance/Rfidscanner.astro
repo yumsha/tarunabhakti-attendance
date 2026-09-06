@@ -1,6 +1,6 @@
 ---
-import RfidImage from "../../assets/rfid.png";
-import Logo from "../../assets/logo.png";
+import RfidImage from "../../../public/rfid.webp";
+import Logo from "../../../public/logo.webp";
 ---
 
 <div
@@ -27,8 +27,75 @@ import Logo from "../../assets/logo.png";
   />
 
   <script>
+    // /home/yumsha/Projects/tarunabhakti-attendance/src/components/attendance/Rfidscanner.astro
+
+    const RFID_CACHE_KEY = "rfid_cache";
+    const RFID_CACHE_TS_KEY = "rfid_cache_ts";
+    const RFID_CACHE_TTL_MS = 60_000;
+    const API_BASE_URL = import.meta.env.PUBLIC_API_BASE_URL;
+
+    function readCachedRfidMap() {
+      const tsRaw = localStorage.getItem(RFID_CACHE_TS_KEY);
+      const raw = localStorage.getItem(RFID_CACHE_KEY);
+      if (!tsRaw || !raw) return null;
+
+      const ts = Number(tsRaw);
+      if (!Number.isFinite(ts) || Date.now() - ts > RFID_CACHE_TTL_MS) {
+        localStorage.removeItem(RFID_CACHE_KEY);
+        localStorage.removeItem(RFID_CACHE_TS_KEY);
+        return null;
+      }
+
+      try {
+        return JSON.parse(raw);
+      } catch {
+        localStorage.removeItem(RFID_CACHE_KEY);
+        localStorage.removeItem(RFID_CACHE_TS_KEY);
+        return null;
+      }
+    }
+
+    // Load RFID lalu simpan ke localstorage sebagai object
+    async function loadRfidCache() {
+      try {
+        const cachedMap = readCachedRfidMap();
+        if (cachedMap) {
+          console.log("RFID cache loaded from storage");
+          return cachedMap;
+        }
+
+        const response = await fetch(`${API_BASE_URL}/api/v1/rfid/load-Rfid`);
+        if (!response.ok) throw new Error("Gagal mengambil data RFID");
+
+        const result = await response.json();
+        // Simpan sebagai object
+        const cacheMap: Record<string, string> = {};
+        for (const item of result.data) {
+          cacheMap[item.uid_rfid] = item.nama;
+        }
+
+        localStorage.setItem(RFID_CACHE_KEY, JSON.stringify(cacheMap));
+        localStorage.setItem(RFID_CACHE_TS_KEY, String(Date.now()));
+        console.log(`RFID cache loaded: ${result.data.length} kartu`);
+        return cacheMap;
+      } catch (error) {
+        console.error("Gagal load RFID cache:", error);
+        return readCachedRfidMap();
+      }
+    }
+
+    // Ambil nama siswa dari cache berdasarkan uid_rfid
+    function getNamaFromCache(uid_rfid: string): string | null {
+      const raw = localStorage.getItem(RFID_CACHE_KEY);
+      if (!raw) return null;
+      const cacheMap: Record<string, string> = JSON.parse(raw);
+      return cacheMap[uid_rfid] ?? null;
+    }
+
     function initializeRfidScanner() {
-      const rfidInput = document.getElementById("rfid-input") as HTMLInputElement;
+      const rfidInput = document.getElementById(
+        "rfid-input",
+      ) as HTMLInputElement;
 
       if (!rfidInput) {
         console.error("RFID input element not found");
@@ -40,9 +107,27 @@ import Logo from "../../assets/logo.png";
           const uid_rfid = rfidInput.value.trim();
           if (!uid_rfid) return;
 
+          // Cek dulu di cache
+          const nama = getNamaFromCache(uid_rfid);
+          if (!nama) {
+            document.dispatchEvent(
+              new CustomEvent("absensi-gagal", {
+                detail: { message: "Kartu RFID tidak dikenali" },
+              }),
+            );
+            rfidInput.value = "";
+            rfidInput.focus();
+            return;
+          }
+
+          // mode menandai endpoint mana yang sedang aktif menentukan hasil,
+          // supaya listener tahu ini hasil tap-in atau tap-out (bukan cuma
+          // menebak dari status_tapin yang null di respons tap-out)
+          let mode: "tap_in" | "tap_out" = "tap_in";
+
           try {
             let response = await fetch(
-              `http://localhost:3000/api/v1/absensi-siswa/tap-in`,
+              `${API_BASE_URL}/api/v1/absensi-siswa/tap-in`,
               {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -50,13 +135,12 @@ import Logo from "../../assets/logo.png";
               },
             );
 
-            let isTapOut = false;
-
-            // tap in 409? tap out
+            // Backend: tap-in balas 409 hanya untuk reason "already_tapped_in".
+            // Itu sinyal siswa sudah tap-in hari ini -> coba tap-out.
             if (response.status === 409) {
-              isTapOut = true;
+              mode = "tap_out";
               response = await fetch(
-                `http://localhost:3000/api/v1/absensi-siswa/tap-out`,
+                `${API_BASE_URL}/api/v1/absensi-siswa/tap-out`,
                 {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
@@ -69,23 +153,25 @@ import Logo from "../../assets/logo.png";
               const result = await response.json();
               const dataAbsensi = result.data;
               document.dispatchEvent(
-                new CustomEvent("absensi-berhasil", { detail: dataAbsensi }),
+                new CustomEvent("absensi-berhasil", {
+                  detail: { ...dataAbsensi, mode },
+                }),
               );
-
-              console.log("Absensi berhasil untuk:", dataAbsensi.siswa.nama);
-              console.log("Data lengkap:", result);
             } else {
               const errorData = await response.json().catch(() => ({}));
               const errorMessage = errorData.message || response.statusText;
-              
+
               document.dispatchEvent(
-                new CustomEvent("absensi-gagal", { detail: { message: errorMessage, isTapOut } }),
+                new CustomEvent("absensi-gagal", {
+                  detail: { message: errorMessage, mode },
+                }),
               );
-              console.error("Absensi gagal:", errorMessage);
             }
           } catch (error) {
             document.dispatchEvent(
-              new CustomEvent("absensi-gagal", { detail: { message: error.message } }),
+              new CustomEvent("absensi-gagal", {
+                detail: { message: error.message, mode },
+              }),
             );
             console.error("Error Absensi:", error);
           } finally {
@@ -99,10 +185,13 @@ import Logo from "../../assets/logo.png";
       rfidInput.focus();
     }
 
-    // Wait for DOM to be ready
     if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", initializeRfidScanner);
+      document.addEventListener("DOMContentLoaded", () => {
+        loadRfidCache();
+        initializeRfidScanner();
+      });
     } else {
+      loadRfidCache();
       initializeRfidScanner();
     }
   </script>

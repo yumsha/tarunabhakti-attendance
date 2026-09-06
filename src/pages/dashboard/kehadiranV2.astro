@@ -5,10 +5,10 @@ import AttendanceMain from "../../components/attendance/AttendanceMain.jsx";
 import AuthGate from "../../components/auth/AuthGate.jsx";
 ---
 
-<BaseLayout title="Kehadiran">
+<BaseLayout requireAuth={true} title="Kehadiran">
   <div class="flex h-screen bg-gray-50">
     <Sidebar />
-    <AuthGate client:load allowedRoles={["ADMIN", "GURU", "WALAS", "KESISWAAN"]}>
+    <AuthGate client:load allowedRoles={["GURU"]}>
       <AttendanceMain client:load />
     </AuthGate>
   </div>
