@@ -191,7 +191,7 @@ export const guru = {
 };
 
 export const orangTua = {
-  list: (params?: string) => request(`/api/v1/orang-tua${params ? `?${params}` : ''}`), 
+  list: (params?: string) => request(`/api/v1/orang-tua${params ? `?${params}` : ''}`),
   get: (id: string | number) => request(`/api/v1/orang-tua/${id}`),
   create: (data: any) => request('/api/v1/orang-tua', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string | number, data: any) => request(`/api/v1/orang-tua/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
@@ -245,7 +245,7 @@ export const rfid = {
   importFile: async (file: File) => {
     const token = getToken();
     const formData = new FormData();
-    formData.append('file', file);  
+    formData.append('file', file);
     const res = await fetch(`${BASE_URL}/api/v1/rfid/import`, {
       method: 'POST',
       headers: {
@@ -262,14 +262,15 @@ export const rfid = {
     try { return text ? JSON.parse(text) : null; } catch { return text; }
   },
 };
- 
+
 
 export const absensiSiswa = {
   tapIn: (data: any) => request('/api/v1/absensi-siswa/tap-in', { method: 'POST', body: JSON.stringify(data) }),
   tapOut: (data: any) => request('/api/v1/absensi-siswa/tap-out', { method: 'POST', body: JSON.stringify(data) }),
-  list: (params?: string) => request(`/api/v1/absensi-siswa${params ? `?${params}` : ''}`),
-  laporanHarian: (params?: string) => request(`/api/v1/absensi-siswa/laporan/harian${params ? `?${params}` : ''}`),
+  list: (params?: string) => request(`/api/v1/absensi-siswa${params ? `?${params}` : ''}`, { noCache: true } as any),
+  laporanHarian: (params?: string) => request(`/api/v1/absensi-siswa/laporan/harian${params ? `?${params}` : ''}`, { noCache: true } as any),
   laporanRange: (params?: string) => request(`/api/v1/absensi-siswa/laporan/range${params ? `?${params}` : ''}`),
+  rekapSaya: (params?: string) => request(`/api/v1/absensi-siswa/rekap-saya${params ? `?${params}` : ''}`, { noCache: true } as any),
   rekapTahunan: (tahun: string | number) => request(`/api/v1/absensi-siswa/rekap/tahunan?tahun=${tahun}`),
   rekapMingguan: (tanggal_mulai: string, tanggal_akhir: string) => request(`/api/v1/absensi-siswa/rekap/mingguan?tanggal_mulai=${tanggal_mulai}&tanggal_akhir=${tanggal_akhir}`),
   get: (id: string | number) => request(`/api/v1/absensi-siswa/${id}`),
@@ -307,6 +308,7 @@ export const role = {
 export const auth = {
   register: (data: any) => request('/api/v1/auth/register', { method: 'POST', body: JSON.stringify(data) }),
   login: (data: any) => request('/api/v1/auth/login', { method: 'POST', body: JSON.stringify(data) }),
+  moodleLogin: (data: any) => request('/api/v1/auth/moodle-login', { method: 'POST', body: JSON.stringify(data) }),
   logout: () => request('/api/v1/auth/logout', { method: 'POST' }),
   me: () => request('/api/v1/auth/me'),
 };
