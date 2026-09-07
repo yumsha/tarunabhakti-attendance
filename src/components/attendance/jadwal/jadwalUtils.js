@@ -15,7 +15,7 @@ export const formatTimeForTemplate = (timeStr) => {
   if (!timeStr) return "";
   const formatted = formatTime(timeStr);
   if (formatted === "-") return "";
-  return `'${formatted}`;
+  return formatted;
 };
 
 export const formatTimeForInput = (timeStr) => {
@@ -86,6 +86,13 @@ export const applyDataStyle = (cell, bgHex = "FFFFFF", alignH = "left") => {
   cell.border = borderStyle;
 };
 
+// Force a column to be read/written as plain text in Excel, so time values
+// like "07:00" are never auto-converted into a time serial number.
+export const setColumnAsText = (ws, colIndex) => {
+  const col = ws.getColumn(colIndex);
+  col.numFmt = "@";
+};
+
 export const loadExcelJS = async () => {
   if (window.ExcelJS) return window.ExcelJS;
   await new Promise((resolve, reject) => {
@@ -127,6 +134,8 @@ export const exportJadwalToExcel = async (filteredJadwal) => {
     { width: 13 }, // JAM_MULAI
     { width: 13 }, // JAM_SELESAI
   ];
+  setColumnAsText(ws, 6); // JAM_MULAI
+  setColumnAsText(ws, 7); // JAM_SELESAI
 
   ws.mergeCells("A1:G1");
   const titleCell = ws.getCell("A1");
@@ -190,6 +199,8 @@ export const downloadJadwalTemplate = async () => {
     { width: 14 }, { width: 10 }, { width: 18 },
     { width: 28 }, { width: 28 }, { width: 13 }, { width: 13 },
   ];
+  setColumnAsText(ws1, 6); // JAM_MULAI
+  setColumnAsText(ws1, 7); // JAM_SELESAI
 
   ws1.mergeCells("A1:G1");
   const t1 = ws1.getCell("A1");
@@ -216,11 +227,11 @@ export const downloadJadwalTemplate = async () => {
   });
 
   const SAMPLES = [
-    ["SENIN",  "10", "RPL",        "Pemrograman Web",   "Budi Santoso",  "'07:00", "'08:30"],
-    ["SELASA", "11", "TKJ",        "Jaringan Komputer", "Siti Rahayu",   "'08:30", "'10:00"],
-    ["RABU",   "12", "Multimedia", "Desain Grafis",     "Dewi Lestari",  "'10:00", "'11:30"],
-    ["KAMIS",  "10", "RPL",        "Basis Data",        "Ahmad Fauzi",   "'07:00", "'08:30"],
-    ["JUMAT",  "11", "TKJ",        "Sistem Operasi",    "Rudi Hermawan", "'08:30", "'10:00"],
+    ["SENIN",  "10", "RPL",        "Pemrograman Web",   "Budi Santoso",  "07:00", "08:30"],
+    ["SELASA", "11", "TKJ",        "Jaringan Komputer", "Siti Rahayu",   "08:30", "10:00"],
+    ["RABU",   "12", "Multimedia", "Desain Grafis",     "Dewi Lestari",  "10:00", "11:30"],
+    ["KAMIS",  "10", "RPL",        "Basis Data",        "Ahmad Fauzi",   "07:00", "08:30"],
+    ["JUMAT",  "11", "TKJ",        "Sistem Operasi",    "Rudi Hermawan", "08:30", "10:00"],
   ];
 
   SAMPLES.forEach((row, ri) => {
@@ -252,15 +263,14 @@ export const downloadJadwalTemplate = async () => {
     ["JURUSAN", "Nama jurusan. Contoh: RPL, TKJ, Multimedia"],
     ["NAMA_MAPEL", "Nama mata pelajaran (harus sama persis dengan yang terdaftar di sistem)"],
     ["NAMA_GURU", "Nama lengkap guru pengampu (harus sama persis dengan yang terdaftar di sistem)"],
-    ["JAM_MULAI", "Format 24 jam HH:MM — contoh: '07:00 (wajib diawali tanda kutip satu ')"],
-    ["JAM_SELESAI", "Format 24 jam HH:MM — contoh: '08:30 (wajib diawali tanda kutip satu ')"],
+    ["JAM_MULAI", "Format 24 jam HH:MM — contoh: 07:00"],
+    ["JAM_SELESAI", "Format 24 jam HH:MM — contoh: 08:30"],
   ];
 
   const warnings = [
     "⚠️  Jangan ubah nama kolom header di sheet TEMPLATE_JADWAL",
     "⚠️  Baris contoh (4–8) dapat dihapus sebelum diupload",
     "⚠️  NAMA_MAPEL & NAMA_GURU harus sama persis dengan data sistem",
-    "⚠️  Diawali tanda kutip satu (') di depan jam (misal: '07:00) agar Excel tidak mengacaukan format waktu",
     "⚠️  Wajib menggunakan pemisah titik dua (:) untuk jam, bukan titik (.) karena sistem hanya membaca pemisah (:)",
     "⚠️  Simpan file dalam format .xlsx sebelum diupload",
   ];
@@ -313,6 +323,8 @@ export const downloadJadwalUpdateTemplate = async (filteredJadwal) => {
     { width: 13 }, // JAM_MULAI
     { width: 13 }, // JAM_SELESAI
   ];
+  setColumnAsText(ws1, 7); // JAM_MULAI
+  setColumnAsText(ws1, 8); // JAM_SELESAI
 
   ws1.mergeCells("A1:H1");
   const t1 = ws1.getCell("A1");
@@ -386,8 +398,8 @@ export const downloadJadwalUpdateTemplate = async (filteredJadwal) => {
     ["JURUSAN", "Nama jurusan. Contoh: RPL, TKJ, Multimedia"],
     ["NAMA_MAPEL", "Nama mata pelajaran (harus sama persis dengan yang terdaftar di sistem)"],
     ["NAMA_GURU", "Nama lengkap guru pengampu (harus sama persis dengan yang terdaftar di sistem)"],
-    ["JAM_MULAI", "Format 24 jam HH:MM — contoh: '07:00 (wajib diawali tanda kutip satu ')"],
-    ["JAM_SELESAI", "Format 24 jam HH:MM — contoh: '08:30 (wajib diawali tanda kutip satu ')"],
+    ["JAM_MULAI", "Format 24 jam HH:MM — contoh: 07:00"],
+    ["JAM_SELESAI", "Format 24 jam HH:MM — contoh: 08:30"],
   ];
 
   const warnings = [
@@ -395,7 +407,6 @@ export const downloadJadwalUpdateTemplate = async (filteredJadwal) => {
     "⚠️  Jika kolom ID dikosongkan atau dihapus, baris tersebut akan dianggap sebagai Jadwal Baru",
     "⚠️  Jangan ubah nama kolom header di sheet TEMPLATE_JADWAL",
     "⚠️  NAMA_MAPEL & NAMA_GURU harus sama persis dengan data sistem",
-    "⚠️  Diawali tanda kutip satu (') di depan jam (misal: '07:00) agar Excel tidak mengacaukan format waktu",
     "⚠️  Wajib menggunakan pemisah titik dua (:) untuk jam, bukan titik (.) karena sistem hanya membaca pemisah (:)",
     "⚠️  Simpan file dalam format .xlsx sebelum diupload",
   ];
