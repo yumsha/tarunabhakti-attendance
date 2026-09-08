@@ -22,6 +22,8 @@ export const TEMPLATE_HEADERS = [
   "No Telp Orang Tua",
   "Pekerjaan Orang Tua",
   "Alamat Orang Tua",
+  "RFID",
+  "Status Aktif (TRUE/FALSE)",
 ];
 
 export const UPDATE_HEADERS = [
@@ -37,6 +39,8 @@ export const UPDATE_HEADERS = [
   "Jurusan",
   "Rombel",
   "ID Orang Tua",
+  "RFID",
+  "Status Aktif (TRUE/FALSE)",
 ];
 
 // Jumlah request paralel saat proses import/update massal.
@@ -139,7 +143,7 @@ export function getSiswaGuideSheet() {
     ["PANDUAN PENGGUNAAN - IMPORT & UPDATE DATA SISWA"],
     [""],
     ["1. ATURAN ANGKA NOL DI DEPAN (SANGAT PENTING!)"],
-    ["   Untuk data yang diawali angka 0 seperti NISN, NIPD, atau NIK,"],
+    ["   Untuk data yang diawali angka 0 seperti NISN, NIPD, NIK, atau RFID,"],
     ["   WAJIB tambahkan tanda petik tunggal (') di awal data di Excel agar terbaca sebagai Teks oleh Excel."],
     ["   Contoh: '3050626105 atau '2005-06-01"],
     ["   Jika tidak ditambahkan, Excel akan otomatis menghapus angka 0 di depan dan merusak format data Anda."],
@@ -215,12 +219,14 @@ const EXAMPLE_ROW_WITH_ID = [
   "3050626105", "2025001", "3201010103070001", "Sandi Permata", "Bogor", "2005-12-06", "L", "Islam", "XII", "Rekayasa Perangkat Lunak", "1",
   "1",
   "", "", "", "", "",
+  "3045789786", "TRUE",
 ];
 
 const EXAMPLE_ROW_NEW_PARENT = [
   "3050626106", "2025002", "3201010103070002", "Dewi Rahayu", "Bogor", "2006-03-15", "P", "Islam", "XI", "Teknik Komputer Jaringan", "1",
   "",
   "3201234567890001", "Budi Santoso", "08123456789", "Wiraswasta", "Jl. Merdeka No. 1 Bogor",
+  "3037676682", "TRUE",
 ];
 
 function styleHeader(ws, headers, mode = "import") {
@@ -283,6 +289,8 @@ export function downloadPdfTemplate() {
       14: { fillColor: [240, 253, 244] },
       15: { fillColor: [240, 253, 244] },
       16: { fillColor: [240, 253, 244] },
+      17: { fillColor: [255, 247, 237] },
+      18: { fillColor: [255, 247, 237] },
     },
   });
   doc.save("template_siswa.pdf");
@@ -291,7 +299,7 @@ export function downloadPdfTemplate() {
 export function downloadUpdateExcelTemplate() {
   const ws = XLSX.utils.aoa_to_sheet([
     UPDATE_HEADERS,
-    ["3050626105", "2025001", "3201010103070001", "Sandi Permata", "Bogor", "2005-12-06", "L", "Islam", "XII", "Rekayasa Perangkat Lunak", "1", 1],
+    ["3050626105", "2025001", "3201010103070001", "Sandi Permata", "Bogor", "2005-12-06", "L", "Islam", "XII", "Rekayasa Perangkat Lunak", "1", 1, "3045789786", "TRUE"],
   ]);
   ws["!cols"] = UPDATE_HEADERS.map(() => ({ wch: 26 }));
   styleHeader(ws, UPDATE_HEADERS, "update");
@@ -313,7 +321,7 @@ export function downloadUpdatePdfTemplate() {
   autoTable(doc, {
     startY: 28,
     head: [UPDATE_HEADERS],
-    body: [["3050626105", "2025001", "3201010103070001", "Sandi Permata", "Bogor", "2005-12-06", "L", "Islam", "XII", "Rekayasa Perangkat Lunak", "1", "1"]],
+    body: [["3050626105", "2025001", "3201010103070001", "Sandi Permata", "Bogor", "2005-12-06", "L", "Islam", "XII", "Rekayasa Perangkat Lunak", "1", "1", "3045789786", "TRUE"]],
     styles: { fontSize: 8 },
     headStyles: { fillColor: [16, 185, 129] },
   });
@@ -327,19 +335,24 @@ export function exportTablePdf(students) {
   doc.text("Data Siswa", 14, 16);
   autoTable(doc, {
     startY: 22,
-    head: [["NISN", "NIPD", "NIK", "Nama", "Tempat Lahir", "Tanggal Lahir (YYYY-MM-DD)", "Jenis Kelamin", "Agama", "Kelas", "Jurusan"]],
-    body: students.map((s) => [
-      s.nisn || s.NISN || "-",
-      s.nipd || s.NIPD || "-",
-      s.nik || s.NIK || "-",
-      s.nama || "-",
-      s.tempat_lahir || "-",
-      s.tgl_lahir?.slice(0, 10) || s.tanggal_lahir?.slice(0, 10) || "-",
-      s.jenis_kelamin || s.gender || "-",
-      s.agama || "-",
-      s.kelas?.kelas || "-",
-      s.kelas?.jurusan || "-",
-    ]),
+    head: [["NISN", "NIPD", "NIK", "Nama", "Tempat Lahir", "Tanggal Lahir (YYYY-MM-DD)", "Jenis Kelamin", "Agama", "Kelas", "Jurusan", "RFID", "Status Aktif (TRUE/FALSE)"]],
+    body: students.map((s) => {
+      const rfidEntry = Array.isArray(s.rfid) ? (s.rfid.find((r) => r.is_active) || s.rfid[0]) : null;
+      return [
+        s.nisn || s.NISN || "-",
+        s.nipd || s.NIPD || "-",
+        s.nik || s.NIK || "-",
+        s.nama || "-",
+        s.tempat_lahir || "-",
+        s.tgl_lahir?.slice(0, 10) || s.tanggal_lahir?.slice(0, 10) || "-",
+        s.jenis_kelamin || s.gender || "-",
+        s.agama || "-",
+        s.kelas?.kelas || "-",
+        s.kelas?.jurusan || "-",
+        rfidEntry?.uid_rfid || "-",
+        rfidEntry ? (rfidEntry.is_active ? "TRUE" : "FALSE") : "-",
+      ];
+    }),
     styles: { fontSize: 8 },
     headStyles: { fillColor: [37, 99, 235] },
   });
@@ -347,19 +360,24 @@ export function exportTablePdf(students) {
 }
 
 export function exportTableExcel(students) {
-  const rows = students.map((s) => ({
-    "NISN": String(s.nisn || s.NISN || ""),
-    "NIPD": String(s.nipd || s.NIPD || ""),
-    "NIK": String(s.nik || s.NIK || ""),
-    "Nama": s.nama || "",
-    "Tempat Lahir": s.tempat_lahir || "",
-    "Tanggal Lahir (YYYY-MM-DD)": (s.tgl_lahir ? s.tgl_lahir.slice(0, 10) : (s.tanggal_lahir ? s.tanggal_lahir.slice(0, 10) : "")),
-    "Jenis Kelamin": s.jenis_kelamin || s.gender || "",
-    "Agama": s.agama || "",
-    "Kelas": s.kelas?.kelas || "",
-    "Jurusan": s.kelas?.jurusan || "",
-    "ID Orang Tua": s.orangtua_id || s.orang_tua?.id || "",
-  }));
+  const rows = students.map((s) => {
+    const rfidEntry = Array.isArray(s.rfid) ? (s.rfid.find((r) => r.is_active) || s.rfid[0]) : null;
+    return {
+      "NISN": String(s.nisn || s.NISN || ""),
+      "NIPD": String(s.nipd || s.NIPD || ""),
+      "NIK": String(s.nik || s.NIK || ""),
+      "Nama": s.nama || "",
+      "Tempat Lahir": s.tempat_lahir || "",
+      "Tanggal Lahir (YYYY-MM-DD)": (s.tgl_lahir ? s.tgl_lahir.slice(0, 10) : (s.tanggal_lahir ? s.tanggal_lahir.slice(0, 10) : "")),
+      "Jenis Kelamin": s.jenis_kelamin || s.gender || "",
+      "Agama": s.agama || "",
+      "Kelas": s.kelas?.kelas || "",
+      "Jurusan": s.kelas?.jurusan || "",
+      "ID Orang Tua": s.orangtua_id || s.orang_tua?.id || "",
+      "RFID": String(rfidEntry?.uid_rfid || ""),
+      "Status Aktif (TRUE/FALSE)": rfidEntry ? (rfidEntry.is_active ? "TRUE" : "FALSE") : "",
+    };
+  });
 
   const ws = XLSX.utils.json_to_sheet(rows);
 
@@ -368,9 +386,11 @@ export function exportTableExcel(students) {
     const nisnCell = XLSX.utils.encode_cell({ r: R, c: 0 });
     const nipdCell = XLSX.utils.encode_cell({ r: R, c: 1 });
     const nikCell = XLSX.utils.encode_cell({ r: R, c: 2 });
+    const rfidCell = XLSX.utils.encode_cell({ r: R, c: 11 });
     if (ws[nisnCell]) { ws[nisnCell].v = String(ws[nisnCell].v).trim(); ws[nisnCell].t = "s"; ws[nisnCell].z = "@"; }
     if (ws[nipdCell]) { ws[nipdCell].v = String(ws[nipdCell].v).trim(); ws[nipdCell].t = "s"; ws[nipdCell].z = "@"; }
     if (ws[nikCell]) { ws[nikCell].v = String(ws[nikCell].v).trim(); ws[nikCell].t = "s"; ws[nikCell].z = "@"; }
+    if (ws[rfidCell]) { ws[rfidCell].v = String(ws[rfidCell].v).trim(); ws[rfidCell].t = "s"; ws[rfidCell].z = "@"; }
   }
 
   const headers = Object.keys(rows[0] || {});

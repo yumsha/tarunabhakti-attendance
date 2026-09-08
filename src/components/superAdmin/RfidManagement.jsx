@@ -78,159 +78,159 @@ function ProgressBar({ current, total, color = "blue" }) {
   );
 }
 
-function getRfidGuideSheet() {
-  const guideData = [
-    ["PANDUAN PENGGUNAAN - FORMAT BAKU RFID SISWA"],
-    [""],
-    ["FORMAT FILE (berlaku untuk Import, Export, dan Update):"],
-    ["No | Nama | JK | Jenis Kelamin | NISN | Tempat Lahir | Tanggal Lahir | Agama | Rombel Saat Ini | RFID | Status Aktif (TRUE/FALSE)"],
-    [""],
-    ["1. IMPORT RFID BARU"],
-    ["   - Kolom WAJIB: Nama, NISN, RFID. Kolom lain boleh ada dan akan diabaikan/dilewati."],
-    ["   - Sistem mencocokkan siswa berdasarkan NISN. Jika tidak ditemukan, akan dicoba fallback ke NIK (jika ada di database)."],
-    ["   - Kolom RFID diisi UID kartu RFID siswa. Harus unik dan belum terdaftar di sistem."],
-    ["   - Kolom Status Aktif DIABAIKAN saat import — semua RFID baru otomatis aktif (TRUE)."],
-    ["   - Baris dengan NISN atau RFID kosong akan dilewati dan dicatat sebagai error."],
-    [""],
-    ["2. EXPORT DATA RFID"],
-    ["   - Hasil export menggunakan format yang SAMA dengan template import."],
-    ["   - File export dapat langsung digunakan sebagai bahan untuk Update Excel."],
-    [""],
-    ["3. UPDATE STATUS RFID"],
-    ["   - Gunakan file hasil Export, lalu ubah nilai kolom Status Aktif (TRUE/FALSE)."],
-    ["   - Kolom RFID bertindak sebagai kunci utama (key) untuk mencari data yang diupdate."],
-    ["   - HANYA kolom Status Aktif yang akan diubah. Kolom lain (Nama, NISN, dll) diabaikan."],
-    ["   - Nilai Status Aktif yang dikenali: TRUE/FALSE, 1/0, Y/N, AKTIF/NONAKTIF."]
-  ];
-  const ws = XLSX.utils.aoa_to_sheet(guideData);
-  ws["!cols"] = [{ wch: 125 }];
+// function getRfidGuideSheet() {
+//   const guideData = [
+//     ["PANDUAN PENGGUNAAN - FORMAT BAKU RFID SISWA"],
+//     [""],
+//     ["FORMAT FILE (berlaku untuk Import, Export, dan Update):"],
+//     ["No | Nama | JK | Jenis Kelamin | NISN | Tempat Lahir | Tanggal Lahir | Agama | Rombel Saat Ini | RFID | Status Aktif (TRUE/FALSE)"],
+//     [""],
+//     ["1. IMPORT RFID BARU"],
+//     ["   - Kolom WAJIB: Nama, NISN, RFID. Kolom lain boleh ada dan akan diabaikan/dilewati."],
+//     ["   - Sistem mencocokkan siswa berdasarkan NISN. Jika tidak ditemukan, akan dicoba fallback ke NIK (jika ada di database)."],
+//     ["   - Kolom RFID diisi UID kartu RFID siswa. Harus unik dan belum terdaftar di sistem."],
+//     ["   - Kolom Status Aktif DIABAIKAN saat import — semua RFID baru otomatis aktif (TRUE)."],
+//     ["   - Baris dengan NISN atau RFID kosong akan dilewati dan dicatat sebagai error."],
+//     [""],
+//     ["2. EXPORT DATA RFID"],
+//     ["   - Hasil export menggunakan format yang SAMA dengan template import."],
+//     ["   - File export dapat langsung digunakan sebagai bahan untuk Update Excel."],
+//     [""],
+//     ["3. UPDATE STATUS RFID"],
+//     ["   - Gunakan file hasil Export, lalu ubah nilai kolom Status Aktif (TRUE/FALSE)."],
+//     ["   - Kolom RFID bertindak sebagai kunci utama (key) untuk mencari data yang diupdate."],
+//     ["   - HANYA kolom Status Aktif yang akan diubah. Kolom lain (Nama, NISN, dll) diabaikan."],
+//     ["   - Nilai Status Aktif yang dikenali: TRUE/FALSE, 1/0, Y/N, AKTIF/NONAKTIF."]
+//   ];
+//   const ws = XLSX.utils.aoa_to_sheet(guideData);
+//   ws["!cols"] = [{ wch: 125 }];
 
-  // Style Title Row (A1)
-  const titleCell = XLSX.utils.encode_cell({ r: 0, c: 0 });
-  if (ws[titleCell]) {
-    ws[titleCell].s = {
-      fill: { fgColor: { rgb: "1E3A8A" } },
-      font: { name: "Arial", sz: 14, bold: true, color: { rgb: "FFFFFF" } },
-      alignment: { horizontal: "left", vertical: "center" }
-    };
-  }
+//   // Style Title Row (A1)
+//   const titleCell = XLSX.utils.encode_cell({ r: 0, c: 0 });
+//   if (ws[titleCell]) {
+//     ws[titleCell].s = {
+//       fill: { fgColor: { rgb: "1E3A8A" } },
+//       font: { name: "Arial", sz: 14, bold: true, color: { rgb: "FFFFFF" } },
+//       alignment: { horizontal: "left", vertical: "center" }
+//     };
+//   }
 
-  // Style Section Headers
-  const sectionRows = [2, 5, 14, 18];
-  sectionRows.forEach((r) => {
-    const cell = XLSX.utils.encode_cell({ r: r, c: 0 });
-    if (ws[cell]) {
-      ws[cell].s = {
-        font: { name: "Arial", sz: 11, bold: true, color: { rgb: "1E3A8A" } }
-      };
-    }
-  });
+//   // Style Section Headers
+//   const sectionRows = [2, 5, 14, 18];
+//   sectionRows.forEach((r) => {
+//     const cell = XLSX.utils.encode_cell({ r: r, c: 0 });
+//     if (ws[cell]) {
+//       ws[cell].s = {
+//         font: { name: "Arial", sz: 11, bold: true, color: { rgb: "1E3A8A" } }
+//       };
+//     }
+//   });
 
-  // Style Content and Warning Alerts
-  for (let r = 0; r < guideData.length; r++) {
-    if (r === 0 || sectionRows.includes(r)) continue;
-    const cell = XLSX.utils.encode_cell({ r: r, c: 0 });
-    if (ws[cell]) {
-      const val = String(ws[cell].v);
-      let color = "374151";
-      let bold = false;
-      if (val.includes("WAJIB") || val.includes("DIABAIKAN") || val.includes("HANYA") || val.includes("error")) {
-        color = "DC2626";
-        bold = true;
-      }
-      ws[cell].s = {
-        font: { name: "Arial", sz: 10, bold, color: { rgb: color } }
-      };
-    }
-  }
+//   // Style Content and Warning Alerts
+//   for (let r = 0; r < guideData.length; r++) {
+//     if (r === 0 || sectionRows.includes(r)) continue;
+//     const cell = XLSX.utils.encode_cell({ r: r, c: 0 });
+//     if (ws[cell]) {
+//       const val = String(ws[cell].v);
+//       let color = "374151";
+//       let bold = false;
+//       if (val.includes("WAJIB") || val.includes("DIABAIKAN") || val.includes("HANYA") || val.includes("error")) {
+//         color = "DC2626";
+//         bold = true;
+//       }
+//       ws[cell].s = {
+//         font: { name: "Arial", sz: 10, bold, color: { rgb: color } }
+//       };
+//     }
+//   }
 
-  return ws;
-}
+//   return ws;
+// }
 
-function styleHeader(ws, headers, mode = "import") {
-  const bgColor = mode === "update" ? "10B981" : mode === "export" ? "F97316" : "2563EB"; // Emerald, Orange, or Blue
-  headers.forEach((h, i) => {
-    const cellRef = XLSX.utils.encode_cell({ r: 0, c: i });
-    if (ws[cellRef]) {
-      ws[cellRef].s = {
-        fill: { fgColor: { rgb: bgColor } },
-        font: { name: "Arial", sz: 11, bold: true, color: { rgb: "FFFFFF" } },
-        alignment: { horizontal: "center", vertical: "center", wrapText: true },
-        border: {
-          top: { style: "thin", color: { rgb: "E5E7EB" } },
-          bottom: { style: "medium", color: { rgb: "9CA3AF" } },
-          left: { style: "thin", color: { rgb: "E5E7EB" } },
-          right: { style: "thin", color: { rgb: "E5E7EB" } }
-        }
-      };
-    }
-  });
-}
+// function styleHeader(ws, headers, mode = "import") {
+//   const bgColor = mode === "update" ? "10B981" : mode === "export" ? "F97316" : "2563EB"; // Emerald, Orange, or Blue
+//   headers.forEach((h, i) => {
+//     const cellRef = XLSX.utils.encode_cell({ r: 0, c: i });
+//     if (ws[cellRef]) {
+//       ws[cellRef].s = {
+//         fill: { fgColor: { rgb: bgColor } },
+//         font: { name: "Arial", sz: 11, bold: true, color: { rgb: "FFFFFF" } },
+//         alignment: { horizontal: "center", vertical: "center", wrapText: true },
+//         border: {
+//           top: { style: "thin", color: { rgb: "E5E7EB" } },
+//           bottom: { style: "medium", color: { rgb: "9CA3AF" } },
+//           left: { style: "thin", color: { rgb: "E5E7EB" } },
+//           right: { style: "thin", color: { rgb: "E5E7EB" } }
+//         }
+//       };
+//     }
+//   });
+// }
 
-// ─── Sample rows untuk template (format baku seragam) ────────────────────────
-const TEMPLATE_SAMPLE_ROWS = [
-  [1, "Budi Santoso",  "L", "Laki - laki", "0051234001", "Depok",   "2009-05-12", "Islam", "X ANIMASI 1", "3045789786", "TRUE"],
-  [2, "Siti Rahayu",  "P", "Perempuan",   "0051234002", "Jakarta", "2009-08-21", "Islam", "X ANIMASI 1", "3037676682", "TRUE"],
-];
+// // ─── Sample rows untuk template (format baku seragam) ────────────────────────
+// const TEMPLATE_SAMPLE_ROWS = [
+//   [1, "Budi Santoso",  "L", "Laki - laki", "0051234001", "Depok",   "2009-05-12", "Islam", "X ANIMASI 1", "3045789786", "TRUE"],
+//   [2, "Siti Rahayu",  "P", "Perempuan",   "0051234002", "Jakarta", "2009-08-21", "Islam", "X ANIMASI 1", "3037676682", "TRUE"],
+// ];
 
-function downloadExcelTemplate() {
-  const ws = XLSX.utils.aoa_to_sheet([UNIFIED_HEADERS, ...TEMPLATE_SAMPLE_ROWS]);
-  ws["!cols"] = UNIFIED_HEADERS.map((h) => ({ wch: h === "Jenis Kelamin" ? 16 : 20 }));
-  styleHeader(ws, UNIFIED_HEADERS, "import");
+// function downloadExcelTemplate() {
+//   const ws = XLSX.utils.aoa_to_sheet([UNIFIED_HEADERS, ...TEMPLATE_SAMPLE_ROWS]);
+//   ws["!cols"] = UNIFIED_HEADERS.map((h) => ({ wch: h === "Jenis Kelamin" ? 16 : 20 }));
+//   styleHeader(ws, UNIFIED_HEADERS, "import");
 
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Template RFID");
-  XLSX.utils.book_append_sheet(wb, getRfidGuideSheet(), "Panduan Penggunaan");
-  XLSX.writeFile(wb, "template_import_rfid.xlsx");
-}
+//   const wb = XLSX.utils.book_new();
+//   XLSX.utils.book_append_sheet(wb, ws, "Template RFID");
+//   XLSX.utils.book_append_sheet(wb, getRfidGuideSheet(), "Panduan Penggunaan");
+//   XLSX.writeFile(wb, "template_import_rfid.xlsx");
+// }
 
-function downloadPdfTemplate() {
-  const doc = new jsPDF({ orientation: "landscape" });
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
-  doc.text("Template Import Data RFID", 14, 16);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.text(`Kolom wajib saat import: ${REQUIRED_IMPORT_COLS.join(", ")}. Siswa dicocokkan via NISN. Kolom Status Aktif diabaikan (default TRUE).`, 14, 23);
-  autoTable(doc, {
-    startY: 28,
-    head: [UNIFIED_HEADERS],
-    body: TEMPLATE_SAMPLE_ROWS,
-    styles: { fontSize: 6.5 },
-    headStyles: { fillColor: [37, 99, 235] },
-  });
-  doc.save("template_import_rfid.pdf");
-}
+// function downloadPdfTemplate() {
+//   const doc = new jsPDF({ orientation: "landscape" });
+//   doc.setFont("helvetica", "bold");
+//   doc.setFontSize(14);
+//   doc.text("Template Import Data RFID", 14, 16);
+//   doc.setFont("helvetica", "normal");
+//   doc.setFontSize(9);
+//   doc.text(`Kolom wajib saat import: ${REQUIRED_IMPORT_COLS.join(", ")}. Siswa dicocokkan via NISN. Kolom Status Aktif diabaikan (default TRUE).`, 14, 23);
+//   autoTable(doc, {
+//     startY: 28,
+//     head: [UNIFIED_HEADERS],
+//     body: TEMPLATE_SAMPLE_ROWS,
+//     styles: { fontSize: 6.5 },
+//     headStyles: { fillColor: [37, 99, 235] },
+//   });
+//   doc.save("template_import_rfid.pdf");
+// }
 
 // Template Update — format SAMA dengan import/export agar admin tinggal pakai file export
-function downloadUpdateExcelTemplate() {
-  const ws = XLSX.utils.aoa_to_sheet([UNIFIED_HEADERS, ...TEMPLATE_SAMPLE_ROWS]);
-  ws["!cols"] = UNIFIED_HEADERS.map((h) => ({ wch: h === "Jenis Kelamin" ? 16 : 20 }));
-  styleHeader(ws, UNIFIED_HEADERS, "update");
+// function downloadUpdateExcelTemplate() {
+//   const ws = XLSX.utils.aoa_to_sheet([UNIFIED_HEADERS, ...TEMPLATE_SAMPLE_ROWS]);
+//   ws["!cols"] = UNIFIED_HEADERS.map((h) => ({ wch: h === "Jenis Kelamin" ? 16 : 20 }));
+//   styleHeader(ws, UNIFIED_HEADERS, "update");
 
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Update RFID");
-  XLSX.utils.book_append_sheet(wb, getRfidGuideSheet(), "Panduan Penggunaan");
-  XLSX.writeFile(wb, "template_update_rfid.xlsx");
-}
+//   const wb = XLSX.utils.book_new();
+//   XLSX.utils.book_append_sheet(wb, ws, "Update RFID");
+//   XLSX.utils.book_append_sheet(wb, getRfidGuideSheet(), "Panduan Penggunaan");
+//   XLSX.writeFile(wb, "template_update_rfid.xlsx");
+// }
 
-function downloadUpdatePdfTemplate() {
-  const doc = new jsPDF({ orientation: "landscape" });
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
-  doc.text("Template Update Status RFID", 14, 16);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.text("Kolom RFID sebagai key. Hanya kolom Status Aktif (TRUE/FALSE) yang diubah. Bisa gunakan file hasil Export langsung.", 14, 23);
-  autoTable(doc, {
-    startY: 28,
-    head: [UNIFIED_HEADERS],
-    body: TEMPLATE_SAMPLE_ROWS,
-    styles: { fontSize: 6.5 },
-    headStyles: { fillColor: [16, 185, 129] },
-  });
-  doc.save("template_update_rfid.pdf");
-}
+// function downloadUpdatePdfTemplate() {
+//   const doc = new jsPDF({ orientation: "landscape" });
+//   doc.setFont("helvetica", "bold");
+//   doc.setFontSize(14);
+//   doc.text("Template Update Status RFID", 14, 16);
+//   doc.setFont("helvetica", "normal");
+//   doc.setFontSize(9);
+//   doc.text("Kolom RFID sebagai key. Hanya kolom Status Aktif (TRUE/FALSE) yang diubah. Bisa gunakan file hasil Export langsung.", 14, 23);
+//   autoTable(doc, {
+//     startY: 28,
+//     head: [UNIFIED_HEADERS],
+//     body: TEMPLATE_SAMPLE_ROWS,
+//     styles: { fontSize: 6.5 },
+//     headStyles: { fillColor: [16, 185, 129] },
+//   });
+//   doc.save("template_update_rfid.pdf");
+// }
 
 // Helpers untuk export — mengikuti format baku (UNIFIED_HEADERS)
 function buildExportRow(item, index) {
@@ -257,16 +257,16 @@ function buildExportRow(item, index) {
   ];
 }
 
-function exportTableExcel(rows) {
-  const body = rows.map((item, i) => buildExportRow(item, i));
-  const ws = XLSX.utils.aoa_to_sheet([UNIFIED_HEADERS, ...body]);
-  ws["!cols"] = UNIFIED_HEADERS.map((h) => ({ wch: h === "Jenis Kelamin" ? 16 : 22 }));
-  styleHeader(ws, UNIFIED_HEADERS, "export");
+// function exportTableExcel(rows) {
+//   const body = rows.map((item, i) => buildExportRow(item, i));
+//   const ws = XLSX.utils.aoa_to_sheet([UNIFIED_HEADERS, ...body]);
+//   ws["!cols"] = UNIFIED_HEADERS.map((h) => ({ wch: h === "Jenis Kelamin" ? 16 : 22 }));
+//   styleHeader(ws, UNIFIED_HEADERS, "export");
 
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Data RFID");
-  XLSX.writeFile(wb, `data_rfid_${new Date().toISOString().slice(0, 10)}.xlsx`);
-}
+//   const wb = XLSX.utils.book_new();
+//   XLSX.utils.book_append_sheet(wb, ws, "Data RFID");
+//   XLSX.writeFile(wb, `data_rfid_${new Date().toISOString().slice(0, 10)}.xlsx`);
+// }
 
 function exportTablePdf(rows) {
   const doc = new jsPDF({ orientation: "landscape" });
@@ -1530,7 +1530,7 @@ export default function RfidManagement() {
                 </select>
 
                 {/* Template Dropdown */}
-                <div className="relative" ref={templateRef}>
+                {/* <div className="relative" ref={templateRef}>
                   <button
                     type="button"
                     onClick={() => { setShowTemplateMenu(!showTemplateMenu); setShowExportMenu(false); }}
@@ -1574,10 +1574,10 @@ export default function RfidManagement() {
                       </button>
                     </div>
                   )}
-                </div>
+                </div> */}
 
                 {/* Export Dropdown */}
-                <div className="relative" ref={exportRef}>
+                {/* <div className="relative" ref={exportRef}>
                   <button
                     type="button"
                     onClick={() => { setShowExportMenu(!showExportMenu); setShowTemplateMenu(false); }}
@@ -1604,7 +1604,7 @@ export default function RfidManagement() {
                       </button>
                     </div>
                   )}
-                </div>
+                </div> */}
 
                 {/* Tambah RFID Dropdown */}
                 <div className="relative" ref={addRef}>
