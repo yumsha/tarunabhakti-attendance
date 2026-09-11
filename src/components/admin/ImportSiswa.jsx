@@ -122,15 +122,23 @@ export default function ImportSiswa() {
     if (selectedKelas) filtered = filtered.filter((s) => s.kelas_id === parseInt(selectedKelas));
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
-      filtered = filtered.filter((s) =>
-        s.nama?.toLowerCase().includes(q) ||
-        (s.nisn || s.NISN || "").toLowerCase().includes(q) ||
-        (s.nipd || s.NIPD || "").toLowerCase().includes(q) ||
-        (s.nik || s.NIK || "").toLowerCase().includes(q) ||
-        s.nomor_telepon?.toLowerCase().includes(q) ||
-        s.orang_tua?.nama_orangtua?.toLowerCase().includes(q) ||
-        (s.kelas && `${s.kelas.kelas} ${s.kelas.jurusan || ""}`.toLowerCase().includes(q))
-      );
+      filtered = filtered.filter((s) => {
+        const rfidObj = Array.isArray(s.rfid)
+          ? s.rfid.find((r) => r.is_active) || s.rfid[0]
+          : s.rfid;
+        const uidRfid = rfidObj?.uid_rfid || "";
+
+        return (
+          s.nama?.toLowerCase().includes(q) ||
+          (s.nisn || s.NISN || "").toLowerCase().includes(q) ||
+          (s.nipd || s.NIPD || "").toLowerCase().includes(q) ||
+          (s.nik || s.NIK || "").toLowerCase().includes(q) ||
+          uidRfid.toLowerCase().includes(q) ||
+          s.nomor_telepon?.toLowerCase().includes(q) ||
+          s.orang_tua?.nama_orangtua?.toLowerCase().includes(q) ||
+          (s.kelas && `${s.kelas.kelas} ${s.kelas.jurusan || ""}`.toLowerCase().includes(q))
+        );
+      });
     }
     return filtered;
   }, [allStudents, selectedKelas, searchQuery]);

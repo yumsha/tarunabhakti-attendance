@@ -155,6 +155,7 @@ export default function SiswaImportModal({ onClose, onImportDone, kelasList = []
             nisn: String(row["NISN"] || ""),
             nipd: String(row["NIPD"] || ""),
             nik: String(row["NIK"] || ""),
+            rfid: String(row["RFID"] || "").trim(),
             nama,
             tempat_lahir: row["Tempat Lahir"] || "",
             tgl_lahir: row["Tanggal Lahir (YYYY-MM-DD)"] || "",

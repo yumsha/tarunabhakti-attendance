@@ -501,7 +501,7 @@ export default function SiswaTable({
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-gray-50/75 border-b border-gray-100">
-              {["Nama", "Kelas", "NIPD", "NISN", "NIK", "Tempat Lahir", "Gender", "Agama", "Orang Tua", "Aksi"].map(
+              {["Nama", "Kelas", "NIPD", "NISN", "NIK", "RFID", "Tempat Lahir", "Gender", "Agama", "Orang Tua", "Aksi"].map(
                 (h) => (
                   <th
                     key={h}
@@ -517,68 +517,84 @@ export default function SiswaTable({
             {loading ? (
               [...Array(6)].map((_, i) => (
                 <tr key={i} className="animate-pulse">
-                  <td colSpan={10} className="px-6 py-4">
+                  <td colSpan={11} className="px-6 py-4">
                     <div className="h-4 bg-gray-100 rounded-lg" />
                   </td>
                 </tr>
               ))
             ) : currentPageData.length > 0 ? (
-              currentPageData.map((s) => (
-                <tr key={s.id} className="hover:bg-blue-50/20 transition-colors">
-                  <td className="px-4 sm:px-6 py-3.5 text-xs sm:text-sm font-semibold text-gray-800">
-                    {s.nama}
-                  </td>
-                  <td className="px-4 sm:px-6 py-3.5 text-xs sm:text-sm text-gray-600 whitespace-nowrap">
-                    {s.kelas ? `${s.kelas.kelas} ${s.kelas.jurusan ?? ""}`.trim() : "—"}
-                  </td>
-                  <td className="px-4 sm:px-6 py-3.5 text-xs sm:text-sm text-gray-600 font-mono">
-                    {s.NIPD || s.nipd || "—"}
-                  </td>
-                  <td className="px-4 sm:px-6 py-3.5 text-xs sm:text-sm text-gray-600 font-mono">
-                    {s.NISN || s.nisn || "—"}
-                  </td>
-                  <td className="px-4 sm:px-6 py-3.5 text-xs sm:text-sm text-gray-600 font-mono">
-                    {s.NIK || s.nik || "—"}
-                  </td>
-                  <td className="px-4 sm:px-6 py-3.5 text-xs sm:text-sm text-gray-600">
-                    {s.tempat_lahir || "—"}
-                  </td>
-                  <td className="px-4 sm:px-6 py-3.5 text-xs sm:text-sm text-gray-600">
-                    {s.jenis_kelamin || s.gender || "—"}
-                  </td>
-                  <td className="px-4 sm:px-6 py-3.5 text-xs sm:text-sm text-gray-600">
-                    {s.agama || "—"}
-                  </td>
-                  <td className="px-4 sm:px-6 py-3.5 text-xs sm:text-sm text-gray-600">
-                    {s.orang_tua?.nama_orangtua || "—"}
-                  </td>
-                  <td className="px-4 sm:px-6 py-3.5 text-xs sm:text-sm">
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => onEditSiswa(s)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 active:scale-[0.98] transition shadow-2xs cursor-pointer"
-                        title="Edit siswa"
-                      >
-                        <Pencil className="w-3.5 h-3.5 text-gray-500" />
-                        <span>Edit</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onDeleteSiswa(s)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 bg-white border border-red-200 rounded-xl hover:bg-red-50 active:scale-[0.98] transition shadow-2xs cursor-pointer"
-                        title="Hapus siswa"
-                      >
-                        <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                        <span>Hapus</span>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
+              currentPageData.map((s) => {
+                const rfidObj = Array.isArray(s.rfid)
+                  ? s.rfid.find((r) => r.is_active) || s.rfid[0]
+                  : s.rfid;
+                const uidRfid = rfidObj?.uid_rfid;
+
+                return (
+                  <tr key={s.id} className="hover:bg-blue-50/20 transition-colors">
+                    <td className="px-4 sm:px-6 py-3.5 text-xs sm:text-sm font-semibold text-gray-800">
+                      {s.nama}
+                    </td>
+                    <td className="px-4 sm:px-6 py-3.5 text-xs sm:text-sm text-gray-600 whitespace-nowrap">
+                      {s.kelas ? `${s.kelas.kelas} ${s.kelas.jurusan ?? ""}`.trim() : "—"}
+                    </td>
+                    <td className="px-4 sm:px-6 py-3.5 text-xs sm:text-sm text-gray-600 font-mono">
+                      {s.NIPD || s.nipd || "—"}
+                    </td>
+                    <td className="px-4 sm:px-6 py-3.5 text-xs sm:text-sm text-gray-600 font-mono">
+                      {s.NISN || s.nisn || "—"}
+                    </td>
+                    <td className="px-4 sm:px-6 py-3.5 text-xs sm:text-sm text-gray-600 font-mono">
+                      {s.NIK || s.nik || "—"}
+                    </td>
+                    <td className="px-4 sm:px-6 py-3.5 text-xs sm:text-sm text-gray-600 font-mono">
+                      {uidRfid ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/80">
+                          {uidRfid}
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td className="px-4 sm:px-6 py-3.5 text-xs sm:text-sm text-gray-600">
+                      {s.tempat_lahir || "—"}
+                    </td>
+                    <td className="px-4 sm:px-6 py-3.5 text-xs sm:text-sm text-gray-600">
+                      {s.jenis_kelamin || s.gender || "—"}
+                    </td>
+                    <td className="px-4 sm:px-6 py-3.5 text-xs sm:text-sm text-gray-600">
+                      {s.agama || "—"}
+                    </td>
+                    <td className="px-4 sm:px-6 py-3.5 text-xs sm:text-sm text-gray-600">
+                      {s.orang_tua?.nama_orangtua || "—"}
+                    </td>
+                    <td className="px-4 sm:px-6 py-3.5 text-xs sm:text-sm">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => onEditSiswa(s)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 active:scale-[0.98] transition shadow-2xs cursor-pointer"
+                          title="Edit siswa"
+                        >
+                          <Pencil className="w-3.5 h-3.5 text-gray-500" />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onDeleteSiswa(s)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 bg-white border border-red-200 rounded-xl hover:bg-red-50 active:scale-[0.98] transition shadow-2xs cursor-pointer"
+                          title="Hapus siswa"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                          <span>Hapus</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
             ) : (
               <tr>
-                <td colSpan={10} className="px-6 py-12 text-center text-xs sm:text-sm text-gray-400">
+                <td colSpan={11} className="px-6 py-12 text-center text-xs sm:text-sm text-gray-400">
                   {searchQuery || selectedKelas
                     ? "Tidak ada data yang sesuai dengan filter."
                     : "Tidak ada data siswa."}

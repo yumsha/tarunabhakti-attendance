@@ -8,6 +8,7 @@ export default function SiswaAddModal({ kelasList = [], onClose, onAdded }) {
     nisn: "",
     nipd: "",
     nik: "",
+    rfid: "",
     nama: "",
     tempat_lahir: "",
     tgl_lahir: "",
@@ -127,6 +128,7 @@ export default function SiswaAddModal({ kelasList = [], onClose, onAdded }) {
         nisn: formData.nisn.trim(),
         nipd: formData.nipd.trim(),
         nik: formData.nik.trim(),
+        rfid: formData.rfid.trim(),
         nama: formData.nama.trim(),
         tempat_lahir: formData.tempat_lahir.trim(),
         tgl_lahir: formData.tgl_lahir,
@@ -221,6 +223,20 @@ export default function SiswaAddModal({ kelasList = [], onClose, onAdded }) {
                   value={formData.nik}
                   onChange={handleChange}
                   required
+                  className="w-full text-xs sm:text-sm px-3.5 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                />
+              </div>
+              {/* RFID / UID */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  RFID / UID Tag <span className="font-normal text-gray-400">(opsional)</span>
+                </label>
+                <input
+                  type="text"
+                  name="rfid"
+                  value={formData.rfid}
+                  onChange={handleChange}
+                  placeholder="Contoh: 3045789786"
                   className="w-full text-xs sm:text-sm px-3.5 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
                 />
               </div>

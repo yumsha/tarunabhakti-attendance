@@ -4,10 +4,15 @@ import { siswa } from "../../../lib/backendApi";
 import SearchableKelasSelect from "./SearchableKelasSelect";
 
 export default function SiswaEditModal({ student, kelasList, onClose, onUpdated }) {
+  const initialRfid = Array.isArray(student.rfid)
+    ? (student.rfid.find((r) => r.is_active) || student.rfid[0])?.uid_rfid || ""
+    : student.rfid?.uid_rfid || "";
+
   const [formData, setFormData] = useState({
     nisn: student.nisn || student.NISN || "",
     nipd: student.nipd || student.NIPD || "",
     nik: student.nik || student.NIK || "",
+    rfid: initialRfid,
     nama: student.nama || "",
     tempat_lahir: student.tempat_lahir || "",
     tgl_lahir: student.tgl_lahir ? student.tgl_lahir.slice(0, 10) : (student.tanggal_lahir ? student.tanggal_lahir.slice(0, 10) : ""),
@@ -53,6 +58,7 @@ export default function SiswaEditModal({ student, kelasList, onClose, onUpdated 
         nisn: String(formData.nisn).trim(),
         nipd: String(formData.nipd).trim(),
         nik: String(formData.nik).trim(),
+        rfid: String(formData.rfid).trim(),
         nama: String(formData.nama).trim(),
         tempat_lahir: String(formData.tempat_lahir).trim(),
         tgl_lahir: String(formData.tgl_lahir).trim(),
@@ -139,6 +145,19 @@ export default function SiswaEditModal({ student, kelasList, onClose, onUpdated 
                 value={formData.nik}
                 onChange={handleChange}
                 required
+                className="w-full text-xs sm:text-sm px-3.5 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                RFID / UID Tag <span className="font-normal text-gray-400">(opsional)</span>
+              </label>
+              <input
+                type="text"
+                name="rfid"
+                value={formData.rfid}
+                onChange={handleChange}
+                placeholder="Contoh: 3045789786"
                 className="w-full text-xs sm:text-sm px-3.5 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
               />
             </div>

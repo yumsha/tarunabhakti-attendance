@@ -106,6 +106,11 @@ export default function SiswaUpdateModal({ onClose, onUpdateDone, kelasList = []
         : "";
       const inputDateStr = String(row["Tanggal Lahir (YYYY-MM-DD)"] || "").trim();
 
+      const existingRfidStr = Array.isArray(existing.rfid)
+        ? (existing.rfid.find((r) => r.is_active) || existing.rfid[0])?.uid_rfid || ""
+        : existing.rfid?.uid_rfid || "";
+      const inputRfidStr = String(row["RFID"] || "").trim();
+
       const hasChanged =
         String(existing.nisn || existing.NISN || "").trim() !== String(row["NISN"] || "").trim() ||
         String(existing.nipd || existing.NIPD || "").trim() !== String(row["NIPD"] || "").trim() ||
@@ -117,7 +122,8 @@ export default function SiswaUpdateModal({ onClose, onUpdateDone, kelasList = []
         String(existing.jurusan || "").trim() !== jurusanStr ||
         existingDateStr !== inputDateStr ||
         existing.kelas_id !== kelasId ||
-        existing.orangtua_id !== (ortuId || null);
+        existing.orangtua_id !== (ortuId || null) ||
+        existingRfidStr !== inputRfidStr;
 
       if (!hasChanged) {
         prepared[idx] = {
@@ -144,6 +150,7 @@ export default function SiswaUpdateModal({ onClose, onUpdateDone, kelasList = []
             nisn: String(row["NISN"] || "").trim(),
             nipd: String(row["NIPD"] || "").trim(),
             nik: String(row["NIK"] || "").trim(),
+            rfid: String(row["RFID"] || "").trim(),
             nama: String(row["Nama"] || "").trim(),
             tempat_lahir: String(row["Tempat Lahir"] || "").trim(),
             tgl_lahir: String(row["Tanggal Lahir (YYYY-MM-DD)"] || "").trim(),
