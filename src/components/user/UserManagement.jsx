@@ -74,7 +74,7 @@ export default function UserManagement() {
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1, limit: 10 });
   const [searchQuery, setSearchQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
+  const [roleFilters, setRoleFilters] = useState(new Set()); // multi-role filter
 
   const [showForm, setShowForm] = useState(false);
   const [editUser, setEditUser] = useState(null);
@@ -130,19 +130,34 @@ export default function UserManagement() {
   };
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
-  const roleFilterTrimmed = roleFilter.trim();
-  const needsClientFilter = !!normalizedQuery || !!roleFilterTrimmed;
+  const needsClientFilter = !!normalizedQuery || roleFilters.size > 0;
 
-  // Baca filterRole dari URL query param
+  // Baca filterRole dari URL query param (support koma-separated, misal: ?filterRole=GURU,WALAS)
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     const fr = params.get("filterRole");
-    if (fr) setRoleFilter(fr);
+    if (fr) {
+      const parsed = fr.split(",").map((r) => r.trim().toUpperCase()).filter(Boolean);
+      setRoleFilters(new Set(parsed));
+    }
   }, []);
 
-  const clearRoleFilter = () => {
-    setRoleFilter("");
+  const toggleRoleFilter = (roleName) => {
+    const upper = roleName.trim().toUpperCase();
+    setRoleFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(upper)) {
+        next.delete(upper);
+      } else {
+        next.add(upper);
+      }
+      return next;
+    });
+  };
+
+  const clearRoleFilters = () => {
+    setRoleFilters(new Set());
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
     url.searchParams.delete("filterRole");
@@ -173,14 +188,13 @@ export default function UserManagement() {
   }, [page, pagination.limit, needsClientFilter]);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
-  useEffect(() => { setPage(1); }, [searchQuery, roleFilter]);
+  useEffect(() => { setPage(1); }, [searchQuery, roleFilters]);
 
   const filteredUsers = useMemo(() => {
     let rows = userList;
-    if (roleFilterTrimmed) {
-      const target = roleFilterTrimmed.toUpperCase();
+    if (roleFilters.size > 0) {
       rows = rows.filter((u) =>
-        (u.roles || []).some((r) => String(r).trim().toUpperCase() === target)
+        (u.roles || []).some((r) => roleFilters.has(String(r).trim().toUpperCase()))
       );
     }
     if (normalizedQuery) {
@@ -188,11 +202,13 @@ export default function UserManagement() {
         (u.username || "").toLowerCase().includes(normalizedQuery) ||
         (u.email || "").toLowerCase().includes(normalizedQuery) ||
         (u.guru?.nama || "").toLowerCase().includes(normalizedQuery) ||
-        (u.guru?.NIP || "").toLowerCase().includes(normalizedQuery)
+        (u.guru?.NIP || "").toLowerCase().includes(normalizedQuery) ||
+        (u.siswa?.nama || "").toLowerCase().includes(normalizedQuery) ||
+        (u.siswa?.nisn || "").toLowerCase().includes(normalizedQuery)
       );
     }
     return rows;
-  }, [userList, roleFilterTrimmed, normalizedQuery]);
+  }, [userList, roleFilters, normalizedQuery]);
 
   // (availableGuru removed because we no longer have Add User mode)
 
@@ -284,8 +300,10 @@ export default function UserManagement() {
           loading={loading}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          roleFilterLabel={roleFilterTrimmed}
-          onClearRoleFilter={clearRoleFilter}
+          roleFilters={roleFilters}
+          roleOptions={roleOptions}
+          onToggleRoleFilter={toggleRoleFilter}
+          onClearRoleFilters={clearRoleFilters}
           onEdit={handleEdit}
           onDelete={setDeleteTarget}
           pagination={pagination}
