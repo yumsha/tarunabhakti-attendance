@@ -121,7 +121,7 @@ export default function DaftarJadwal() {
   const fetchDataForCreate = async () => {
     try {
       const [resGuru, resKelas, resMapel] = await Promise.all([
-        guru.list("limit=100"),
+        guru.listWithYsboSync("limit=100"),
         kelas.list("limit=100"),
         mapel.list("limit=100"),
       ]);

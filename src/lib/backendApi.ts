@@ -177,9 +177,9 @@ function getYsboToken(): string | null {
 
 export const guru = {
   list: (params?: string) => request(`/api/v1/guru${params ? `?${params}` : ''}`),
-  listWithYsboSync: () => {
+  listWithYsboSync: (params?: string) => {
     const ysboToken = getYsboToken();
-    return request('/api/v1/guru', {
+    return request(`/api/v1/guru${params ? `?${params}` : ''}`, {
       headers: ysboToken ? { 'x-ysbo-token': ysboToken } : {},
     });
   },
