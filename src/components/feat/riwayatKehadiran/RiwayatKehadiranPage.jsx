@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from "react";
 import { absensiSiswa, auth } from "../../../lib/backendApi";
 import PageHeader from "../../layout/PageHeader.jsx";
 import {
-  AlertTriangle,
   RefreshCw,
   CalendarDays,
   Filter,
@@ -235,7 +234,7 @@ export default function RiwayatKehadiranPage() {
                     type="date"
                     value={filterFrom}
                     onChange={(e) => setFilterFrom(e.target.value)}
-                    max={filterTo || undefined}
+                    max={filterTo || todayWIB}
                     className="text-[11px] text-gray-700 bg-transparent outline-none cursor-pointer w-28"
                   />
                 </div>
@@ -251,6 +250,7 @@ export default function RiwayatKehadiranPage() {
                     value={filterTo}
                     onChange={(e) => setFilterTo(e.target.value)}
                     min={filterFrom || undefined}
+                    max={todayWIB}
                     className="text-[11px] text-gray-700 bg-transparent outline-none cursor-pointer w-28"
                   />
                 </div>
@@ -343,7 +343,7 @@ export default function RiwayatKehadiranPage() {
                       <tr
                         key={row.id || i}
                         className={`transition-colors ${
-                          isFuture ? "opacity-40 bg-slate-50/80" : "hover:bg-slate-50/80"
+                          isFuture ? "opacity-40 bg-slate-50/80 pointer-events-none select-none" : "hover:bg-slate-50/80"
                         }`}
                       >
                         <td className="py-3 px-4 text-gray-400">{rowNum}</td>
@@ -442,16 +442,6 @@ export default function RiwayatKehadiranPage() {
               </div>
             </div>
           )}
-        </div>
-
-        {/* ─── Info catatan ─────────────────────────────────────────────────── */}
-        <div className="flex items-start gap-2 text-xs text-gray-400 px-1">
-          <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-400" />
-          <span>
-            Baris yang ditampilkan{" "}
-            <span className="text-gray-500 font-medium">pudar / abu-abu</span>{" "}
-            menandakan tanggal yang belum terjadi (lebih dari hari ini).
-          </span>
         </div>
 
       </main>
