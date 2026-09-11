@@ -2,40 +2,43 @@ import { useState, useEffect, useRef } from "react";
 import Chart from "chart.js/auto";
 import { absensiSiswa } from "../../lib/backendApi";
 
-const months = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-];
 
-export default function YearlyAttendanceChart() {
+const hours = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}:00`);
+
+
+export default function DailyAttendanceChart() {
   const chartRef = useRef(null);
   const chartInstance = useRef(null);
-  const currentYear = new Date().getFullYear();
-  const [selectedYear, setSelectedYear] = useState(currentYear);
-  const [availableYears, setAvailableYears] = useState([currentYear, currentYear - 1, currentYear - 2]);
-  const [attendanceData, setAttendanceData] = useState(Array(12).fill(0));
+  const [attendanceData, setAttendanceData] = useState(Array(24).fill(0));
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchYearlyData = async () => {
+    const fetchDailyData = async () => {
       setIsLoading(true);
       try {
-        const res = await absensiSiswa.rekapTahunan(selectedYear);
+        const today = new Date().toISOString().split("T")[0];
+        const res = await absensiSiswa.laporanHarian(`tanggal=${today}`);
         if (res.success && Array.isArray(res.data)) {
-          const data = Array(12).fill(0);
+          // Count tap_in per hour
+          const data = Array(24).fill(0);
           res.data.forEach(item => {
-            data[item.month - 1] = item.count;
+            if (item.tap_in) {
+              const hour = parseInt(item.tap_in.split(":")[0], 10);
+              if (!isNaN(hour) && hour >= 0 && hour < 24) {
+                data[hour]++;
+              }
+            }
           });
           setAttendanceData(data);
         }
       } catch (error) {
-        console.error("Failed to fetch yearly attendance:", error);
+        console.error("Failed to fetch daily attendance:", error);
       } finally {
         setIsLoading(false);
       }
     };
-
-    fetchYearlyData();
-  }, [selectedYear]);
+    fetchDailyData();
+  }, []);
 
   useEffect(() => {
     if (isLoading || !chartRef.current) return;
@@ -44,7 +47,6 @@ export default function YearlyAttendanceChart() {
     if (chartInstance.current) {
       chartInstance.current.destroy();
     }
-    // Gradient for current selection
     const gradientBlue = ctx.createLinearGradient(0, 0, 0, 260);
     gradientBlue.addColorStop(0, "rgba(37,99,235,0.15)");
     gradientBlue.addColorStop(1, "rgba(37,99,235,0)");
@@ -52,10 +54,10 @@ export default function YearlyAttendanceChart() {
     chartInstance.current = new Chart(ctx, {
       type: "line",
       data: {
-        labels: months,
+        labels: hours,
         datasets: [
           {
-            label: `Attendance ${selectedYear}`,
+            label: `Absensi per Jam (Hari Ini)`,
             data: attendanceData,
             borderColor: "#2563eb",
             backgroundColor: gradientBlue,
@@ -102,29 +104,16 @@ export default function YearlyAttendanceChart() {
   }, [attendanceData, isLoading]);
 
   return (
-    <div className="bg-white rounded-lg shadow p-6 mb-8 relative">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold">Yearly School Attendance</h3>
-        <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500">Pilih Tahun:</span>
-            <select 
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2"
-            >
-                {availableYears.map(year => (
-                    <option key={year} value={year}>{year}</option>
-                ))}
-            </select>
-        </div>
+    <div className="bg-white rounded-lg shadow p-3 mb-4 relative max-w-[980px] mx-auto">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-base font-semibold">Absensi Siswa Hari Ini</h3>
       </div>
-      
       {isLoading ? (
-          <div className="h-[260px] flex items-center justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          </div>
+        <div className="h-[210px] flex items-center justify-center">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+        </div>
       ) : (
-          <canvas ref={chartRef} width={600} height={260}></canvas>
+        <canvas ref={chartRef} width={540} height={160}></canvas>
       )}
     </div>
   );
