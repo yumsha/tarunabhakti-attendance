@@ -719,92 +719,74 @@ export default function SiswaDashboard() {
           </div>
         </div>
 
-        {/* ─── Grid 3: Riwayat Log Presensi Siswa ─────────────────────────── */}
+        {/* ─── Link: Riwayat Kehadiran Lengkap ─────────────────────────────── */}
         <div className="bg-white rounded-2xl border border-gray-200/70 shadow-xs p-5 sm:p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-gray-100">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
-                <FileText className="w-4 h-4" />
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                <FileText className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-sm sm:text-base font-bold text-gray-900">Riwayat Kehadiran Terbaru</h3>
-                <p className="text-xs text-gray-400">Catatan riwayat presensi RFID kartu Anda</p>
+                <h3 className="text-sm font-bold text-gray-900">Riwayat Kehadiran Lengkap</h3>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Lihat seluruh catatan presensi RFID dengan filter tanggal dan statistik kehadiran lengkap.
+                </p>
               </div>
             </div>
+            <a
+              href="/dashboard/riwayat-kehadiran"
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition shadow-xs shrink-0"
+            >
+              <CalendarDays className="w-3.5 h-3.5" />
+              Lihat Riwayat
+              <ChevronRight className="w-3.5 h-3.5" />
+            </a>
           </div>
 
-          <div className="overflow-x-auto pt-4">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="border-b border-gray-100 text-gray-400 uppercase text-[10px] tracking-wider">
-                  <th className="py-3 px-3">Tanggal</th>
-                  <th className="py-3 px-3">Tap In</th>
-                  <th className="py-3 px-3">Tap Out</th>
-                  <th className="py-3 px-3">Status</th>
-                  <th className="py-3 px-3">Keterangan</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {attendanceHistory.length > 0 ? (
-                  attendanceHistory.slice(0, 10).map((row, i) => {
-                    const statusFinal = String(row.status_final || "").toUpperCase();
-                    const statusTapin = String(row.status_tapin || row.status || "").toUpperCase();
-                    const displayStatus = statusFinal || statusTapin;
-                    let badgeColor = "bg-gray-100 text-gray-700";
-                    let label = "Hadir";
-
-                    if (displayStatus === "TEPAT_WAKTU" || displayStatus === "HADIR") {
-                      badgeColor = "bg-emerald-50 text-emerald-700 border border-emerald-200";
-                      label = "Hadir";
-                    } else if (displayStatus === "TERLAMBAT") {
-                      badgeColor = "bg-rose-50 text-rose-700 border border-rose-200";
-                      label = "Terlambat";
-                    } else if (displayStatus === "IZIN") {
-                      badgeColor = "bg-blue-50 text-blue-700 border border-blue-200";
-                      label = "Izin";
-                    } else if (displayStatus === "SAKIT") {
-                      badgeColor = "bg-purple-50 text-purple-700 border border-purple-200";
-                      label = "Sakit";
-                    } else if (displayStatus === "ALPHA") {
-                      badgeColor = "bg-red-50 text-red-700 border border-red-200";
-                      label = "Alpha";
-                    }
-
-                    const dateStr = row.tanggal
-                      ? new Date(row.tanggal).toLocaleDateString("id-ID", {
-                        weekday: "short",
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })
-                      : "-";
-
-                    return (
-                      <tr key={row.id || i} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="py-3 px-3 font-medium text-gray-900">{dateStr}</td>
-                        <td className="py-3 px-3 font-mono text-gray-700">{formatTimeShort(row.tap_in)}</td>
-                        <td className="py-3 px-3 font-mono text-gray-700">{formatTimeShort(row.tap_out)}</td>
-                        <td className="py-3 px-3">
-                          <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${badgeColor}`}>
-                            {label}
-                          </span>
-                        </td>
-                        <td className="py-3 px-3 text-gray-500">{row.keterangan || row.status_final || "-"}</td>
-                      </tr>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan={5} className="py-8 text-center text-gray-400 italic">
-                      Belum ada riwayat kehadiran yang tercatat.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          {/* Mini preview — 5 data terbaru */}
+          {attendanceHistory.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-gray-50">
+              <p className="text-[10px] font-semibold uppercase text-gray-400 tracking-wider mb-2">5 Presensi Terakhir</p>
+              <div className="space-y-1.5">
+                {attendanceHistory.slice(0, 5).map((row, i) => {
+                  const statusFinal = String(row.status_final || "").toUpperCase();
+                  const statusTapin = String(row.status_tapin || row.status || "").toUpperCase();
+                  const displayStatus = statusFinal || statusTapin;
+                  let badgeColor = "bg-gray-100 text-gray-600";
+                  let label = "-";
+                  if (displayStatus === "TEPAT_WAKTU" || displayStatus === "HADIR") {
+                    badgeColor = "bg-emerald-50 text-emerald-700 border border-emerald-200";
+                    label = "Hadir";
+                  } else if (displayStatus === "TERLAMBAT") {
+                    badgeColor = "bg-rose-50 text-rose-700 border border-rose-200";
+                    label = "Terlambat";
+                  } else if (displayStatus === "IZIN") {
+                    badgeColor = "bg-blue-50 text-blue-700 border border-blue-200";
+                    label = "Izin";
+                  } else if (displayStatus === "SAKIT") {
+                    badgeColor = "bg-purple-50 text-purple-700 border border-purple-200";
+                    label = "Sakit";
+                  } else if (displayStatus === "ALPHA") {
+                    badgeColor = "bg-red-50 text-red-700 border border-red-200";
+                    label = "Alpha";
+                  }
+                  const dateStr = row.tanggal
+                    ? new Date(row.tanggal).toLocaleDateString("id-ID", { weekday: "short", day: "numeric", month: "short" })
+                    : "-";
+                  return (
+                    <div key={row.id || i} className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50/70 border border-gray-100 text-xs">
+                      <span className="font-medium text-gray-700">{dateStr}</span>
+                      <span className="font-mono text-gray-500">{formatTimeShort(row.tap_in)}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${badgeColor}`}>{label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </div>
   );
 }
+
