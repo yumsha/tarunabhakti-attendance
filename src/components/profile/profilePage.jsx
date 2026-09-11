@@ -53,6 +53,7 @@ export default function ProfilePage() {
 
   const getDisplayName = (userData) => {
     return (
+      userData?.siswa?.nama ||
       userData?.guru?.nama ||
       userData?.nama ||
       userData?.username ||
@@ -171,11 +172,25 @@ export default function ProfilePage() {
   const kodeGuru = user?.guru?.kode_guru || user?.guru?.kode;
   const walasKelas = user?.guru?.walas?.kelas?.kelas || user?.guru?.kelas?.kelas || (roleLabels.includes("WALAS") ? "Wali Kelas Aktif" : null);
 
-  const siswaData = user?.siswa || user;
+  const siswaData = user?.siswa || (isSiswa ? user : null);
   const nisnSiswa = siswaData?.nisn || siswaData?.NISN;
   const nipdSiswa = siswaData?.nipd || siswaData?.NIPD || siswaData?.nis;
-  const kelasSiswa = siswaData?.kelas?.kelas ? `${siswaData.kelas.kelas} ${siswaData.kelas.jurusan || ""}`.trim() : (typeof siswaData?.kelas === "string" ? siswaData.kelas : null);
-  const walasSiswa = siswaData?.kelas?.walas?.nama || siswaData?.walas?.nama || "-";
+  const nikSiswa = siswaData?.nik || siswaData?.NIK;
+  const rawGender = siswaData?.jenis_kelamin || siswaData?.gender;
+  const genderSiswa =
+    rawGender === "L" || rawGender === "Laki-laki" || rawGender === "LAKI_LAKI"
+      ? "Laki-laki"
+      : rawGender === "P" || rawGender === "Perempuan" || rawGender === "PEREMPUAN"
+      ? "Perempuan"
+      : rawGender || "-";
+  const statusSiswa = siswaData?.status_siswa || siswaData?.status || "AKTIF";
+  const kelasSiswa = siswaData?.kelas?.kelas
+    ? `${siswaData.kelas.kelas} ${siswaData.kelas.jurusan || ""}`.trim()
+    : typeof siswaData?.kelas === "string"
+    ? siswaData.kelas
+    : null;
+  const walasSiswa =
+    siswaData?.kelas?.walas?.nama || siswaData?.walas?.nama || "-";
 
   if (loading) {
     return (
@@ -256,7 +271,7 @@ export default function ProfilePage() {
 
                   <div className="space-y-2 pb-1">
                     <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                      <h2 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
+                      <h2 className="text-xl text-white sm:text-2xl font-bold text-gray-900 tracking-tight">
                         {displayName}
                       </h2>
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-600 border border-blue-200">
@@ -277,6 +292,13 @@ export default function ProfilePage() {
                         </span>
                       ))}
 
+                      {user?.username && (
+                        <span className="inline-flex items-center text-xs text-gray-600 gap-1 ml-1 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200" title="Username Login">
+                          <User className="w-3.5 h-3.5 text-gray-500" />
+                          @{user.username}
+                        </span>
+                      )}
+
                       {user?.email && (
                         <span className="inline-flex items-center text-xs text-gray-500 gap-1 ml-1">
                           <Mail className="w-3.5 h-3.5 text-gray-400" />
@@ -291,7 +313,7 @@ export default function ProfilePage() {
                 <div className="flex items-center justify-center sm:justify-end gap-2.5 pt-2">
                   <button
                     onClick={() => setShowLogoutModal(true)}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-red-600 bg-red-50 hover:bg-red-600 hover:text-white border border-red-100 transition-all duration-200 shadow-sm group"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-red-600 bg-red-50 hover:bg-red-600 hover:text-white border border-red-100 transition-all duration-200 shadow-sm group cursor-pointer"
                   >
                     <LogOut className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" />
                     <span>Keluar Akun</span>
@@ -307,7 +329,7 @@ export default function ProfilePage() {
             {/* Left Column (2 Cols): Credentials & Academic Profile */}
             <div className="lg:col-span-2 space-y-6 sm:space-y-8">
               
-              {/* Card 1: Informasi Akun & Kredensial */}
+              {/* Card 1: Informasi Akun (Tabel User) */}
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-7">
                 <div className="flex items-center justify-between pb-5 border-b border-gray-100">
                   <div className="flex items-center gap-3">
@@ -315,26 +337,48 @@ export default function ProfilePage() {
                       <KeyRound className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="text-base font-bold text-gray-900">Informasi Kredensial</h3>
-                      <p className="text-xs text-gray-500">Rincian identitas akun sistem Anda</p>
+                      <h3 className="text-base font-bold text-gray-900">Informasi Akun (Akun User)</h3>
+                      <p className="text-xs text-gray-500">Rincian identitas akun login sistem (Moodle / YSBO)</p>
                     </div>
                   </div>
                   <span className="text-[11px] font-semibold px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-100 flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Aktif
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Akun Aktif
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-6">
-                  {/* Nama Lengkap */}
+                  {/* Username Login */}
                   <div className="p-3.5 rounded-xl bg-slate-50/70 border border-slate-100 hover:bg-slate-50 transition-colors">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                      <User className="w-3.5 h-3.5 text-blue-600" />
-                      Nama Lengkap
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        <User className="w-3.5 h-3.5 text-blue-600" />
+                        Username Login
+                      </div>
+                      {user?.username && (
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(user?.username, "username")}
+                          className="text-xs text-blue-600 hover:text-blue-700 font-medium inline-flex items-center gap-1 transition-colors cursor-pointer"
+                          title="Salin Username"
+                        >
+                          {copiedField === "username" ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-emerald-600" />
+                              <span className="text-[11px] text-emerald-600 font-bold">Disalin</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3.5 h-3.5" />
+                              <span className="text-[11px]">Salin</span>
+                            </>
+                          )}
+                        </button>
+                      )}
                     </div>
-                    <div className="text-sm font-semibold text-gray-900 truncate">
-                      {displayName}
+                    <div className="text-sm font-mono font-bold text-gray-900 truncate">
+                      {user?.username || "-"}
                     </div>
-                    <div className="text-[11px] text-gray-400 mt-0.5">Nama tampilan pengguna</div>
+                    <div className="text-[11px] text-gray-400 mt-0.5">Username / NISN akun login</div>
                   </div>
 
                   {/* Email */}
@@ -359,7 +403,7 @@ export default function ProfilePage() {
                       <button
                         type="button"
                         onClick={() => handleCopy(user?.id, "id")}
-                        className="text-xs text-blue-600 hover:text-blue-700 font-medium inline-flex items-center gap-1 transition-colors"
+                        className="text-xs text-blue-600 hover:text-blue-700 font-medium inline-flex items-center gap-1 transition-colors cursor-pointer"
                         title="Salin ID"
                       >
                         {copiedField === "id" ? (
@@ -378,7 +422,7 @@ export default function ProfilePage() {
                     <div className="text-sm font-mono font-bold text-gray-800">
                       {user?.id ? `#${user.id}` : "-"}
                     </div>
-                    <div className="text-[11px] text-gray-400 mt-0.5">ID unik di database</div>
+                    <div className="text-[11px] text-gray-400 mt-0.5">ID unik di database user</div>
                   </div>
 
                   {/* Peran Sistem */}
@@ -438,7 +482,7 @@ export default function ProfilePage() {
                           <button
                             type="button"
                             onClick={() => handleCopy(nip, "nip")}
-                            className="text-xs text-indigo-600 hover:text-indigo-700 font-medium inline-flex items-center gap-1 transition-colors"
+                            className="text-xs text-indigo-600 hover:text-indigo-700 font-medium inline-flex items-center gap-1 transition-colors cursor-pointer"
                             title="Salin NIP"
                           >
                             {copiedField === "nip" ? (
@@ -506,7 +550,7 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              {/* Card 2B: Informasi Siswa / Peserta Didik (Jika ada) */}
+              {/* Card 2B: Informasi Data Siswa (Tabel siswa) */}
               {isSiswa && (
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-7">
                   <div className="flex items-center justify-between pb-5 border-b border-gray-100">
@@ -516,10 +560,10 @@ export default function ProfilePage() {
                       </div>
                       <div>
                         <h3 className="text-base font-bold text-gray-900">
-                          Data Peserta Didik
+                          Data Siswa (Siswa)
                         </h3>
                         <p className="text-xs text-gray-500">
-                          Informasi akademik dan penugasan kelas siswa
+                          Informasi identitas & akademik dari master siswa
                         </p>
                       </div>
                     </div>
@@ -529,6 +573,18 @@ export default function ProfilePage() {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-6">
+                    {/* Nama Lengkap Siswa */}
+                    <div className="p-3.5 rounded-xl bg-slate-50/70 border border-slate-100 hover:bg-slate-50 transition-colors">
+                      <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                        <User className="w-3.5 h-3.5 text-indigo-600" />
+                        Nama Lengkap Siswa
+                      </div>
+                      <div className="text-sm font-semibold text-gray-900 truncate">
+                        {siswaData?.nama || displayName || "-"}
+                      </div>
+                      <div className="text-[11px] text-gray-400 mt-0.5">Nama resmi pada siswa</div>
+                    </div>
+
                     {/* NISN */}
                     <div className="p-3.5 rounded-xl bg-slate-50/70 border border-slate-100 hover:bg-slate-50 transition-colors">
                       <div className="flex items-center justify-between mb-1">
@@ -570,11 +626,91 @@ export default function ProfilePage() {
                           <IdCard className="w-3.5 h-3.5 text-indigo-600" />
                           NIPD / NIS
                         </div>
+                        {nipdSiswa && (
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(nipdSiswa, "nipd")}
+                            className="text-xs text-indigo-600 hover:text-indigo-700 font-medium inline-flex items-center gap-1 transition-colors cursor-pointer"
+                            title="Salin NIPD"
+                          >
+                            {copiedField === "nipd" ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                <span className="text-[11px] text-emerald-600 font-bold">Disalin</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3.5 h-3.5" />
+                                <span className="text-[11px]">Salin</span>
+                              </>
+                            )}
+                          </button>
+                        )}
                       </div>
                       <div className="text-sm font-mono font-bold text-gray-800">
                         {nipdSiswa || "-"}
                       </div>
                       <div className="text-[11px] text-gray-400 mt-0.5">Nomor Induk Peserta Didik</div>
+                    </div>
+
+                    {/* NIK */}
+                    <div className="p-3.5 rounded-xl bg-slate-50/70 border border-slate-100 hover:bg-slate-50 transition-colors">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                          <IdCard className="w-3.5 h-3.5 text-indigo-600" />
+                          NIK Siswa
+                        </div>
+                        {nikSiswa && (
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(nikSiswa, "nik")}
+                            className="text-xs text-indigo-600 hover:text-indigo-700 font-medium inline-flex items-center gap-1 transition-colors cursor-pointer"
+                            title="Salin NIK"
+                          >
+                            {copiedField === "nik" ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                <span className="text-[11px] text-emerald-600 font-bold">Disalin</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3.5 h-3.5" />
+                                <span className="text-[11px]">Salin</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
+                      <div className="text-sm font-mono font-bold text-gray-800">
+                        {nikSiswa || "-"}
+                      </div>
+                      <div className="text-[11px] text-gray-400 mt-0.5">Nomor Induk Kependudukan</div>
+                    </div>
+
+                    {/* Jenis Kelamin */}
+                    <div className="p-3.5 rounded-xl bg-slate-50/70 border border-slate-100 hover:bg-slate-50 transition-colors">
+                      <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                        <User className="w-3.5 h-3.5 text-indigo-600" />
+                        Jenis Kelamin
+                      </div>
+                      <div className="text-sm font-semibold text-gray-900">
+                        {genderSiswa}
+                      </div>
+                      <div className="text-[11px] text-gray-400 mt-0.5">Identitas jenis kelamin</div>
+                    </div>
+
+                    {/* Status Siswa */}
+                    <div className="p-3.5 rounded-xl bg-slate-50/70 border border-slate-100 hover:bg-slate-50 transition-colors">
+                      <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600" />
+                        Status Siswa
+                      </div>
+                      <div className="text-sm font-semibold text-gray-900">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase">
+                          {statusSiswa}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-gray-400 mt-0.5">Status keaktifan peserta didik</div>
                     </div>
 
                     {/* Kelas & Jurusan */}
