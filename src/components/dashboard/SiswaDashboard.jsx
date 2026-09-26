@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 
 const HARI_MAP = ["MINGGU", "SENIN", "SELASA", "RABU", "KAMIS", "JUMAT", "SABTU"];
-const DAYS_LIST = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat"];
+const DAYS_LIST = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 
 function getTodayWIB() {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });

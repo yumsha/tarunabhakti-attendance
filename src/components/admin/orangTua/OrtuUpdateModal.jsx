@@ -48,6 +48,58 @@ export default function OrtuUpdateModal({ isOpen, onClose, onUpdateDone, ortuLis
     return () => window.removeEventListener("beforeunload", handler);
   }, [updating]);
 
+  const handleClose = () => {
+    setRows([]);
+    setResults([]);
+    setUpdating(false);
+    setDone(false);
+    setProgress({ current: 0, total: 0 });
+    setPreviewLimit(250);
+    setResultSearch("");
+    setDraftSearch("");
+    setResultFilter("all");
+    if (fileRef.current) fileRef.current.value = "";
+    onClose();
+  };
+
+  useEffect(() => {
+    if (!isOpen) {
+      setRows([]);
+      setResults([]);
+      setUpdating(false);
+      setDone(false);
+      setProgress({ current: 0, total: 0 });
+      setPreviewLimit(250);
+      setResultSearch("");
+      setDraftSearch("");
+      setResultFilter("all");
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }, [isOpen]);
+
+  const filteredRows = useMemo(() => {
+    if (!draftSearch.trim()) return rows;
+    const q = draftSearch.toLowerCase().trim();
+    return rows.filter((row) =>
+      Object.values(row).some((val) => String(val).toLowerCase().includes(q))
+    );
+  }, [rows, draftSearch]);
+
+  const filteredResults = useMemo(() => {
+    let list = results;
+    if (resultFilter === "berhasil") {
+      list = list.filter((r) => r?.ok);
+    } else if (resultFilter === "gagal") {
+      list = list.filter((r) => r && !r.ok);
+    }
+    if (!resultSearch.trim()) return list;
+    const q = resultSearch.toLowerCase().trim();
+    return list.filter(
+      (r) =>
+        r?.nama?.toLowerCase().includes(q) || r?.msg?.toLowerCase().includes(q)
+    );
+  }, [results, resultSearch, resultFilter]);
+
   if (!isOpen) return null;
 
   const parseFile = async (file) => {
@@ -191,31 +243,8 @@ export default function OrtuUpdateModal({ isOpen, onClose, onUpdateDone, ortuLis
     onUpdateDone();
   };
 
-  const successCount = results.filter((r) => r.ok).length;
-  const failCount = results.filter((r) => !r.ok).length;
-
-  const filteredRows = useMemo(() => {
-    if (!draftSearch.trim()) return rows;
-    const q = draftSearch.toLowerCase().trim();
-    return rows.filter((row) =>
-      Object.values(row).some((val) => String(val).toLowerCase().includes(q))
-    );
-  }, [rows, draftSearch]);
-
-  const filteredResults = useMemo(() => {
-    let list = results;
-    if (resultFilter === "berhasil") {
-      list = list.filter((r) => r.ok);
-    } else if (resultFilter === "gagal") {
-      list = list.filter((r) => !r.ok);
-    }
-    if (!resultSearch.trim()) return list;
-    const q = resultSearch.toLowerCase().trim();
-    return list.filter(
-      (r) =>
-        r.nama?.toLowerCase().includes(q) || r.msg?.toLowerCase().includes(q)
-    );
-  }, [results, resultSearch, resultFilter]);
+  const successCount = results.filter((r) => r?.ok).length;
+  const failCount = results.filter((r) => r && !r.ok).length;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
@@ -229,7 +258,7 @@ export default function OrtuUpdateModal({ isOpen, onClose, onUpdateDone, ortuLis
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             disabled={updating}
             className="text-emerald-200 hover:text-white transition-colors text-sm font-semibold cursor-pointer disabled:opacity-40"
           >
@@ -392,7 +421,7 @@ export default function OrtuUpdateModal({ isOpen, onClose, onUpdateDone, ortuLis
           <div className="flex items-center gap-2.5 sm:gap-3 pt-2">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               disabled={updating}
               className="flex-1 px-4 py-2 border border-gray-300 rounded-xl text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-50 transition disabled:opacity-40 cursor-pointer"
             >

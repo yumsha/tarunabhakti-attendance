@@ -155,7 +155,7 @@ export const siswa = {
 };
 
 export const tahunAjaran = {
-  list: () => request('/api/v1/tahun-ajaran'),
+  list: () => request('/api/v1/tahun-ajaran', { noCache: true } as any),
   get: (id: string | number) => request(`/api/v1/tahun-ajaran/${id}`),
   create: (data: any) => request('/api/v1/tahun-ajaran', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string | number, data: any) => request(`/api/v1/tahun-ajaran/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
@@ -163,7 +163,7 @@ export const tahunAjaran = {
 };
 
 export const mapel = {
-  list: () => request('/api/v1/mata-pelajaran'),
+  list: () => request('/api/v1/mata-pelajaran', { noCache: true } as any),
   get: (id: string | number) => request(`/api/v1/mata-pelajaran/${id}`),
   create: (data: any) => request('/api/v1/mata-pelajaran', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string | number, data: any) => request(`/api/v1/mata-pelajaran/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
@@ -199,7 +199,7 @@ export const orangTua = {
 };
 
 export const kelas = {
-  list: (params?: string) => request(`/api/v1/kelas${params ? `?${params}` : ''}`),
+  list: (params?: string) => request(`/api/v1/kelas${params ? `?${params}` : ''}`, { noCache: true } as any),
   get: (id: string | number) => request(`/api/v1/kelas/${id}`),
   create: (data: any) => request('/api/v1/kelas', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string | number, data: any) => request(`/api/v1/kelas/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
