@@ -1,0 +1,17 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Sidebar from "../../components/Sidebar.astro";
+import AuthGate from "../../components/auth/AuthGate.jsx";
+import ExportKehadiranMain from "../../components/attendance/ExportKehadiranMain";
+---
+
+<BaseLayout requireAuth={true} title="Export Data Kehadiran">
+  <div class="flex h-screen bg-gray-50 overflow-hidden">
+    <Sidebar />
+
+    <AuthGate client:load allowedRoles={["KESISWAAN"]}>
+      <ExportKehadiranMain client:load />
+    </AuthGate>
+  </div>
+</BaseLayout>
+

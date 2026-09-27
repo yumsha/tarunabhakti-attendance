@@ -1,14 +1,15 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import Sidebar from "../../components/Sidebar.astro";
-import DaftarSemuaKelas from "../../components/attendance/DaftarSemuaKelas";
 import AuthGate from "../../components/auth/AuthGate.jsx";
+import DaftarSemuaKelas from "../../components/attendance/DaftarSemuaKelas";
 ---
 
-<BaseLayout title="Daftar Kelas">
-  <div class="flex h-screen bg-gray-50">
+<BaseLayout requireAuth={true} title="Manajemen Kelas">
+  <div class="flex h-screen bg-gray-50 overflow-hidden">
     <Sidebar />
-    <AuthGate client:load allowedRoles={["ADMIN", "KESISWAAN"]}>
+
+    <AuthGate client:load allowedRoles={["SUPERADMIN"]}>
       <DaftarSemuaKelas client:load />
     </AuthGate>
   </div>
