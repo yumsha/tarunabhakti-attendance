@@ -48,6 +48,35 @@ export default function OrtuImportModal({ isOpen, onClose, onImportDone }) {
     return () => window.removeEventListener("beforeunload", handler);
   }, [importing]);
 
+  const handleClose = () => {
+    setRows([]);
+    setResults([]);
+    setImporting(false);
+    setDone(false);
+    setProgress({ current: 0, total: 0 });
+    setPreviewLimit(250);
+    setResultSearch("");
+    setDraftSearch("");
+    setResultFilter("all");
+    if (fileRef.current) fileRef.current.value = "";
+    onClose();
+  };
+
+  useEffect(() => {
+    if (!isOpen) {
+      setRows([]);
+      setResults([]);
+      setImporting(false);
+      setDone(false);
+      setProgress({ current: 0, total: 0 });
+      setPreviewLimit(250);
+      setResultSearch("");
+      setDraftSearch("");
+      setResultFilter("all");
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }, [isOpen]);
+
   const filteredRows = useMemo(() => {
     if (!draftSearch.trim()) return rows;
     const q = draftSearch.toLowerCase().trim();
@@ -209,7 +238,7 @@ export default function OrtuImportModal({ isOpen, onClose, onImportDone }) {
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             disabled={importing}
             className="text-blue-200 hover:text-white transition-colors text-sm font-semibold cursor-pointer disabled:opacity-40"
           >
@@ -371,7 +400,7 @@ export default function OrtuImportModal({ isOpen, onClose, onImportDone }) {
           <div className="flex items-center gap-2.5 sm:gap-3 pt-2">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               disabled={importing}
               className="flex-1 px-4 py-2 border border-gray-300 rounded-xl text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-50 transition disabled:opacity-40 cursor-pointer"
             >

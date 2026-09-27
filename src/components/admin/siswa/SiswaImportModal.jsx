@@ -28,6 +28,20 @@ export default function SiswaImportModal({ onClose, onImportDone, kelasList = []
     return () => window.removeEventListener("beforeunload", handler);
   }, [importing]);
 
+  const handleClose = () => {
+    setRows([]);
+    setResults([]);
+    setImporting(false);
+    setDone(false);
+    setProgress({ current: 0, total: 0 });
+    setPreviewLimit(250);
+    setResultSearch("");
+    setDraftSearch("");
+    setResultFilter("all");
+    if (fileRef.current) fileRef.current.value = "";
+    onClose();
+  };
+
   const parseFile = (file) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -254,7 +268,7 @@ export default function SiswaImportModal({ onClose, onImportDone, kelasList = []
             <p className="text-blue-200 text-xs mt-0.5">Upload file Excel (.xlsx) untuk import massal</p>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             disabled={importing}
             className="text-blue-200 hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
           >
@@ -397,7 +411,7 @@ export default function SiswaImportModal({ onClose, onImportDone, kelasList = []
           <div className="flex gap-3 pt-1 border-t border-gray-100">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               disabled={importing}
               className="flex-1 px-4 py-2 border border-gray-300 rounded-xl text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 transition active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
             >
