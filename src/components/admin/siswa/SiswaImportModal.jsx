@@ -81,25 +81,25 @@ export default function SiswaImportModal({ onClose, onImportDone, kelasList = []
       const NIPD = String(row["NIPD"] || "").trim();
       const NIK = String(row["NIK"] || "").trim();
 
-      if (!NISN || !NIPD || !NIK || !row["Nama"]) {
-        prepared[idx] = { nama, ok: false, msg: "Field wajib siswa kosong (NISN / NIPD / NIK / Nama)" };
+      if (!NISN || !row["Nama"]) {
+        prepared[idx] = { nama, ok: false, msg: "Field wajib siswa kosong (NISN / Nama)" };
         return;
       }
       if (seenNISN.has(NISN)) {
         prepared[idx] = { nama, ok: false, msg: `NISN ${NISN} duplikat dalam file (skip)` };
         return;
       }
-      if (seenNIPD.has(NIPD)) {
+      if (NIPD && seenNIPD.has(NIPD)) {
         prepared[idx] = { nama, ok: false, msg: `NIPD ${NIPD} duplikat dalam file (skip)` };
         return;
       }
-      if (seenNIK.has(NIK)) {
+      if (NIK && seenNIK.has(NIK)) {
         prepared[idx] = { nama, ok: false, msg: `NIK ${NIK} duplikat dalam file (skip)` };
         return;
       }
       seenNISN.add(NISN);
-      seenNIPD.add(NIPD);
-      seenNIK.add(NIK);
+      if (NIPD) seenNIPD.add(NIPD);
+      if (NIK) seenNIK.add(NIK);
       toProcess.push({ row, idx });
     });
 
