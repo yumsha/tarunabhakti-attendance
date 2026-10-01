@@ -202,6 +202,10 @@ export default function DaftarJadwal() {
   const handleCreateManual = () => {
     setShowCreateMenu(false);
     fetchDataForCreate();
+    setNewJadwal((prev) => ({
+      ...prev,
+      kelas_id: selectedKelasFilter ? String(selectedKelasFilter) : "",
+    }));
     setShowCreateModal(true);
   };
 
@@ -226,7 +230,7 @@ export default function DaftarJadwal() {
         setShowCreateModal(false);
         setNewJadwal({
           hari: "Senin",
-          kelas_id: "",
+          kelas_id: selectedKelasFilter ? String(selectedKelasFilter) : "",
           mapel_id: "",
           guru_id: "",
           jam_mulai: "07:00",
@@ -406,6 +410,7 @@ export default function DaftarJadwal() {
         kelasList={kelasList}
         mapelList={mapelList}
         guruList={guruList}
+        selectedKelasFilter={selectedKelasFilter}
       />
 
       {/* ── Modal Edit Jadwal ────────────────────────────────────────── */}

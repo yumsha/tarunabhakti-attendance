@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import SearchableSelect from "./SearchableSelect";
 import { HARI_ORDER } from "./jadwalUtils";
 
@@ -13,7 +13,17 @@ export default function JadwalFormModal({
   kelasList = [],
   mapelList = [],
   guruList = [],
+  selectedKelasFilter = "",
 }) {
+  useEffect(() => {
+    if (isOpen && !isEdit && selectedKelasFilter) {
+      setFormData((prev) => ({
+        ...prev,
+        kelas_id: String(selectedKelasFilter),
+      }));
+    }
+  }, [isOpen, isEdit, selectedKelasFilter, setFormData]);
+
   if (!isOpen) return null;
 
   return (

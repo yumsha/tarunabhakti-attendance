@@ -61,8 +61,10 @@ export default function SearchableSelect({
             ? "border-transparent ring-2 ring-blue-500 bg-white"
             : selected && !disabled && activeBlue
             ? "border-blue-500 bg-blue-50 ring-1 ring-blue-500"
+            : disabled
+            ? "border-gray-200 bg-gray-100 text-gray-700"
             : "border-gray-200 bg-gray-50 hover:border-gray-300") +
-          (disabled ? " cursor-not-allowed opacity-60" : " cursor-pointer")
+          (disabled ? " cursor-not-allowed opacity-80" : " cursor-pointer")
         }
       >
         <span
