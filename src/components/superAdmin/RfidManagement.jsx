@@ -379,7 +379,7 @@ const inputClass =
   "w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm transition " +
   "focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500";
 
-function SearchableSelect({ value, onChange, students, disabled }) {
+function SearchableSelect({ value, onChange, students, disabled, initialLabel }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const containerRef = useRef(null);
@@ -416,8 +416,8 @@ function SearchableSelect({ value, onChange, students, disabled }) {
           (disabled ? " cursor-not-allowed opacity-60" : " cursor-pointer")
         }
       >
-        {/* nama + kelas sisswa kepilih */}
-        <span className={selected ? "text-gray-800" : "text-gray-400"}>
+        {/* nama + kelas siswa kepilih */}
+        <span className={selected || (value && initialLabel) ? "text-gray-800" : "text-gray-400"}>
           {selected ? (
             <>
               {selected.nama}{" "}
@@ -425,12 +425,14 @@ function SearchableSelect({ value, onChange, students, disabled }) {
                 ({selected.classLabel})
               </span>
             </>
+          ) : value && initialLabel ? (
+            initialLabel
           ) : (
             "Pilih siswa"
           )}
         </span>
         <span className="flex items-center gap-1 shrink-0">
-          {selected && !disabled ? (
+          {(selected || (value && initialLabel)) && !disabled ? (
             <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); onChange(""); setQuery(""); }} className="rounded p-0.5 text-gray-400 hover:text-gray-600">
               <X className="h-3.5 w-3.5" />
             </span>
@@ -485,7 +487,13 @@ function RfidFormModal({ isOpen, onClose, onSubmit, editItem, loading, students 
   useEffect(() => {
     if (!isOpen) return;
     setUidRfid(editItem?.uid_rfid ?? "");
-    setSiswaId(editItem?.siswa_id ? String(editItem.siswa_id) : "");
+    setSiswaId(
+      editItem?.siswa_id != null
+        ? String(editItem.siswa_id)
+        : editItem?.siswa?.id != null
+        ? String(editItem.siswa.id)
+        : ""
+    );
     setIsActive(editItem?.is_active ?? true);
     setError("");
   }, [isOpen, editItem]);
@@ -495,13 +503,29 @@ function RfidFormModal({ isOpen, onClose, onSubmit, editItem, loading, students 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError("");
-    const payload = { uid_rfid: uidRfid.trim(), siswa_id: siswaId.trim(), is_active: isActive };
-    if (!payload.uid_rfid) { setError("UID RFID wajib diisi."); return; }
-    if (!payload.siswa_id) { setError("Siswa wajib dipilih."); return; }
+    const trimmedUid = uidRfid.trim();
+    const trimmedSiswaId = siswaId ? String(siswaId).trim() : "";
+    if (!trimmedUid) { setError("UID RFID wajib diisi."); return; }
+    if (!trimmedSiswaId) { setError("Siswa wajib dipilih."); return; }
+    const parsedId = Number(trimmedSiswaId);
+    const finalSiswaId = !Number.isNaN(parsedId) ? parsedId : trimmedSiswaId;
+    const payload = {
+      uid_rfid: trimmedUid,
+      siswa_id: finalSiswaId,
+      is_active: isActive
+    };
     try { await onSubmit(payload); handleClose(); } catch (err) { setError(err.message || "Terjadi kesalahan saat menyimpan RFID."); }
   };
 
   if (!isOpen) return null;
+
+  const editStudentLabel = editItem?.siswa?.nama
+    ? `${editItem.siswa.nama}${
+        editItem.siswa.kelas
+          ? ` (${editItem.siswa.kelas.kelas}${editItem.siswa.kelas.jurusan ? ` ${editItem.siswa.kelas.jurusan}` : ""})`
+          : ""
+      }`
+    : undefined;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -517,13 +541,33 @@ function RfidFormModal({ isOpen, onClose, onSubmit, editItem, loading, students 
         <div className="overflow-y-auto flex-1">
           <form onSubmit={handleSubmit} className="space-y-5 p-6">
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">UID RFID <span className="text-red-500">*</span></label>
-              <input value={uidRfid} onChange={(e) => setUidRfid(e.target.value)} placeholder="Contoh: 04A1B2C3D4" className={inputClass} disabled={loading || !!editItem} autoFocus={!editItem} />
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium text-gray-700">UID RFID <span className="text-red-500">*</span></label>
+                {editItem ? <span className="text-xs text-blue-600 font-medium">Dapat diketik ulang / diedit</span> : null}
+              </div>
+              <input
+                value={uidRfid}
+                onChange={(e) => setUidRfid(e.target.value)}
+                placeholder="Contoh: 04A1B2C3D4"
+                className={inputClass}
+                disabled={loading}
+                autoFocus
+              />
             </div>
             <div className="relative">
               <label className="mb-2 block text-sm font-medium text-gray-700">Pilih Siswa <span className="text-red-500">*</span></label>
-              <SearchableSelect value={siswaId} onChange={setSiswaId} students={students} disabled={loading || !!editItem} />
-              {!editItem && <p className="mt-1.5 text-xs text-gray-400">Siswa yang sudah memiliki RFID aktif tidak bisa dipilih untuk data baru.</p>}
+              <SearchableSelect
+                value={siswaId}
+                onChange={setSiswaId}
+                students={students}
+                disabled={loading}
+                initialLabel={editStudentLabel}
+              />
+              <p className="mt-1.5 text-xs text-gray-400">
+                {editItem
+                  ? "Pilih siswa jika ingin memindahkan kartu RFID ini ke siswa lain."
+                  : "Siswa yang sudah memiliki RFID aktif tidak bisa dipilih untuk data baru."}
+              </p>
             </div>
             {editItem ? (
               <label className="flex items-start gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
@@ -1431,6 +1475,10 @@ export default function RfidManagement() {
       let res;
       if (editItem) {
         res = await rfidApi.update(editItem.id, payload);
+        if (!res?.success && rfidApi.patch) {
+          const patchRes = await rfidApi.patch(editItem.id, payload);
+          if (patchRes?.success) res = patchRes;
+        }
       } else {
         res = await rfidApi.create({ uid_rfid: payload.uid_rfid, siswa_id: payload.siswa_id });
       }
