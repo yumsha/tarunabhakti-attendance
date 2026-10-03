@@ -570,7 +570,7 @@ export default function DaftarSemuaKelas() {
           <InfoStatCard
             label="Jurusan Unik"
             value={stats.totalJurusan}
-            helper="Program keahlian tanpa rombel"
+            helper="Kompetensi keahlian terdaftar"
             icon={<BookOpen className="h-5 w-5" />}
             tone="emerald"
           />
