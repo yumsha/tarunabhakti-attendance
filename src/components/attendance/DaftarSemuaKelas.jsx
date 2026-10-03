@@ -33,6 +33,22 @@ function formatDate(value) {
   });
 }
 
+function parseJurusanRombel(rawJurusan) {
+  if (!rawJurusan) return { jurusan: "", rombel: "" };
+  const trimmed = String(rawJurusan).trim();
+  const match = trimmed.match(/^(.*?)\s+(\d+|[A-Za-z])$/);
+  if (match) {
+    return {
+      jurusan: match[1].trim(),
+      rombel: match[2].trim(),
+    };
+  }
+  return {
+    jurusan: trimmed,
+    rombel: "",
+  };
+}
+
 function Toast({ toast, onClose }) {
   useEffect(() => {
     if (!toast) return undefined;
@@ -93,11 +109,9 @@ function KelasFormModal({
     let baseRombel = "";
 
     if (editItem?.jurusan) {
-      const match = editItem.jurusan.match(/^(.*?)\s+(\d+|[A-Za-z])$/);
-      if (match) {
-        baseJurusan = match[1].trim();
-        baseRombel = match[2].trim();
-      }
+      const parsed = parseJurusanRombel(editItem.jurusan);
+      baseJurusan = parsed.jurusan;
+      baseRombel = parsed.rombel;
     }
 
     setForm({
@@ -437,11 +451,7 @@ export default function DaftarSemuaKelas() {
       Array.from(
         new Set(
           classList
-            .map((item) => {
-              const raw = item?.jurusan?.trim() || "";
-              const match = raw.match(/^(.*?)\s+(\d+|[A-Za-z])$/);
-              return match ? match[1].trim() : raw;
-            })
+            .map((item) => parseJurusanRombel(item?.jurusan).jurusan)
             .filter(Boolean)
         )
       ).sort((a, b) => a.localeCompare(b, "id")),
@@ -450,7 +460,9 @@ export default function DaftarSemuaKelas() {
 
   const stats = useMemo(() => {
     const jurusanCount = new Set(
-      classList.map((item) => item?.jurusan?.trim()).filter(Boolean)
+      classList
+        .map((item) => parseJurusanRombel(item?.jurusan).jurusan)
+        .filter(Boolean)
     ).size;
     const activeTahun = tahunList.find((item) => item?.is_active);
 
@@ -558,7 +570,7 @@ export default function DaftarSemuaKelas() {
           <InfoStatCard
             label="Jurusan Unik"
             value={stats.totalJurusan}
-            helper="Diambil dari data jurusan saat ini"
+            helper="Program keahlian tanpa rombel"
             icon={<BookOpen className="h-5 w-5" />}
             tone="emerald"
           />
@@ -645,6 +657,7 @@ export default function DaftarSemuaKelas() {
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">No</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Kelas</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Jurusan</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Rombel</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tahun Ajaran</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Dibuat</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Aksi</th>
@@ -657,60 +670,73 @@ export default function DaftarSemuaKelas() {
                       <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-10"></div></td>
                       <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-20"></div></td>
                       <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-28"></div></td>
+                      <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-12"></div></td>
                       <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-32"></div></td>
                       <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-24"></div></td>
                       <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-28"></div></td>
                     </tr>
                   ))
                 ) : filteredClasses.length > 0 ? (
-                  pagedClasses.map((cls, index) => (
-                    <tr key={cls.id} className="hover:bg-blue-50/30 transition-colors group">
-                      <td className="px-6 py-4 text-sm text-gray-500">{(page - 1) * pageSize + index + 1}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col">
-                          <span className="text-sm font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
-                            {cls.kelas}
-                          </span>
-                          <span className="text-xs text-gray-400">ID kelas: {cls.id}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {cls.jurusan || "-"}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {cls.tahun?.tahun_ajaran || "-"}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
-                        {formatDate(cls.created_at)}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingItem(cls);
-                              setShowModal(true);
-                            }}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-600 transition hover:bg-gray-50"
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setDeleteTarget(cls)}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs text-red-600 transition hover:bg-red-50"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                            Hapus
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                  pagedClasses.map((cls, index) => {
+                    const parsed = parseJurusanRombel(cls.jurusan);
+                    return (
+                      <tr key={cls.id} className="hover:bg-blue-50/30 transition-colors group">
+                        <td className="px-6 py-4 text-sm text-gray-500">{(page - 1) * pageSize + index + 1}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col">
+                            <span className="text-sm font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                              {cls.kelas}
+                            </span>
+                            <span className="text-xs text-gray-400">ID kelas: {cls.id}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm font-medium text-gray-800">
+                          {parsed.jurusan || "-"}
+                        </td>
+                        <td className="px-6 py-4 text-sm">
+                          {parsed.rombel ? (
+                            <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/60">
+                              {parsed.rombel}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-600">
+                          {cls.tahun?.tahun_ajaran || "-"}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500">
+                          {formatDate(cls.created_at)}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingItem(cls);
+                                setShowModal(true);
+                              }}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-600 transition hover:bg-gray-50 cursor-pointer"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDeleteTarget(cls)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs text-red-600 transition hover:bg-red-50 cursor-pointer"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              Hapus
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 ) : (
                   <tr>
-                    <td colSpan="6" className="px-6 py-12 text-center text-gray-500 italic">
+                    <td colSpan="7" className="px-6 py-12 text-center text-gray-500 italic">
                       {hasActiveFilter
                         ? "Tidak ada kelas yang cocok dengan filter."
                         : "Tidak ada kelas yang ditemukan."}
