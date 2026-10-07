@@ -200,9 +200,16 @@ export default function MapelTable({
 
                   {/* Nama Mapel */}
                   <td className="px-4 sm:px-6 py-3.5 sm:py-4">
-                    <p className="text-xs sm:text-sm font-semibold text-gray-800">
-                      {mapel.nama_mapel}
-                    </p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-xs sm:text-sm font-semibold text-gray-800">
+                        {mapel.nama_mapel}
+                      </p>
+                      {mapel.kode_mapel && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                          {mapel.kode_mapel}
+                        </span>
+                      )}
+                    </div>
                     {/* Mobile-only date below name */}
                     <p className="text-[11px] text-gray-400 mt-0.5 md:hidden">
                       {formatDate(mapel.created_at)}

@@ -50,9 +50,17 @@ export default function JadwalImportModal({
               <h4 className="text-sm sm:text-base font-bold text-gray-900 mb-1 sm:mb-2">
                 Upload File Jadwal
               </h4>
-              <p className="text-xs sm:text-sm text-gray-500 mb-4">
-                Pilih file .xlsx sesuai format template yang tersedia.
+              <p className="text-xs sm:text-sm text-gray-500 mb-3">
+                Pilih file .xlsx sesuai format template terbaru.
               </p>
+
+              {/* v0.0.4 Notice Box */}
+              <div className="mb-4 p-3 bg-blue-50/80 border border-blue-100 rounded-xl text-left text-xs">
+                <p className="text-gray-600 leading-relaxed text-[11px] sm:text-xs">
+                  Kolom mapel & guru menggunakan <strong className="text-blue-800">KODE_MAPEL</strong> dan <strong className="text-indigo-800">ID_GURU</strong>.
+                  Daftar kode mata pelajaran, ID guru, dan kelas terdaftar sudah otomatis disertakan pada sheet referensi di dalam template Excel.
+                </p>
+              </div>
 
               {/* Download Template Buttons */}
               <div className="flex flex-col sm:flex-row justify-center gap-2 sm:gap-3 mb-4 sm:mb-5">
@@ -90,11 +98,10 @@ export default function JadwalImportModal({
 
               {/* Dropzone */}
               <label
-                className={`flex flex-col items-center justify-center w-full h-28 sm:h-32 border-2 border-dashed rounded-2xl cursor-pointer transition-all ${
-                  importFile
-                    ? "border-blue-500 bg-blue-50/50"
-                    : "border-gray-200 hover:border-blue-400 bg-gray-50"
-                }`}
+                className={`flex flex-col items-center justify-center w-full h-28 sm:h-32 border-2 border-dashed rounded-2xl cursor-pointer transition-all ${importFile
+                  ? "border-blue-500 bg-blue-50/50"
+                  : "border-gray-200 hover:border-blue-400 bg-gray-50"
+                  }`}
               >
                 <svg className="w-6 h-6 mb-1.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -154,105 +161,115 @@ export default function JadwalImportModal({
         )}
 
         {/* ── Phase 2: Result ── */}
-        {importResult && (
-          <div className="p-5 sm:p-6">
-            {/* Summary banner */}
-            <div
-              className={`rounded-xl p-3.5 sm:p-4 mb-4 sm:mb-5 flex items-start gap-3 ${
-                importResult.skipped === 0
-                  ? "bg-green-50 border border-green-200"
-                  : importResult.created === 0
-                  ? "bg-red-50 border border-red-200"
-                  : "bg-yellow-50 border border-yellow-200"
-              }`}
-            >
+        {importResult && (() => {
+          const createdCount = importResult.created || 0;
+          const updatedCount = importResult.updated || 0;
+          const skippedCount = importResult.skipped || 0;
+          const totalSuccess = createdCount + updatedCount;
+          const isAllSuccess = skippedCount === 0 && totalSuccess > 0;
+          const isNoneSuccess = totalSuccess === 0;
+
+          return (
+            <div className="p-5 sm:p-6">
+              {/* Summary banner */}
               <div
-                className={`shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center ${
-                  importResult.skipped === 0
-                    ? "bg-green-100 text-green-600"
-                    : importResult.created === 0
-                    ? "bg-red-100 text-red-600"
-                    : "bg-yellow-100 text-yellow-600"
-                }`}
-              >
-                {importResult.skipped === 0 ? (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                ) : importResult.created === 0 ? (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                ) : (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                )}
-              </div>
-              <div>
-                <p
-                  className={`text-xs sm:text-sm font-bold ${
-                    importResult.skipped === 0
-                      ? "text-green-800"
-                      : importResult.created === 0
-                      ? "text-red-800"
-                      : "text-yellow-800"
+                className={`rounded-xl p-3.5 sm:p-4 mb-4 sm:mb-5 flex items-start gap-3 ${isAllSuccess
+                  ? "bg-green-50 border border-green-200"
+                  : isNoneSuccess
+                    ? "bg-red-50 border border-red-200"
+                    : "bg-yellow-50 border border-yellow-200"
                   }`}
-                >
-                  {importResult.skipped === 0
-                    ? "Semua jadwal berhasil diimport!"
-                    : importResult.created === 0
-                    ? "Tidak ada jadwal yang berhasil diimport"
-                    : "Import selesai dengan beberapa masalah"}
-                </p>
-                <p className="text-[11px] sm:text-xs text-gray-500 mt-0.5">
-                  {importResult.created} jadwal ditambahkan · {importResult.skipped} dilewati
-                </p>
-              </div>
-            </div>
-
-            {/* Counter chips */}
-            <div className="flex gap-2.5 sm:gap-3 mb-4 sm:mb-5">
-              <div className="flex-1 bg-green-50 border border-green-200 rounded-xl p-2.5 sm:p-3 text-center">
-                <p className="text-xl sm:text-2xl font-black text-green-600">{importResult.created}</p>
-                <p className="text-[11px] sm:text-xs text-green-700 font-medium mt-0.5">Berhasil</p>
-              </div>
-              <div className="flex-1 bg-red-50 border border-red-200 rounded-xl p-2.5 sm:p-3 text-center">
-                <p className="text-xl sm:text-2xl font-black text-red-500">{importResult.skipped}</p>
-                <p className="text-[11px] sm:text-xs text-red-600 font-medium mt-0.5">Dilewati</p>
-              </div>
-            </div>
-
-            {/* Error list */}
-            {importResult.errors?.length > 0 && (
-              <div>
-                <p className="text-[11px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                  Detail baris yang dilewati ({importResult.errors.length})
-                </p>
-                <ul className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
-                  {importResult.errors.map((err, i) => (
-                    <li key={i} className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-lg px-2.5 py-1.5">
-                      <span className="shrink-0 mt-0.5 inline-flex items-center justify-center w-4 h-4 rounded-full bg-red-200 text-red-700 text-[10px] font-bold">
-                        {err.row}
-                      </span>
-                      <span className="text-xs text-red-700 leading-snug">{err.pesan}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            <div className="mt-5 sm:mt-6 flex justify-end">
-              <button
-                type="button"
-                className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white text-xs sm:text-sm font-bold rounded-xl hover:bg-blue-700 transition-all shadow-md cursor-pointer"
-                onClick={onClose}
               >
-                Selesai
-              </button>
+                <div
+                  className={`shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center ${isAllSuccess
+                    ? "bg-green-100 text-green-600"
+                    : isNoneSuccess
+                      ? "bg-red-100 text-red-600"
+                      : "bg-yellow-100 text-yellow-600"
+                    }`}
+                >
+                  {isAllSuccess ? (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  ) : isNoneSuccess ? (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  )}
+                </div>
+                <div>
+                  <p
+                    className={`text-xs sm:text-sm font-bold ${isAllSuccess
+                      ? "text-green-800"
+                      : isNoneSuccess
+                        ? "text-red-800"
+                        : "text-yellow-800"
+                      }`}
+                  >
+                    {isAllSuccess
+                      ? "Semua data jadwal berhasil diproses!"
+                      : isNoneSuccess
+                        ? "Tidak ada jadwal yang berhasil diimport"
+                        : "Import selesai dengan beberapa baris dilewati"}
+                  </p>
+                  <p className="text-[11px] sm:text-xs text-gray-500 mt-0.5">
+                    {createdCount} ditambahkan · {updatedCount} diperbarui · {skippedCount} dilewati
+                  </p>
+                </div>
+              </div>
+
+              {/* Counter chips */}
+              <div className="flex gap-2.5 sm:gap-3 mb-4 sm:mb-5">
+                <div className="flex-1 bg-green-50 border border-green-200 rounded-xl p-2.5 sm:p-3 text-center">
+                  <p className="text-xl sm:text-2xl font-black text-green-600">{createdCount}</p>
+                  <p className="text-[11px] sm:text-xs text-green-700 font-medium mt-0.5">Ditambahkan</p>
+                </div>
+                <div className="flex-1 bg-blue-50 border border-blue-200 rounded-xl p-2.5 sm:p-3 text-center">
+                  <p className="text-xl sm:text-2xl font-black text-blue-600">{updatedCount}</p>
+                  <p className="text-[11px] sm:text-xs text-blue-700 font-medium mt-0.5">Diperbarui</p>
+                </div>
+                <div className="flex-1 bg-red-50 border border-red-200 rounded-xl p-2.5 sm:p-3 text-center">
+                  <p className="text-xl sm:text-2xl font-black text-red-500">{skippedCount}</p>
+                  <p className="text-[11px] sm:text-xs text-red-600 font-medium mt-0.5">Dilewati</p>
+                </div>
+              </div>
+
+              {/* Error list */}
+              {importResult.errors?.length > 0 && (
+                <div>
+                  <p className="text-[11px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                    Detail baris yang dilewati ({importResult.errors.length})
+                  </p>
+                  <ul className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                    {importResult.errors.map((err, i) => (
+                      <li key={i} className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-lg px-2.5 py-1.5">
+                        <span className="shrink-0 mt-0.5 inline-flex items-center justify-center px-1.5 h-4 rounded-full bg-red-200 text-red-700 text-[10px] font-bold">
+                          Baris {err.row}
+                        </span>
+                        <span className="text-xs text-red-700 leading-snug">{err.pesan}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div className="mt-5 sm:mt-6 flex justify-end">
+                <button
+                  type="button"
+                  className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white text-xs sm:text-sm font-bold rounded-xl hover:bg-blue-700 transition-all shadow-md cursor-pointer"
+                  onClick={onClose}
+                >
+                  Selesai
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
     </div>
   );

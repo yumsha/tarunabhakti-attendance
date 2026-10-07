@@ -7,17 +7,20 @@ const inputClass =
 
 export default function MapelFormModal({ isOpen, onClose, onSubmit, editMapel, loading }) {
   const [namaMapel, setNamaMapel] = useState("");
+  const [kodeMapel, setKodeMapel] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (!isOpen) return;
     setNamaMapel(editMapel?.nama_mapel ?? "");
+    setKodeMapel(editMapel?.kode_mapel ?? "");
     setError("");
   }, [editMapel, isOpen]);
 
   const handleClose = () => {
     if (loading) return;
     setNamaMapel("");
+    setKodeMapel("");
     setError("");
     onClose();
   };
@@ -25,13 +28,17 @@ export default function MapelFormModal({ isOpen, onClose, onSubmit, editMapel, l
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    const trimmed = namaMapel.trim();
-    if (!trimmed) {
+    const trimmedNama = namaMapel.trim();
+    const trimmedKode = kodeMapel.trim();
+    if (!trimmedNama) {
       setError("Nama mata pelajaran wajib diisi");
       return;
     }
     try {
-      await onSubmit(trimmed);
+      await onSubmit({
+        nama_mapel: trimmedNama,
+        kode_mapel: trimmedKode || null,
+      });
       handleClose();
     } catch (err) {
       setError(err.message || "Terjadi kesalahan");
@@ -74,6 +81,24 @@ export default function MapelFormModal({ isOpen, onClose, onSubmit, editMapel, l
 
         {/* Modal Body */}
         <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-4 sm:space-y-5">
+          <div>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
+              Kode Mata Pelajaran <span className="text-gray-400 font-normal">(opsional / unik untuk import)</span>
+            </label>
+            <input
+              id="kode-mapel-input"
+              value={kodeMapel}
+              onChange={(e) => setKodeMapel(e.target.value.toUpperCase())}
+              placeholder="Contoh: MTK, BINDO, RPL-01..."
+              className={inputClass}
+              disabled={loading}
+              maxLength={50}
+            />
+            <p className="text-[11px] sm:text-xs text-gray-400 mt-1.5">
+              Digunakan pada kolom KODE_MAPEL saat import jadwal dari Excel.
+            </p>
+          </div>
+
           <div>
             <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
               Nama Mata Pelajaran <span className="text-red-500">*</span>

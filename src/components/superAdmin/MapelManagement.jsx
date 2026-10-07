@@ -46,7 +46,8 @@ export default function MapelManagement() {
 
   // Filter search
   const filtered = mapels.filter((m) =>
-    m.nama_mapel?.toLowerCase().includes(search.toLowerCase())
+    m.nama_mapel?.toLowerCase().includes(search.toLowerCase()) ||
+    m.kode_mapel?.toLowerCase().includes(search.toLowerCase())
   );
 
   useEffect(() => {
@@ -61,17 +62,18 @@ export default function MapelManagement() {
   }, [page, totalPages]);
 
   // Create / Update
-  const handleSubmitMapel = async (namaMapel) => {
+  const handleSubmitMapel = async (payload) => {
     setSubmitLoading(true);
+    const body = typeof payload === "string" ? { nama_mapel: payload } : payload;
     try {
       if (editMapel) {
-        const res = await mapelApi.update(editMapel.id, { nama_mapel: namaMapel });
+        const res = await mapelApi.update(editMapel.id, body);
         if (res?.success === false) {
           throw new Error(res.message || "Gagal memperbarui mata pelajaran");
         }
         showToast("Mata pelajaran berhasil diperbarui");
       } else {
-        const res = await mapelApi.create({ nama_mapel: namaMapel });
+        const res = await mapelApi.create(body);
         if (res?.success === false) {
           throw new Error(res.message || "Gagal menambahkan mata pelajaran");
         }

@@ -176,11 +176,50 @@ export default function DaftarJadwal() {
     }
   };
 
+  // Ensure Reference Data for Templates & Modals
+  const ensureReferenceData = async () => {
+    let currentGuru = guruList;
+    let currentKelas = kelasList;
+    let currentMapel = mapelList;
+
+    if (!currentGuru.length || !currentKelas.length || !currentMapel.length) {
+      try {
+        const [resGuru, resKelas, resMapel] = await Promise.all([
+          currentGuru.length
+            ? { success: true, data: currentGuru }
+            : (guru.listWithYsboSync ? guru.listWithYsboSync("limit=500") : guru.list("limit=500")),
+          currentKelas.length
+            ? { success: true, data: currentKelas }
+            : kelas.list("limit=500"),
+          currentMapel.length
+            ? { success: true, data: currentMapel }
+            : mapel.list(),
+        ]);
+        if (resGuru?.success && resGuru.data) {
+          currentGuru = resGuru.data;
+          setGuruList(resGuru.data);
+        }
+        if (resKelas?.success && resKelas.data) {
+          currentKelas = resKelas.data;
+          setKelasList(resKelas.data);
+        }
+        if (resMapel?.success && resMapel.data) {
+          currentMapel = resMapel.data;
+          setMapelList(resMapel.data);
+        }
+      } catch (err) {
+        console.error("Failed to load reference data for template", err);
+      }
+    }
+    return { mapelList: currentMapel, guruList: currentGuru, kelasList: currentKelas };
+  };
+
   // Download Template
   const handleDownloadTemplate = async () => {
     try {
-      await downloadJadwalTemplate();
-      showNotification("Template berhasil diunduh");
+      const refs = await ensureReferenceData();
+      await downloadJadwalTemplate(refs);
+      showNotification("Template import (v0.0.4) berhasil diunduh");
     } catch (e) {
       console.error("Download template error", e);
       showNotification("Gagal mengunduh template", "error");
@@ -190,8 +229,9 @@ export default function DaftarJadwal() {
   // Download Update Template
   const handleDownloadUpdateTemplate = async () => {
     try {
-      await downloadJadwalUpdateTemplate(filteredJadwal);
-      showNotification("Template update berhasil diunduh");
+      const refs = await ensureReferenceData();
+      await downloadJadwalUpdateTemplate(filteredJadwal, refs);
+      showNotification("Template update (v0.0.4) berhasil diunduh");
     } catch (e) {
       console.error("Download template update error", e);
       showNotification("Gagal mengunduh template update", "error");
@@ -335,6 +375,7 @@ export default function DaftarJadwal() {
           setJadwalList(sortJadwal(refreshed.data));
         }
         setImportResult(res.data);
+        showNotification(res.message || "Import jadwal berhasil diproses");
       } else {
         showNotification(res?.message || "Gagal mengimport jadwal", "error");
         setShowImportModal(false);
