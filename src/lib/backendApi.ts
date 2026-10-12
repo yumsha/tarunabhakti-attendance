@@ -148,6 +148,7 @@ async function request(path: string, options: RequestInit & { skipAuthRedirect?:
 
 export const siswa = {
   list: (params?: string) => request(`/api/v1/siswa${params ? `?${params}` : ''}`),
+  count: () => request('/api/v1/siswa/count', { noCache: true } as any),
   get: (id: string | number) => request(`/api/v1/siswa/${id}`),
   create: (data: any) => request('/api/v1/siswa', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string | number, data: any) => request(`/api/v1/siswa/${id}`, { method: 'PUT', body: JSON.stringify(data) }),

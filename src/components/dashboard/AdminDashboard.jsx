@@ -45,14 +45,20 @@ function RealtimeClock() {
 // Helpers
 
 /**
- * Ambil SEMUA siswa tanpa batas pagination.
+ * Ambil total siswa menggunakan endpoint terbaru v0.0.5 (/siswa/count).
  */
 async function fetchTotalSiswa() {
     try {
-        const res = await siswa.list("limit=99999&page=1");
+        const res = await siswa.count();
         if (res?.success) {
-            if (res.pagination?.total !== undefined) return res.pagination.total;
-            if (Array.isArray(res.data)) return res.data.length;
+            if (typeof res.data?.total === "number") return res.data.total;
+            if (typeof res.total === "number") return res.total;
+        }
+        // Fallback jika terjadi kendala pada endpoint count
+        const fallback = await siswa.list("limit=1&page=1");
+        if (fallback?.success) {
+            if (fallback.pagination?.total !== undefined) return fallback.pagination.total;
+            if (Array.isArray(fallback.data)) return fallback.data.length;
         }
         return 0;
     } catch (e) {

@@ -23,7 +23,16 @@ function fmtShort(dateStr) {
 // ── Total siswa ──────────────────────────────────────────────────────────────
 async function getTotalSiswa() {
     try {
-        const res = await siswa.list("limit=99999&page=1");
+        const countRes = await siswa.count();
+        if (countRes?.success) {
+            if (typeof countRes.data?.total === "number") return countRes.data.total;
+            if (typeof countRes.total === "number") return countRes.total;
+        }
+    } catch {
+        // Fallback jika role bukan ADMIN/SUPER_ADMIN atau endpoint count tidak dapat diakses
+    }
+    try {
+        const res = await siswa.list("limit=1&page=1");
         if (res?.success) {
             return res.pagination?.total ??
                 (Array.isArray(res.data) ? res.data.length : 0);
