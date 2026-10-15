@@ -3,28 +3,188 @@ import SidebarContainer from "./SidebarContainer.jsx";
 import LogoutButton from "./auth/LogoutButton.jsx";
 ---
 
-<aside class="w-72 bg-white border-r border-gray-200 h-screen sticky top-0 flex flex-col" transition:persist>
-  <div class="p-6 flex-1 flex flex-col">
+<!-- Mobile backdrop overlay -->
+<div
+  id="sidebar-backdrop"
+  class="fixed inset-0 bg-black/50 z-40 lg:hidden hidden opacity-0 transition-opacity duration-300"
+  style="pointer-events: none;"
+  aria-hidden="true"
+></div>
 
-    <!-- Logo -->
-    <div class="flex items-center gap-3 mb-10">
-      <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-200">
-        <span class="text-white text-sm font-bold">TB</span>
-      </div>
-      <span class="text-lg font-bold text-gray-800 tracking-tight">STARBHAK</span>
+<!-- Sidebar Drawer / Static Desktop Sidebar -->
+<aside
+  id="app-sidebar"
+  class="fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-white border-r border-gray-200 h-screen flex flex-col transition-transform duration-300 ease-in-out lg:static lg:w-72 lg:h-screen lg:z-30 lg:flex-shrink-0"
+  style="transform: translateX(-100%); will-change: transform;"
+  transition:persist
+>
+  <!-- Mobile Close Header -->
+  <div class="lg:hidden flex items-center justify-between px-5 pt-4 pb-2 border-b border-gray-100">
+    <div class="flex items-center gap-2.5">
+      <img src="/logotbvector-copy.webp" alt="Logo" class="w-8 h-8 object-contain" />
+      <span class="text-sm font-bold text-gray-800 tracking-tight">STARBHAK</span>
     </div>
+    <button
+      id="sidebar-close-btn"
+      type="button"
+      class="p-2 text-gray-500 hover:text-gray-800 hover:bg-gray-100 active:bg-gray-200 rounded-xl transition-colors cursor-pointer"
+      aria-label="Tutup menu"
+    >
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+  </div>
 
+  <div class="p-6 pt-3 lg:pt-6 flex-1 flex flex-col overflow-hidden">
     <div class="flex-1 overflow-y-auto pr-2 -mr-2 scrollbar-thin scrollbar-thumb-gray-200">
       <SidebarContainer client:load />
     </div>
 
     <!-- Logout -->
     <LogoutButton client:load />
-
-    <!-- credit yumsha lah bos! -->
-    <div class="pt-6 mt-6 border-t border-gray-100 text-center text-[10px] text-gray-400 uppercase tracking-widest">
-      &copy; 2026 Riza Pahlevi
-    </div>
   </div>
 </aside>
+
+<style>
+  @media (min-width: 1024px) {
+    #app-sidebar {
+      transform: translateX(0) !important;
+    }
+  }
+</style>
+
+<script is:inline>
+  (function () {
+    let isOpen = false;
+
+    function getElements() {
+      return {
+        sidebar: document.getElementById("app-sidebar"),
+        backdrop: document.getElementById("sidebar-backdrop"),
+        closeBtn: document.getElementById("sidebar-close-btn")
+      };
+    }
+
+    function openSidebar() {
+      const { sidebar, backdrop } = getElements();
+      if (!sidebar) return;
+      isOpen = true;
+      sidebar.style.transform = "translateX(0%)";
+
+      if (backdrop) {
+        backdrop.classList.remove("hidden");
+        backdrop.style.pointerEvents = "auto";
+        requestAnimationFrame(() => {
+          backdrop.classList.remove("opacity-0");
+          backdrop.classList.add("opacity-100");
+        });
+      }
+    }
+
+    function closeSidebar() {
+      const { sidebar, backdrop } = getElements();
+      if (!sidebar) return;
+      isOpen = false;
+      if (window.innerWidth < 1024) {
+        sidebar.style.transform = "translateX(-100%)";
+      } else {
+        sidebar.style.transform = "";
+      }
+
+      if (backdrop) {
+        backdrop.classList.remove("opacity-100");
+        backdrop.classList.add("opacity-0");
+        backdrop.style.pointerEvents = "none";
+        setTimeout(() => {
+          if (!isOpen && backdrop) {
+            backdrop.classList.add("hidden");
+          }
+        }, 300);
+      }
+    }
+
+    function toggleSidebar() {
+      if (isOpen) {
+        closeSidebar();
+      } else {
+        openSidebar();
+      }
+    }
+
+    // Expose globally for convenience
+    window.openAppSidebar = openSidebar;
+    window.closeAppSidebar = closeSidebar;
+    window.toggleAppSidebar = toggleSidebar;
+
+    // Document-level event delegation
+    document.addEventListener("click", function (e) {
+      if (e.target && e.target.id === "sidebar-backdrop") {
+        closeSidebar();
+        return;
+      }
+
+      if (e.target && (e.target.id === "sidebar-close-btn" || e.target.closest("#sidebar-close-btn"))) {
+        closeSidebar();
+        return;
+      }
+
+      if (e.target && e.target.closest("[data-sidebar-toggle]")) {
+        toggleSidebar();
+        return;
+      }
+
+      const sidebar = document.getElementById("app-sidebar");
+      if (sidebar && sidebar.contains(e.target) && e.target.closest("a") && window.innerWidth < 1024) {
+        closeSidebar();
+      }
+    });
+
+    window.addEventListener("toggle-sidebar", toggleSidebar);
+    window.addEventListener("open-sidebar", openSidebar);
+    window.addEventListener("close-sidebar", closeSidebar);
+
+    window.addEventListener("resize", function () {
+      const { sidebar, backdrop } = getElements();
+      if (window.innerWidth >= 1024) {
+        if (sidebar) sidebar.style.transform = "";
+        if (backdrop) {
+          backdrop.classList.add("hidden", "opacity-0");
+          backdrop.classList.remove("opacity-100");
+          backdrop.style.pointerEvents = "none";
+        }
+        isOpen = false;
+      } else if (!isOpen && sidebar) {
+        sidebar.style.transform = "translateX(-100%)";
+      }
+    });
+
+    function syncState() {
+      const { sidebar, backdrop } = getElements();
+      if (!sidebar) return;
+      if (window.innerWidth < 1024) {
+        if (isOpen) {
+          sidebar.style.transform = "translateX(0%)";
+          if (backdrop) {
+            backdrop.classList.remove("hidden", "opacity-0");
+            backdrop.classList.add("opacity-100");
+            backdrop.style.pointerEvents = "auto";
+          }
+        } else {
+          sidebar.style.transform = "translateX(-100%)";
+          if (backdrop) {
+            backdrop.classList.add("hidden", "opacity-0");
+            backdrop.classList.remove("opacity-100");
+            backdrop.style.pointerEvents = "none";
+          }
+        }
+      } else {
+        sidebar.style.transform = "";
+      }
+    }
+
+    document.addEventListener("astro:page-load", syncState);
+    document.addEventListener("astro:after-swap", syncState);
+  })();
+</script>
 

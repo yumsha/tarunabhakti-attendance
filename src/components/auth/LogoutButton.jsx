@@ -4,6 +4,7 @@ export default function LogoutButton() {
   const handleLogout = () => {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("user");
+    localStorage.removeItem("ysboToken");
     window.location.href = "/login";
   };
 

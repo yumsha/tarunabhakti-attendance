@@ -1,0 +1,16 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Sidebar from "../../components/Sidebar.astro";
+import AuthGate from "../../components/auth/AuthGate.jsx";
+import ProfilePage from "../../components/profile/profilePage.jsx";
+---
+
+<BaseLayout requireAuth={true} title="Profil - Starbhak Attendance">
+  <div class="flex h-screen bg-gray-50 overflow-hidden">
+    <Sidebar />
+
+    <AuthGate client:load>
+      <ProfilePage client:load />
+    </AuthGate>
+  </div>
+</BaseLayout>

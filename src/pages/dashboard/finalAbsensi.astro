@@ -1,0 +1,16 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Sidebar from "../../components/Sidebar.astro";
+import AuthGate from "../../components/auth/AuthGate.jsx";
+import FinalAbsensiAdmin from "../../components/attendance/FinalAbsensiAdmin";
+---
+
+<BaseLayout requireAuth={true} title="Finalisasi Absensi">
+  <div class="flex h-screen bg-gray-50 overflow-hidden">
+    <Sidebar />
+
+    <AuthGate client:load allowedRoles={["ADMIN", "SUPERADMIN", "SUPER_ADMIN", "SUPER ADMIN"]}>
+      <FinalAbsensiAdmin client:load />
+    </AuthGate>
+  </div>
+</BaseLayout>

@@ -1,0 +1,45 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="Halaman Tidak Ditemukan - 404">
+  <div class="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">
+    <div class="max-w-md w-full text-center space-y-8">
+      <!-- Illustration / Icon -->
+      <div class="relative">
+        <h1 class="text-9xl font-black text-gray-200 tracking-widest">404</h1>
+        <div class="absolute inset-0 flex items-center justify-center">
+          <div class="bg-blue-600 text-white px-4 py-1 text-sm rounded uppercase tracking-wider font-semibold shadow-lg rotate-12">
+            Error
+          </div>
+        </div>
+      </div>
+
+      <!-- Text Content -->
+      <div class="space-y-4 mt-10">
+        <h2 class="text-3xl font-bold text-gray-900">Oops! Kamu Tersesat.</h2>
+        <p class="text-gray-500">
+          Halaman yang kamu cari tidak tersedia, mungkin telah dipindahkan atau dihapus.
+        </p>
+      </div>
+
+      <!-- Action Button -->
+      <div>
+        <a 
+          href="/" 
+          class="inline-flex items-center justify-center px-8 py-3.5 border border-transparent text-base font-medium rounded-xl text-white bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-xl transition-all duration-200 group"
+        >
+          <svg 
+            class="mr-2 -ml-1 w-5 h-5 group-hover:-translate-x-1 transition-transform" 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          Kembali ke Beranda
+        </a>
+      </div>
+    </div>
+  </div>
+</BaseLayout>

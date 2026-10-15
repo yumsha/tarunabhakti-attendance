@@ -16,3 +16,85 @@
   opacity: 1;
   transform: translateY(0);
 }
+
+/* ==========================================================================
+   Modern Animations (Tailwind v4 compatible)
+   ========================================================================== */
+
+@keyframes modernDropdownEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes modernFadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes modernZoomIn95 {
+  0% {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes modernSlideInBottom {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Dedicated dropdown animation class */
+.animate-dropdown,
+.dropdown-portal {
+  animation: modernDropdownEnter 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: top right;
+  will-change: transform, opacity;
+}
+
+/* Compatibility classes for animate-in */
+.animate-in {
+  animation-duration: 0.2s;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-fill-mode: forwards;
+  will-change: transform, opacity;
+}
+
+.animate-in.fade-in.zoom-in-95,
+.animate-in.zoom-in-95.fade-in {
+  animation-name: modernDropdownEnter;
+  transform-origin: top right;
+}
+
+.animate-in.fade-in:not(.zoom-in-95):not([class*="slide-in"]) {
+  animation-name: modernFadeIn;
+}
+
+.animate-in.zoom-in-95:not(.fade-in) {
+  animation-name: modernZoomIn95;
+  transform-origin: center;
+}
+
+.animate-in[class*="slide-in-from-bottom"] {
+  animation-name: modernSlideInBottom;
+}
+

@@ -10,7 +10,7 @@ export default function LateStudents() {
         const today = new Date().toISOString().split('T')[0];
         const res = await absensiSiswa.laporanHarian(`tanggal=${today}`);
         if (res.success && Array.isArray(res.data)) {
-            const late = res.data.filter(item => item.status_tapin === "TELAMBAT").map(item => ({
+            const late = res.data.filter(item => item.status_tapin === "TERLAMBAT").map(item => ({
                 name: item.siswa.nama,
                 time: item.tap_in
             }));
