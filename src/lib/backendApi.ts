@@ -370,4 +370,10 @@ export const finalAbsensi = {
   finalisasiSemuaSiswa: (data: { tanggal: string }) => request('/api/v1/final-absensi/all', { method: 'POST', body: JSON.stringify(data) }),
 };
 
-export default { siswa, tahunAjaran, mapel, guru, orangTua, kelas, jadwal, rfid, absensiSiswa, detailAbsensi, statusRequest, users, role, auth, finalAbsensi };
+export const kenaikanKelas = {
+  preview: (params?: string) => request(`/api/v1/kenaikan-kelas/preview${params ? `?${params}` : ''}`, { noCache: true } as any),
+  submit: (data: any, params?: string) => request(`/api/v1/kenaikan-kelas/submit${params ? `?${params}` : ''}`, { method: 'POST', body: JSON.stringify(data) }),
+};
+
+export default { siswa, tahunAjaran, mapel, guru, orangTua, kelas, jadwal, rfid, absensiSiswa, detailAbsensi, statusRequest, users, role, auth, finalAbsensi, kenaikanKelas };
+

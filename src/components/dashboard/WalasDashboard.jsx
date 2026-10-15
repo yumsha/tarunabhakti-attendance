@@ -94,6 +94,21 @@ export default function WalasDashboard() {
                 year: "numeric",
               })}
             </p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <a
+                href="/dashboard/kenaikan-kelas"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white text-blue-700 hover:bg-blue-50 rounded-xl text-sm font-bold shadow transition cursor-pointer"
+              >
+                <span>Sortir Kenaikan Kelas</span>
+                <span>&rarr;</span>
+              </a>
+              <a
+                href="/dashboard/detailAbsensi"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-xl text-white text-sm font-semibold transition cursor-pointer"
+              >
+                <span>Detail Absensi</span>
+              </a>
+            </div>
           </div>
         </div>
 

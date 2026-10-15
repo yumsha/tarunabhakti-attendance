@@ -336,16 +336,17 @@ export default function SidebarContainer() {
         </a>
       )}
 
-      {/* {isWalas && (
+      {isWalas && (
         <a
-          href="/dashboard/walas-kelas"
+          href="/dashboard/kenaikan-kelas"
           data-astro-prefetch
-          className={getLinkClass("/dashboard/walas-kelas")}
+          className={getLinkClass("/dashboard/kenaikan-kelas")}
         >
-          <School width={20} height={20} />
-          Informasi Kelas
+          <GraduationCap width={20} height={20} />
+          Kenaikan Kelas
         </a>
-      )} */}
+      )}
+
 
 
       {/* daftar siswa  */}
